@@ -6,7 +6,6 @@
 //    The `memusage` class tracks memory usage by walking page tables,
 //    looks for errors, and prints the memory map to the console.
 
-
 class memusage {
   public:
     // tracks physical addresses in the range [0, maxpa)
@@ -83,6 +82,7 @@ void memusage::refresh() {
             for (uintptr_t pa = range->first();
                  pa != range->last();
                  pa += PAGESIZE) {
+                //log_printf("PA: %p\n", pa);
                 mark(pa, f_kernel);
             }
         }
@@ -105,6 +105,7 @@ void memusage::refresh() {
                 for (vmiter it(p, 0); it.low(); ) {
                     if (it.user()) {
                         mark(it.pa(), f_user | f_process(pid));
+                        //it += PAGESIZE;
                         it.next();
                     } else {
                         it.next_range();
