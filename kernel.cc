@@ -197,6 +197,18 @@ uintptr_t proc::syscall(regstate* regs) {
         return 0;
     }
 
+    case SYSCALL_MAP_CONSOLE: {
+        uintptr_t addr = regs->reg_rdi;
+        if (addr >= VA_LOWEND || addr & 0xFFF) {
+            return -1;
+        }
+
+        if (vmiter (this, addr).try_map(CONSOLE_ADDR, PTE_PWU) < 0) {
+            return -1;
+        }
+        return 0;
+    }
+
     case SYSCALL_PAUSE: {
         sti();
         for (uintptr_t delay = 0; delay < 1000000; ++delay) {
@@ -227,6 +239,7 @@ uintptr_t proc::syscall(regstate* regs) {
         }
         return bufcache::get().sync(drop);
     }
+        
 
     default:
         // no such system call
@@ -235,6 +248,7 @@ uintptr_t proc::syscall(regstate* regs) {
 
     }
 }
+
 
 
 // proc::syscall_fork(regs)

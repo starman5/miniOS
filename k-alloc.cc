@@ -40,6 +40,7 @@ void* kalloc(size_t sz) {
         if (range->type() == mem_available) {
             // use this page
             ptr = pa2kptr<void*>(next_free_pa);
+            //log_printf("Physical address: %p\n", next_free_pa);
             next_free_pa += PAGESIZE;
             break;
         } else {
@@ -49,6 +50,24 @@ void* kalloc(size_t sz) {
         }
     }
 
+    // range is an iterator because physical_ranges.find() returns an iterator
+    // physical_ranges.end() is also an iterator
+    // physical_ranges.limit() 
+    // Do it without using range line
+    /*while (range->type() != mem_available) {
+        next_free_pa = range->last();
+        ++range;
+    }
+    ptr = pa2kptr<void*>(next_free_pa);
+    next_free_pa += PAGESIZE;*/
+
+    /*
+
+
+    */
+    
+
+
     page_lock.unlock(irqs);
 
     if (ptr) {
@@ -57,6 +76,7 @@ void* kalloc(size_t sz) {
         // initialize to `int3`
         memset(ptr, 0xCC, PAGESIZE);
     }
+    //log_printf("Kalloc Address: %p\n", ptr);
     return ptr;
 }
 

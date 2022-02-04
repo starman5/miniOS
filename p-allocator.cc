@@ -43,6 +43,11 @@ void process_main() {
         }
     }
 
+    /*sys_map_console((void*) console);
+    for (int i = 0; i < CONSOLE_ROWS * CONSOLE_COLUMNS; ++i) {
+        console[i] = '*' | 0x5000;
+    }*/   
+
     // After running out of memory, do nothing forever
     while (true) {
         sys_yield();

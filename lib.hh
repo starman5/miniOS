@@ -280,6 +280,7 @@ struct bitset_view {
 #define SYSCALL_GETTID          22
 #define SYSCALL_CLONE           23
 #define SYSCALL_TEXIT           24
+#define SYSCALL_MAP_CONSOLE     128
 
 // Add new system calls here.
 // Your numbers should be >=128 to avoid conflicts.
