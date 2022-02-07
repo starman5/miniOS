@@ -8,7 +8,7 @@
 #include "obj/k-asm.h"
 
 .text
-xfir
+
 // kernel_entry
 //    The bootloader jumps here after loading the kernel.
 //    The code initializes `%rsp` to the top of the `cpus[0]`

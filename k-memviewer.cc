@@ -88,6 +88,12 @@ void memusage::refresh() {
         }
     }
 
+    mark(ka2pa(v_), f_kernel);
+
+    for(int i = 0; i < ncpu; i++){
+        mark(ka2pa(cpus[i].idle_task_), f_kernel);
+    }
+
     // mark pages accessible from process page tables
     assert(ptable_lock.is_locked());
     for (int pid = 1; pid < NPROC; ++pid) {

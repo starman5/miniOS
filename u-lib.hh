@@ -74,7 +74,7 @@ __always_inline void access_memory(const void* ptr) {
 
 // sys_map_console
 //      map console at specified address
-inline int sys_map_console(void* addr) {
+inline int sys_map_console(volatile void* addr) {
     return make_syscall(SYSCALL_MAP_CONSOLE, reinterpret_cast<uintptr_t>(addr));
 }
 

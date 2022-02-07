@@ -12,6 +12,13 @@ void init_kalloc() {
     // do nothing for now
 }
 
+struct block {
+    int order;
+    bool freed;
+};
+
+block* head = nullptr;
+
 
 // kalloc(sz)
 //    Allocate and return a pointer to at least `sz` contiguous bytes of
