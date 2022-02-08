@@ -28,6 +28,15 @@ struct order {
 list<order, &order::link_> free_blocks[MAX_ORDER - MIN_ORDER];
 
 
+struct page {
+    uintptr_t addr;
+    bool free;
+};
+
+// all_pages is an array storing information about every page
+list<page, &page::link_> all_pages[MEMSIZE_VIRTUAL / PAGESIZE];
+
+
 // init_kalloc
 //    Initialize stuff needed by `kalloc`. Called from `init_hardware`,
 //    after `physical_ranges` is initialized.
@@ -35,13 +44,13 @@ void init_kalloc() {
     // Ensure that kalloc has access to all physical memory with type MEM_AVAILABLE
     // in physical_ranges
 
-    auto range = physical_ranges.begin();
+    /*auto range = physical_ranges.begin();
 
     while (range != physical_ranges.end()) {
         if (range->type() == mem_available) {
-            int difference 
+            int difference;
         }
-    }
+    }*/
 
 }
 
@@ -141,8 +150,32 @@ void kfree(void* ptr) {
     if (ptr) {
         // tell sanitizers the freed page is inaccessible
         asan_mark_memory(ka2pa(ptr), PAGESIZE, true);
+        
+        // Check if buddy is free
+        // If buddy is free:
+        //      Push one new block to order + 1
+        // Otherwise:
+        //      Push one new block to order
+
+
+        // Check a buddy:
+        // Size of block is 2^order
+        // So address of buddy is address of current block + 2^order
+        // We need a data structure keeping track of this information
+
+        if ((uintptr_t) ptr % PAGESIZE != 0) {
+            // Do something
+        }
+
+        int page_number = (uintptr_t) ptr / PAGESIZE;
+        if (all_pages[page_number + 1].free) {
+            block new_block = block(0);
+            free_blocks[order].push_back(new_block);
+        }
+
+
     }
-    
+
 
 
     log_printf("kfree not implemented yet\n");
