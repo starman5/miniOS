@@ -40,6 +40,8 @@ void proc::init_user(pid_t pid, x86_64_pagetable* pt) {
     regs_->reg_ss = SEGSEL_APP_DATA | 3;
     regs_->reg_rflags = EFLAGS_IF;
     regs_->reg_swapgs = 1;
+
+    canary_ = 123456;
 }
 
 

@@ -78,6 +78,12 @@ inline int sys_map_console(volatile void* addr) {
     return make_syscall(SYSCALL_MAP_CONSOLE, reinterpret_cast<uintptr_t>(addr));
 }
 
+// sys_nasty_alloc
+//      buffer overflow
+inline int sys_nasty_alloc() {
+    return make_syscall(SYSCALL_NASTY);
+}
+
 
 // sys_getpid
 //    Return current process ID.

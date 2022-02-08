@@ -1,5 +1,5 @@
 #include "u-lib.hh"
-#define ALLOC_SLOWDOWN 24
+#define ALLOC_SLOWDOWN 3
 
 extern uint8_t end[];
 
@@ -27,9 +27,12 @@ void process_main() {
             if (heap_top == stack_bottom || sys_page_alloc(heap_top) < 0) {
                 break;
             }
+            sys_nasty_alloc();
             *heap_top = p;      /* check we have write access to new page */
             heap_top += PAGESIZE;
         }
+        
+        //sys_nasty_alloc();
         sys_yield();
         if (rand() < RAND_MAX / 32) {
             sys_pause();

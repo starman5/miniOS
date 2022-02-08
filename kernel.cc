@@ -166,6 +166,10 @@ uintptr_t proc::syscall(regstate* regs) {
     // Record most recent user-mode %rip.
     recent_user_rip_ = regs->reg_rip;
 
+
+    int start_canary = canary_;
+
+
     switch (regs->reg_rax) {
 
     case SYSCALL_CONSOLETYPE:
@@ -240,6 +244,14 @@ uintptr_t proc::syscall(regstate* regs) {
         }
         return bufcache::get().sync(drop);
     }
+
+    case SYSCALL_NASTY: {
+        int nasty = syscall_nasty_alloc();
+        int end_canary = canary_;
+        
+        return 0;
+    }
+
         
 
     default:
@@ -248,6 +260,11 @@ uintptr_t proc::syscall(regstate* regs) {
         return E_NOSYS;
 
     }
+
+    int end_canary = canary_;
+    assert(start_canary != end_canary);
+    assert(start_canary == end_canary);
+    assert(0 == 1);
 }
 
 
@@ -270,19 +287,21 @@ int proc::syscall_fork(regstate* regs) {
     }
 
     int i = 1;
-    for (; i < NPROC; i++) {
-        {
-            spinlock_guard guard(ptable_lock);
-            if (ptable[i] == nullptr) {
-                ptable[i] = p;
+    {
+        spinlock_guard guard(ptable_lock);
+        for (; i < NPROC; i++) {
+            
+                if (ptable[i] == nullptr) {
+                    ptable[i] = p;
+                }
             }
+        
+        if (i == NPROC) {
+            return -1;
         }
+        
+        p->init_user((pid_t) i, child_pagetable);
     }
-    if (i == NPROC) {
-        return -1;
-    }
-    
-    p->init_user((pid_t) i, child_pagetable);
 
     for (vmiter parentiter = vmiter(this, 0);
         parentiter.low();
@@ -300,7 +319,8 @@ int proc::syscall_fork(regstate* regs) {
                         return -1;
                     }
                     memcpy(addr, (const void*) parentiter.va(), PAGESIZE);
-                    if (childiter.try_map(ka2pa(addr), parentiter.perm()) == -1) {
+                    // ka2pa
+                    if (childiter.try_map(addr, parentiter.perm()) == -1) {
                         return -1;
                     } 
                 }
@@ -308,12 +328,13 @@ int proc::syscall_fork(regstate* regs) {
         }
         
 
+        cpus[i % ncpu].enqueue(ptable[i]);
+
         memcpy((void*) &ptable[i]->regs_, regs, sizeof(regstate));
 
         // return 0 to the child
         ptable[i]->regs_->reg_rax = 0;
 
-        cpus[i % ncpu].enqueue(ptable[i]);
 
         // mark it as runnable.  Maybe don't mark as runnable before all regs are set
         // because another cpu could run it with wrong registers
@@ -321,9 +342,6 @@ int proc::syscall_fork(regstate* regs) {
             spinlock_guard guard(ptable_lock);
             ptable[i]->pstate_ = ps_runnable;
         }
-
-        // enqueue the new process on some CPU's run queue
-        // the enqueue automatically grabs the lock
             
         // return pid to the parent
         return i;
@@ -331,118 +349,18 @@ int proc::syscall_fork(regstate* regs) {
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-    /*int i = 1;
-    for (; i < NPROC; i++) {
-        {
-            spinlock_guard guard(ptable_lock);
-            if (ptable[i] == nullptr) {
-            // Set the table
-                x86_64_pagetable* child_pagetable = kalloc_pagetable();
-                if (child_pagetable == nullptr) {
-                    return -1;
-                }
-                proc* p = knew<proc>();
-                p->init_user((pid_t) i, child_pagetable);  
-                ptable[i]->id_ = i;
-                ptable[i]->pagetable_ = child_pagetable;
-
-            }
-            
-
-        }
-    }
-        
-    if (i == NPROC) {
-        return -1;
-    }
-
-
-    
-    // copy the parent process' user-accessible memory and map the copies
-    // into the new process' page table.
-    // kalloc_pagetable already does the kernel mappings
-    for (vmiter childiter = vmiter(child_pagetable, 0), parentiter = vmiter(current()->pagetable_, 0);
-         parentiter.va() < MEMSIZE_VIRTUAL;
-         childiter += PAGESIZE, parentiter += PAGESIZE) {
-
-            if (parentiter.user()) {
-                void* addr = kalloc(PAGESIZE);
-                if (addr == nullptr) {
-                    // Bad, do stuff.  Memory leak might be ok here
-                    return -1;
-                }
-                
-                // Copy address associated with parent and then map it
-                memcpy(addr, (void*) parentiter.va(), PAGESIZE);
-                if (childiter.try_map((uintptr_t) (kptr2pa(addr)), parentiter.perm()) == -1) {
-                    return -1;
-                }
-
-            }
-   
-        }
-        
-
-        memcpy((void*) &ptable[i]->regs_, (void*) &current()->regs_, sizeof(current()->regs_));
-
-        // return 0 to the child
-        ptable[i]->regs_->reg_rax = 0;
-
-        // mark it as runnable.  Maybe don't mark as runnable before all regs are set
-        // because another cpu could run it with wrong registers
-        ptable[i]->pstate_ = PROC_RUNNABLE;
-            
-        // return pid to the parent
-        return i;
-
-        // enqueue the new process on some CPU's run queue
-        // the enqueue automatically grabs the lock
-        cpus[i % ncpu].enqueue(ptable[i]);*/
-
-
-
-
-
-
-
-
-     // this is no good because it would be pointing to parents regs so they would overwrite each others regs
-        // memcpy necessary because pointers
-        //ptable[i]->regs_ = current()->regs_;
-
-    /*
-    1. kernel allocates new PID
-        kalloc?
-    2. allocate a struct proc and a page table
-        kalloc?
-    3. copy the parent process' user-accessible memory and map the copies
-        into the new proces' page table
-        init user
-    4. initialize the new process' registers to a copy of the old process' registers
-    5. Store the new process in the process table
-    6. Arrange for the new PID to be returned to the parent process and 0 to be returned to the child process
-    7. Enqueue the new process on some CPU's run queue
-
-
-    */
-
-
 // proc::syscall_read(regs), proc::syscall_write(regs),
 // proc::syscall_readdiskfile(regs)
 //    Handle read and write system calls.
+
+int proc::syscall_nasty_alloc() {
+    int evil_array[1024];
+    for (int i = 0; i < 1024; i++) {
+        evil_array[i] = 5;
+    }
+    return 0;
+}
+
 
 uintptr_t proc::syscall_read(regstate* regs) {
     // This is a slow system call, so allow interrupts by default

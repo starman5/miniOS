@@ -35,6 +35,8 @@ struct __attribute__((aligned(4096))) proc {
 
     x86_64_pagetable* pagetable_ = nullptr;    // Process's page table
     uintptr_t recent_user_rip_ = 0;            // Most recent user-mode %rip
+
+    int canary_ = 0;
 #if HAVE_SANITIZERS
     int sanitizer_status_ = 0;
 #endif
@@ -68,6 +70,7 @@ struct __attribute__((aligned(4096))) proc {
     uintptr_t syscall_read(regstate* reg);
     uintptr_t syscall_write(regstate* reg);
     uintptr_t syscall_readdiskfile(regstate* reg);
+    int syscall_nasty_alloc();
 
     inline irqstate lock_pagetable_read();
     inline void unlock_pagetable_read(irqstate& irqs);

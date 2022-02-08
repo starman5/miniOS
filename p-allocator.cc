@@ -9,6 +9,12 @@ uint8_t* stack_bottom;
 void process_main() {
     sys_consoletype(CONSOLE_MEMVIEWER);
 
+
+    sys_map_console(console);
+    for (int i = 0; i < CONSOLE_ROWS * CONSOLE_COLUMNS; ++i) {
+        console[i] = '*' | 0x5000;
+    }
+
     // Fork three new copies. (But ignore failures.)
     (void) sys_fork();
     (void) sys_fork();
@@ -28,11 +34,6 @@ void process_main() {
     stack_bottom = reinterpret_cast<uint8_t*>(
         round_down(rdrsp() - 1, PAGESIZE)
     );
-
-    sys_map_console(console);
-    for (int i = 0; i < CONSOLE_ROWS * CONSOLE_COLUMNS; ++i) {
-        console[i] = '*' | 0x5000;
-    }
 
     while (true) {
         if (rand(0, ALLOC_SLOWDOWN - 1) < p) {
