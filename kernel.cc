@@ -292,7 +292,7 @@ int proc::syscall_fork(regstate* regs) {
         for (; i < NPROC; i++) {
             
                 if (ptable[i] == nullptr) {
-                    ptable[i] = p;
+                    break;
                 }
             }
         
@@ -301,50 +301,55 @@ int proc::syscall_fork(regstate* regs) {
         }
         
         p->init_user((pid_t) i, child_pagetable);
-    }
+    
 
-    for (vmiter parentiter = vmiter(this, 0);
-        parentiter.low();
-        parentiter.next()) {
-            if (parentiter.user()) {
-                vmiter childiter = vmiter(p, parentiter.va());
-                if (parentiter.va() == CONSOLE_ADDR) {
-                    if (childiter.try_map(parentiter.pa(), parentiter.perm()) == -1) {
+        for (vmiter parentiter = vmiter(this, 0);
+            parentiter.low();
+            parentiter.next()) {
+            
+            vmiter childiter = vmiter(p, parentiter.va());
+
+            if (parentiter.pa() == CONSOLE_ADDR) {
+                if (childiter.try_map(parentiter.pa(), parentiter.perm()) == -1) {
                         return -1;
-                    }
-                }
-                else {
-                    void* addr = kalloc(PAGESIZE);
-                    if (addr == nullptr) {
-                        return -1;
-                    }
-                    memcpy(addr, (const void*) parentiter.va(), PAGESIZE);
-                    // ka2pa
-                    if (childiter.try_map(addr, parentiter.perm()) == -1) {
-                        return -1;
-                    } 
                 }
             }
-        }
-        
-
-        cpus[i % ncpu].enqueue(ptable[i]);
-
-        memcpy((void*) &ptable[i]->regs_, regs, sizeof(regstate));
-
-        // return 0 to the child
-        ptable[i]->regs_->reg_rax = 0;
-
-
-        // mark it as runnable.  Maybe don't mark as runnable before all regs are set
-        // because another cpu could run it with wrong registers
-        {
-            spinlock_guard guard(ptable_lock);
-            ptable[i]->pstate_ = ps_runnable;
-        }
             
-        // return pid to the parent
-        return i;
+            else if (parentiter.user()) {
+                void* addr = kalloc(PAGESIZE);
+                if (addr == nullptr) {
+                    return -1;
+                }
+                if (childiter.try_map(addr, parentiter.perm()) == -1) {
+                    return -1;
+                }
+                memcpy(addr, (const void*) parentiter.va(), PAGESIZE);
+                // ka2pa 
+            }
+        }
+    
+        
+    
+        memcpy(p->regs_, regs, sizeof(regstate));
+
+        ptable[i] = p;
+
+        p->regs_->reg_rax = 0;
+
+        ptable[i]->pstate_ = ps_runnable;
+        cpus[i % ncpu].enqueue(p);
+    
+
+    // return 0 to the child
+    
+
+
+    // mark it as runnable.  Maybe don't mark as runnable before all regs are set
+    // because another cpu could run it with wrong registers
+    }
+            
+    // return pid to the parent
+    return i;
 
 }
 

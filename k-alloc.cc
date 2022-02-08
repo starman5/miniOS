@@ -34,7 +34,7 @@ struct page {
 };
 
 // all_pages is an array storing information about every page
-list<page, &page::link_> all_pages[MEMSIZE_VIRTUAL / PAGESIZE];
+//list<page, &page::link_> all_pages[MEMSIZE_VIRTUAL / PAGESIZE];
 
 
 // init_kalloc
@@ -72,7 +72,7 @@ void init_kalloc() {
 
 
 void* kalloc(size_t sz) {
-    if (sz == 0 || sz > (1 << MAX_ORDER)) {
+    /*if (sz == 0 || sz > (1 << MAX_ORDER)) {
         return nullptr;
     }
 
@@ -100,10 +100,11 @@ void* kalloc(size_t sz) {
     }
     else {
         return free_blocks[order - MIN_ORDER].back();
+    }*/
+
+    if (sz == 0 || sz > PAGESIZE) {
+        return nullptr;
     }
-
-
-
     auto irqs = page_lock.lock();
     void* ptr = nullptr;
 
@@ -150,6 +151,7 @@ void kfree(void* ptr) {
     if (ptr) {
         // tell sanitizers the freed page is inaccessible
         asan_mark_memory(ka2pa(ptr), PAGESIZE, true);
+    }
         
         // Check if buddy is free
         // If buddy is free:
@@ -163,7 +165,7 @@ void kfree(void* ptr) {
         // So address of buddy is address of current block + 2^order
         // We need a data structure keeping track of this information
 
-        if ((uintptr_t) ptr % PAGESIZE != 0) {
+        /*if ((uintptr_t) ptr % PAGESIZE != 0) {
             // Do something
         }
 
@@ -174,7 +176,7 @@ void kfree(void* ptr) {
         }
 
 
-    }
+    }*/
 
 
 
