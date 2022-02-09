@@ -9,38 +9,33 @@ static uintptr_t next_free_pa;
 
 // Block is the basic building block - one block of memory
 struct block {
+    int order;
     int state_;
     list_links link_;
     block(int state_)
         : state_(state_) {
     }
 };
+// free_blocks is an array of block lists.  Each element is a block list with the same order
+list<block, &block::link_> free_blocks[MAX_ORDER - MIN_ORDER + 1];
 
-// An order is a list of blocks with the same order
-struct order {
-    int order_;
-    list<block, &block::link_> block_list_;
-    list_links link_;   
-};
-
-// free_blocks is a list of orders.  There are MAX_ORDER - MIN_ORDER
-// orders in free_blocks
-list<order, &order::link_> free_blocks[MAX_ORDER - MIN_ORDER];
-
-
-struct page {
+// page_mega struct contains information about every page
+struct page_meta {
+    uintptr_t root_addr;
+    int root_order;
     uintptr_t addr;
     bool free;
 };
 
 // all_pages is an array storing information about every page
-//list<page, &page::link_> all_pages[MEMSIZE_VIRTUAL / PAGESIZE];
+page_meta all_pages[MEMSIZE_VIRTUAL / PAGESIZE];
 
 
 // init_kalloc
 //    Initialize stuff needed by `kalloc`. Called from `init_hardware`,
 //    after `physical_ranges` is initialized.
 void init_kalloc() {
+    // set up all_pages and free_blocks
     // Ensure that kalloc has access to all physical memory with type MEM_AVAILABLE
     // in physical_ranges
 
@@ -53,7 +48,6 @@ void init_kalloc() {
     }*/
 
 }
-
 
 
 // kalloc(sz)
@@ -71,8 +65,27 @@ void init_kalloc() {
 //    of pages.
 
 
+block* split(int original_order, block* starting_block) {
+    if (original_order != starting_block->order) {
+        // pop starting_block (the back) from the free_blocks list
+        free_blocks[original_order].pop_back();
+        block* first_new;
+        first_new->order = original_order;
+        block* second_new;
+        second_new->order = original_order;
+        free_blocks[original_order - 1].push_back(first_new);
+        free_blocks[original_order - 1].push_back(second_new);
+        return split(original_order, free_blocks[starting_block->order].back());
+    }
+
+    else {
+        return free_blocks[original_order].back();
+    }
+
+}
+
 void* kalloc(size_t sz) {
-    /*if (sz == 0 || sz > (1 << MAX_ORDER)) {
+    if (sz == 0 || sz > (1 << MAX_ORDER)) {
         return nullptr;
     }
 
@@ -86,21 +99,17 @@ void* kalloc(size_t sz) {
     if (free_blocks[order - MIN_ORDER].empty()) {
         for (int i = order - MIN_ORDER; i <= MAX_ORDER; i++) {
             if (!free_blocks[i].empty()) {
-                free_blocks[i].erase(free_blocks[i].back());
-                
-                block first_new(0);
-                block second_new(0);
-                free_blocks[i-1].push_back(&first_new);
-                free_blocks[i-1].push_back(&second_new);
-                kalloc(sz);
+                block* newly_freed = free_blocks[i].pop_back();
+                return split(order, newly_freed);
             }
         }
 
-        // There is no more free memory.  Do bad stuff
+        // If it gets here, there is no more free memory.  Return nullptr i think
+        return nullptr;
     }
     else {
-        return free_blocks[order - MIN_ORDER].back();
-    }*/
+        return free_blocks[order - MIN_ORDER].pop_back();
+    }
 
     if (sz == 0 || sz > PAGESIZE) {
         return nullptr;

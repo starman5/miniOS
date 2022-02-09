@@ -247,19 +247,10 @@ uintptr_t proc::syscall(regstate* regs) {
 
     case SYSCALL_NASTY: {
         int start_canary = canary_;
-        //log_printf("start: %i\n", *(canary_ptr - 1));
+        // log_printf("start: %i\n", *(canary_ptr - 1));
         int nasty = syscall_nasty_alloc();
         assert(canary_ == start_canary);
-        //log_printf("end: %i\n", *(canary_ptr-1));
-        //log_printf("%p\n", pagetable_);
-        //for (uintptr_t addr = 21474836485; addr < 21474836485 + PAGESIZE; addr += 4) {
-        //    log_printf("%i\n", *(int*) addr);
-        //}
-        //log_printf("here\n");
-        //for (vmiter it(pagetable_, 0); it.va() < 0x1000; it++) {
-        //    log_printf("value: %i\n", *(int*)(it.va()));
-        //}
-        //assert(start_canary == end_canary);
+        // log_printf("end: %i\n", *(canary_ptr-1));
         return 0;
     }
 
