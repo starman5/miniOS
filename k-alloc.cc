@@ -35,17 +35,33 @@ page_meta all_pages[MEMSIZE_VIRTUAL / PAGESIZE];
 //    Initialize stuff needed by `kalloc`. Called from `init_hardware`,
 //    after `physical_ranges` is initialized.
 void init_kalloc() {
-    // set up all_pages and free_blocks
-    // Ensure that kalloc has access to all physical memory with type MEM_AVAILABLE
-    // in physical_ranges
+    // Fill all_pages and free_blocks
 
-    /*auto range = physical_ranges.begin();
-
+    auto range = physical_ranges.begin();
     while (range != physical_ranges.end()) {
         if (range->type() == mem_available) {
-            int difference;
+            // Add it to free_blocks
+            // This might pose a problem because I'm rounding order up, which means there could be
+            // more memory in free_blocks than in reality
+            // Should I be rounding up or rounding down?
+            int range_order = msb(range->last() - range->first());
+            block* new_block;
+            new_block->order = range_order;
+            free_blocks[range_order].push_back(new_block);
+            
+            uintptr_t page_addr = range->first();
+            int page_number = page_addr / PAGESIZE;
+
+            // Add it to all_pages
+            // Is this supposed to be an all_blocks array?
+            all_pages[page_number].root_addr = page_addr;
+            all_pages[page_number].root_order = range_order;
+            all_pages[page_number].addr = page_addr;
+            all_pages[page_number].free = true;
+
+            ++range;
         }
-    }*/
+    }
 
 }
 
@@ -111,6 +127,7 @@ void* kalloc(size_t sz) {
         return free_blocks[order - MIN_ORDER].pop_back();
     }
 
+
     if (sz == 0 || sz > PAGESIZE) {
         return nullptr;
     }
@@ -169,10 +186,24 @@ void kfree(void* ptr) {
         //      Push one new block to order
 
 
-        // Check a buddy:
-        // Size of block is 2^order
-        // So address of buddy is address of current block + 2^order
-        // We need a data structure keeping track of this information
+        // Mark the associated pages as free in all_pages and add to buddy
+
+        // Check if buddy is free
+        //    If root_addr is the current page, then the buddy is the left
+        //    If root_addr is not the current page, then the buddy is to the right
+        // If the buddy is free, then merge 
+
+        // Find buddy helper function
+
+        // Confirm helper function
+        
+
+        // Merge helper function:
+        // If buddy is free
+        //    combine block and buddy
+        //    call merge with new combination   
+
+
 
         /*if ((uintptr_t) ptr % PAGESIZE != 0) {
             // Do something
