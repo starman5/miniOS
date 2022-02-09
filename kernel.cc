@@ -246,9 +246,20 @@ uintptr_t proc::syscall(regstate* regs) {
     }
 
     case SYSCALL_NASTY: {
+        int start_canary = canary_;
+        //log_printf("start: %i\n", *(canary_ptr - 1));
         int nasty = syscall_nasty_alloc();
-        int end_canary = canary_;
-        
+        assert(canary_ == start_canary);
+        //log_printf("end: %i\n", *(canary_ptr-1));
+        //log_printf("%p\n", pagetable_);
+        //for (uintptr_t addr = 21474836485; addr < 21474836485 + PAGESIZE; addr += 4) {
+        //    log_printf("%i\n", *(int*) addr);
+        //}
+        //log_printf("here\n");
+        //for (vmiter it(pagetable_, 0); it.va() < 0x1000; it++) {
+        //    log_printf("value: %i\n", *(int*)(it.va()));
+        //}
+        //assert(start_canary == end_canary);
         return 0;
     }
 
@@ -328,8 +339,6 @@ int proc::syscall_fork(regstate* regs) {
             }
         }
     
-        
-    
         memcpy(p->regs_, regs, sizeof(regstate));
 
         ptable[i] = p;
@@ -359,11 +368,18 @@ int proc::syscall_fork(regstate* regs) {
 //    Handle read and write system calls.
 
 int proc::syscall_nasty_alloc() {
-    int evil_array[1024];
-    for (int i = 0; i < 1024; i++) {
+    int evil_array[999];
+    for (int i = 0; i < 999; i++) {
         evil_array[i] = 5;
     }
-    return 0;
+
+    if (evil_array[rand()] == 5) {
+        return evil_array[rand()];
+    }
+
+    // If I modify the canary, the buffer overflow works!  But if I don't, it doesn't work.
+    //canary_ = 100;
+    //return 0;
 }
 
 

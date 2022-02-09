@@ -1,5 +1,5 @@
 #include "u-lib.hh"
-#define ALLOC_SLOWDOWN 3
+#define ALLOC_SLOWDOWN 5 
 
 extern uint8_t end[];
 
@@ -8,6 +8,7 @@ uint8_t* stack_bottom;
 
 void process_main() {
     sys_consoletype(CONSOLE_MEMVIEWER);
+
 
     pid_t p = sys_getpid();
     srand(p);
@@ -32,7 +33,9 @@ void process_main() {
             heap_top += PAGESIZE;
         }
         
-        //sys_nasty_alloc();
+        if (rand(0, ALLOC_SLOWDOWN - 1) == 4) {
+            sys_nasty_alloc();
+        }
         sys_yield();
         if (rand() < RAND_MAX / 32) {
             sys_pause();

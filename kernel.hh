@@ -36,7 +36,8 @@ struct __attribute__((aligned(4096))) proc {
     x86_64_pagetable* pagetable_ = nullptr;    // Process's page table
     uintptr_t recent_user_rip_ = 0;            // Most recent user-mode %rip
 
-    int canary_ = 0;
+    int canary_;
+    
 #if HAVE_SANITIZERS
     int sanitizer_status_ = 0;
 #endif
