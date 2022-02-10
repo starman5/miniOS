@@ -10,7 +10,7 @@ static uintptr_t next_free_pa;
 // Block is the basic building block - one block of memory
 struct block {
     int order;
-    int state_;
+    //int state_;
     list_links link_;
     block(int state_)
         : state_(state_) {
@@ -21,9 +21,9 @@ list<block, &block::link_> free_blocks[MAX_ORDER - MIN_ORDER + 1];
 
 // page_mega struct contains information about every page
 struct page_meta {
-    uintptr_t root_addr;
-    int root_order;
-    uintptr_t addr;
+    void* addr;
+    void* root_addr;
+    int order;
     bool free;
 };
 
@@ -44,16 +44,17 @@ void init_kalloc() {
             // This might pose a problem because I'm rounding order up, which means there could be
             // more memory in free_blocks than in reality
             // Should I be rounding up or rounding down?
+            // I don't think this is a problem because we are allocating right amount of memory, just not actually using it all
             int range_order = msb(range->last() - range->first());
             block* new_block;
             new_block->order = range_order;
-            free_blocks[range_order].push_back(new_block);
+            free_blocks[range_order - 1].push_back(new_block);
             
             uintptr_t page_addr = range->first();
+            assert(page_addr % PAGESIZE == 0);
             int page_number = page_addr / PAGESIZE;
 
             // Add it to all_pages
-            // Is this supposed to be an all_blocks array?
             all_pages[page_number].root_addr = page_addr;
             all_pages[page_number].root_order = range_order;
             all_pages[page_number].addr = page_addr;
@@ -170,14 +171,91 @@ void* kalloc(size_t sz) {
 }
 
 
+uintptr_t find_buddy(void* ptr) {
+
+
+}
+
+void merge(void* ptr) {
+    uintptr_t buddy_addr = find_buddy(ptr);
+    int buddy_index = (buddy_addr / PAGESIZE) - 1;
+    int page_index = ((uintptr_t) ptr / PAGESIZE) - 1;
+    
+    // If buddy is free
+    if (all_pages[buddy_index].free) {
+        // If buddy is to the left, get rid of the current page and merge to the buddy
+        if (buddy_addr < (uintptr_t) ptr) {
+            free_blocks[all_pages[page_index].order].erase(ptr);
+
+            all_pages[page_index].addr = nullptr;
+            all_pages[buddy_index].order += 1;
+
+            merge(all_pages[buddy_index].addr);
+        }
+        // If buddy is to the right, get rid of the buddy and merge to the current page
+        else {
+            free_blocks[all_pages[buddy_index].order].erase((void*) buddy_addr);
+
+            all_pages[buddy_index].addr = nullptr;
+            all_pages[page_index].order += 1;
+
+            merge(all_pages[page_index].addr);
+        }
+    }
+
+    // If buddy is not fre
+    else {
+        // add to free_blocks
+        block* new_block;
+        int order = all_pages[page_index].order;
+        new_block->order = order;
+        free_blocks[order].push_back(new_block);
+    }
+}
+
 // kfree(ptr)
 //    Free a pointer previously returned by `kalloc`. Does nothing if
 //    `ptr == nullptr`.
 void kfree(void* ptr) {
+    // check to make sure fields are not nullptr
     if (ptr) {
         // tell sanitizers the freed page is inaccessible
         asan_mark_memory(ka2pa(ptr), PAGESIZE, true);
     }
+
+    // uintptr_t root_addr;
+    // int root_order;
+    // uintptr_t addr;
+    // bool free;
+
+    // Can only access page number with ptr information.  Can't access block in free_blocks
+    assert(ptr % PAGESIZE == 0);
+    uintptr_t page_index = ((uintptr_t) ptr / PAGESIZE) - 1;
+    
+    
+    uintptr_t buddy_ptr;
+    uintptr_t offset = 2 ** all_pages[page_index].root_order;
+    if ()
+    // should be a question of < or >
+    /*if (all_pages[page_index].root_addr == all_pages[page_index].addr) {
+        buddy_ptr = (uintptr_t) ptr + offset;
+        uintptr_t counter_ptr = all_pages[page_index].addr;
+        while (counter_ptr != buddy_ptr) {
+            uintptr_t local_page_index = ((uintptr_t) counter_ptr / PAGESIZE) - 1;
+            if (!all_pages[local_page_index].free) {
+                // fail to merge;
+            }
+            counter_ptr += PAGESIZE;
+        }
+        // merge
+    }
+
+    else {
+        buddy_ptr = (uintptr_t) ptr - offset;
+    }*/
+
+
+
         
         // Check if buddy is free
         // If buddy is free:
