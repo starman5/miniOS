@@ -12,23 +12,23 @@ struct block {
     int order;
     //int state_;
     list_links link_;
-    block(int state_)
-        : state_(state_) {
-    }
+   //block(int state_)
+   //    : state_(state_) {
+    //}
 };
 // free_blocks is an array of block lists.  Each element is a block list with the same order
 list<block, &block::link_> free_blocks[MAX_ORDER - MIN_ORDER + 1];
 
 // page_mega struct contains information about every page
 struct page_meta {
-    void* addr;
-    void* root_addr;
-    int order;
-    bool free;
+    void* addr = nullptr;
+    void* root_addr = nullptr;
+    int order = 0;
+    bool free = true;
 };
 
 // all_pages is an array storing information about every page
-page_meta all_pages[MEMSIZE_VIRTUAL / PAGESIZE];
+page_meta all_pages[MEMSIZE_PHYSICAL / PAGESIZE];
 
 
 // init_kalloc
@@ -36,7 +36,10 @@ page_meta all_pages[MEMSIZE_VIRTUAL / PAGESIZE];
 //    after `physical_ranges` is initialized.
 void init_kalloc() {
     // Fill all_pages and free_blocks
-
+    // ptr = pa2kptr<void*>(next_free_pa);
+    // Should I be converting physical memory to virtual memory?
+    // I don't think so because we are allocating physical memory and then converting it to virtual memory
+    
     auto range = physical_ranges.begin();
     while (range != physical_ranges.end()) {
         if (range->type() == mem_available) {
@@ -52,16 +55,17 @@ void init_kalloc() {
             
             uintptr_t page_addr = range->first();
             assert(page_addr % PAGESIZE == 0);
-            int page_number = page_addr / PAGESIZE;
+            int page_index = (page_addr / PAGESIZE) - 1;
 
-            // Add it to all_pages
-            all_pages[page_number].root_addr = page_addr;
-            all_pages[page_number].root_order = range_order;
-            all_pages[page_number].addr = page_addr;
-            all_pages[page_number].free = true;
+            // Initialize all_pages
+            // For every range of mem_available memory, we start with one page in all_pages
+            // containing meaningful data.  The rest are initialized to nullptr etc
+            all_pages[page_index].addr = (void*) page_addr;
+            all_pages[page_index].root_addr = (void*) page_addr;
+            all_pages[page_index].order = range_order;
 
-            ++range;
         }
+        ++range;
     }
 
 }
@@ -92,7 +96,8 @@ block* split(int original_order, block* starting_block) {
         second_new->order = original_order;
         free_blocks[original_order - 1].push_back(first_new);
         free_blocks[original_order - 1].push_back(second_new);
-        return split(original_order, free_blocks[starting_block->order].back());
+        //return split(original_order, free_blocks[starting_block->order].back());
+        return split(original_order, first_new);
     }
 
     else {
@@ -110,64 +115,40 @@ void* kalloc(size_t sz) {
     if (order < MIN_ORDER) {
         order = MIN_ORDER;
     }
+    
+    auto irqs = page_lock.lock();
 
     // If there are no free blocks with the exact order, find next largest order
     // and split a block of that order into two new blocks with order - 1
+    block* return_block;
     if (free_blocks[order - MIN_ORDER].empty()) {
-        for (int i = order - MIN_ORDER; i <= MAX_ORDER; i++) {
+        for (int i = order - MIN_ORDER + 1; i <= MAX_ORDER; i++) {
             if (!free_blocks[i].empty()) {
-                block* newly_freed = free_blocks[i].pop_back();
-                return split(order, newly_freed);
+                //block* newly_freed = free_blocks[i].pop_back();
+                block* newly_freed = free_blocks[i].back();
+                return_block = split(order, newly_freed);
             }
         }
-
         // If it gets here, there is no more free memory.  Return nullptr i think
+        page_lock.unlock(irqs);
         return nullptr;
     }
     else {
-        return free_blocks[order - MIN_ORDER].pop_back();
+        void* return_block = free_blocks[order - MIN_ORDER].pop_back();
+        page_lock.unlock(irqs);
+        return return_block;
     }
-
-
-    if (sz == 0 || sz > PAGESIZE) {
-        return nullptr;
-    }
-    auto irqs = page_lock.lock();
-    void* ptr = nullptr;
-
-    // skip over reserved and kernel memory
-    auto range = physical_ranges.find(next_free_pa);
-    while (range != physical_ranges.end()) {
-        if (range->type() == mem_available) {
-            // use this page
-            ptr = pa2kptr<void*>(next_free_pa);
-            //log_printf("Physical address: %p\n", next_free_pa);
-            next_free_pa += PAGESIZE;
-            break;
-        } else {
-            // move to next range
-            next_free_pa = range->last();
-            ++range;
-        }
-    }
-
-    // range is an iterator because physical_ranges.find() returns an iterator
-    // physical_ranges.end() is also an iterator
-    // physical_ranges.limit() 
-    // Do it without using range line
-    
-
 
     page_lock.unlock(irqs);
 
-    if (ptr) {
+    if (return_block) {
         // tell sanitizers the allocated page is accessible
-        asan_mark_memory(ka2pa(ptr), PAGESIZE, false);
+        asan_mark_memory(ka2pa((void*) return_block), PAGESIZE, false);
         // initialize to `int3`
-        memset(ptr, 0xCC, PAGESIZE);
+        memset((void*) return_block, 0xCC, PAGESIZE);
     }
     //log_printf("Kalloc Address: %p\n", ptr);
-    return ptr;
+    return return_block;
 }
 
 
@@ -185,7 +166,7 @@ void merge(void* ptr) {
     if (all_pages[buddy_index].free) {
         // If buddy is to the left, get rid of the current page and merge to the buddy
         if (buddy_addr < (uintptr_t) ptr) {
-            free_blocks[all_pages[page_index].order].erase(ptr);
+            free_blocks[all_pages[page_index].order].erase((block*) ptr);
 
             all_pages[page_index].addr = nullptr;
             all_pages[buddy_index].order += 1;
@@ -194,7 +175,7 @@ void merge(void* ptr) {
         }
         // If buddy is to the right, get rid of the buddy and merge to the current page
         else {
-            free_blocks[all_pages[buddy_index].order].erase((void*) buddy_addr);
+            free_blocks[all_pages[buddy_index].order].erase((block*) buddy_addr);
 
             all_pages[buddy_index].addr = nullptr;
             all_pages[page_index].order += 1;
@@ -229,15 +210,18 @@ void kfree(void* ptr) {
     // bool free;
 
     // Can only access page number with ptr information.  Can't access block in free_blocks
-    assert(ptr % PAGESIZE == 0);
+   /* assert(ptr % PAGESIZE == 0);
     uintptr_t page_index = ((uintptr_t) ptr / PAGESIZE) - 1;
     
     
     uintptr_t buddy_ptr;
     uintptr_t offset = 2 ** all_pages[page_index].root_order;
-    if ()
+    if ()*/
+    
+    
+    
     // should be a question of < or >
-    /*if (all_pages[page_index].root_addr == all_pages[page_index].addr) {
+    /* ACTUAL COMMENT NO GOOD if (all_pages[page_index].root_addr == all_pages[page_index].addr) {
         buddy_ptr = (uintptr_t) ptr + offset;
         uintptr_t counter_ptr = all_pages[page_index].addr;
         while (counter_ptr != buddy_ptr) {
@@ -253,49 +237,6 @@ void kfree(void* ptr) {
     else {
         buddy_ptr = (uintptr_t) ptr - offset;
     }*/
-
-
-
-        
-        // Check if buddy is free
-        // If buddy is free:
-        //      Push one new block to order + 1
-        // Otherwise:
-        //      Push one new block to order
-
-
-        // Mark the associated pages as free in all_pages and add to buddy
-
-        // Check if buddy is free
-        //    If root_addr is the current page, then the buddy is the left
-        //    If root_addr is not the current page, then the buddy is to the right
-        // If the buddy is free, then merge 
-
-        // Find buddy helper function
-
-        // Confirm helper function
-        
-
-        // Merge helper function:
-        // If buddy is free
-        //    combine block and buddy
-        //    call merge with new combination   
-
-
-
-        /*if ((uintptr_t) ptr % PAGESIZE != 0) {
-            // Do something
-        }
-
-        int page_number = (uintptr_t) ptr / PAGESIZE;
-        if (all_pages[page_number + 1].free) {
-            block new_block = block(0);
-            free_blocks[order].push_back(new_block);
-        }
-
-
-    }*/
-
 
 
     log_printf("kfree not implemented yet\n");
