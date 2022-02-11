@@ -7,25 +7,23 @@
 static spinlock page_lock;
 static uintptr_t next_free_pa;
 
-// Block is the basic building block - one block of memory
-struct block {
-    int order;
-    //int state_;
-    list_links link_;
-   //block(int state_)
-   //    : state_(state_) {
-    //}
-};
-// free_blocks is an array of block lists.  Each element is a block list with the same order
-list<block, &block::link_> free_blocks[MAX_ORDER - MIN_ORDER + 1];
-
-// page_mega struct contains information about every page
 struct page_meta {
-    void* addr = nullptr;
-    void* root_addr = nullptr;
-    int order = 0;
-    bool free = true;
+    void* addr_ = nullptr;
+    void* root_addr_ = nullptr;
+    int order_ = -1;
+    bool free_;
+    list_links link_;
+    
+    page_meta(void* addr, void* root_addr, int order, bool free)
+        : addr_(addr), root_addr_(root_addr), order_(order), free_(free) {
+    }
+    // add methods
 };
+
+// Free_blocks is an array of heads to lists.  Can only do specified list operations on it.
+// Each list does NOT store a page_meta struct.  It stores a head to a list.  Cannot access fields
+list<page_meta, &page_meta::link_> free_blocks[MAX_ORDER - MIN_ORDER + 1];
+
 
 // all_pages is an array storing information about every page
 page_meta all_pages[MEMSIZE_PHYSICAL / PAGESIZE];
@@ -35,40 +33,63 @@ page_meta all_pages[MEMSIZE_PHYSICAL / PAGESIZE];
 //    Initialize stuff needed by `kalloc`. Called from `init_hardware`,
 //    after `physical_ranges` is initialized.
 void init_kalloc() {
-    // Fill all_pages and free_blocks
-    // ptr = pa2kptr<void*>(next_free_pa);
-    // Should I be converting physical memory to virtual memory?
-    // I don't think so because we are allocating physical memory and then converting it to virtual memory
-    
     auto range = physical_ranges.begin();
     while (range != physical_ranges.end()) {
         if (range->type() == mem_available) {
-            // Add it to free_blocks
-            // This might pose a problem because I'm rounding order up, which means there could be
-            // more memory in free_blocks than in reality
-            // Should I be rounding up or rounding down?
-            // I don't think this is a problem because we are allocating right amount of memory, just not actually using it all
-            int range_order = msb(range->last() - range->first());
-            block* new_block;
-            new_block->order = range_order;
-            free_blocks[range_order - 1].push_back(new_block);
-            
+            int range_order = msb(range->last() - range->first());   
             uintptr_t page_addr = range->first();
             assert(page_addr % PAGESIZE == 0);
             int page_index = (page_addr / PAGESIZE) - 1;
+            // Set up the page that is the beginning of the range "block"
+            all_pages[page_index].addr_ = range->first();
+            all_pages[page_index].root_addr_ = range->first();
+            all_pages[page_index].order_ = range_order;
+            // Set up all other pages
+            for (int local_index = page_index;
+                local_index < ((range->last() - 1) / PAGESIZE);
+                ++local_index) {
 
-            // Initialize all_pages
-            // For every range of mem_available memory, we start with one page in all_pages
-            // containing meaningful data.  The rest are initialized to nullptr etc
-            all_pages[page_index].addr = (void*) page_addr;
-            all_pages[page_index].root_addr = (void*) page_addr;
-            all_pages[page_index].order = range_order;
-
-        }
+                    all_pages[local_index].link_.reset();
+                    all_pages[local_index].free_ = true;
+                }
+            // Set up lists in free_blocks
+            page_meta original_block = all_pages[page_index];
+            free_blocks[range_order - 1].push_back(&original_block);
+        }       
         ++range;
+    }
+}
+
+
+block* split(int original_order, block* starting_block) {
+    log_printf("In split function\n");
+    if (original_order != starting_block->order) {
+        // set address based on starting_block->address
+        block* first_new;
+        first_new->order = starting_block->order - 1;
+        first_new->addr = starting_block->addr;
+        block* second_new;
+        second_new->order = starting_block->order - 1;
+        second_new->addr = starting_block->addr + (1 << first_new->order);
+        //free_blocks[original_order].reset();
+        free_blocks[starting_block->order - 1].pop_back();
+        second_new->order = starting_block->order - 1;
+        //free_blocks[original_order - 1].reset();
+        free_blocks[starting_block->order - 1].push_back(first_new);
+        //free_blocks[original_order - 1].reset();
+        free_blocks[starting_block->order - 1].push_back(second_new);
+
+        int page_index = (uintptr_t) first_new->addr;
+
+        return split(original_order, first_new);
+    }
+
+    else {
+        return free_blocks[original_order - 1].back();
     }
 
 }
+
 
 
 // kalloc(sz)
@@ -84,27 +105,6 @@ void init_kalloc() {
 //
 //    The handout code does not free memory and allocates memory in units
 //    of pages.
-
-
-block* split(int original_order, block* starting_block) {
-    if (original_order != starting_block->order) {
-        // pop starting_block (the back) from the free_blocks list
-        free_blocks[original_order].pop_back();
-        block* first_new;
-        first_new->order = original_order;
-        block* second_new;
-        second_new->order = original_order;
-        free_blocks[original_order - 1].push_back(first_new);
-        free_blocks[original_order - 1].push_back(second_new);
-        //return split(original_order, free_blocks[starting_block->order].back());
-        return split(original_order, first_new);
-    }
-
-    else {
-        return free_blocks[original_order].back();
-    }
-
-}
 
 void* kalloc(size_t sz) {
     if (sz == 0 || sz > (1 << MAX_ORDER)) {
@@ -122,9 +122,11 @@ void* kalloc(size_t sz) {
     // and split a block of that order into two new blocks with order - 1
     block* return_block;
     if (free_blocks[order - MIN_ORDER].empty()) {
-        for (int i = order - MIN_ORDER + 1; i <= MAX_ORDER; i++) {
+        log_printf("None of desired order\n");
+        for (int i = order - MIN_ORDER + 1; i < MAX_ORDER; ++i) {
             if (!free_blocks[i].empty()) {
                 //block* newly_freed = free_blocks[i].pop_back();
+                //free_blocks[i].reset();
                 block* newly_freed = free_blocks[i].back();
                 return_block = split(order, newly_freed);
             }
@@ -134,6 +136,7 @@ void* kalloc(size_t sz) {
         return nullptr;
     }
     else {
+        free_blocks[order - MIN_ORDER].reset();
         void* return_block = free_blocks[order - MIN_ORDER].pop_back();
         page_lock.unlock(irqs);
         return return_block;
@@ -166,7 +169,7 @@ void merge(void* ptr) {
     if (all_pages[buddy_index].free) {
         // If buddy is to the left, get rid of the current page and merge to the buddy
         if (buddy_addr < (uintptr_t) ptr) {
-            free_blocks[all_pages[page_index].order].erase((block*) ptr);
+            free_blocks[all_pages[page_index].order - 1].erase((block*) ptr);
 
             all_pages[page_index].addr = nullptr;
             all_pages[buddy_index].order += 1;
@@ -175,7 +178,7 @@ void merge(void* ptr) {
         }
         // If buddy is to the right, get rid of the buddy and merge to the current page
         else {
-            free_blocks[all_pages[buddy_index].order].erase((block*) buddy_addr);
+            free_blocks[all_pages[buddy_index].order - 1].erase((block*) buddy_addr);
 
             all_pages[buddy_index].addr = nullptr;
             all_pages[page_index].order += 1;
@@ -190,7 +193,7 @@ void merge(void* ptr) {
         block* new_block;
         int order = all_pages[page_index].order;
         new_block->order = order;
-        free_blocks[order].push_back(new_block);
+        free_blocks[order - 1].push_back(new_block);
     }
 }
 
