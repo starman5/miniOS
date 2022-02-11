@@ -197,10 +197,8 @@ void merge(void* ptr) {
     // If buddy is not free
     else {
         // add to free_blocks
-        block* new_block;
-        int order = all_pages[page_index].order;
-        new_block->order = order;
-        free_blocks[order - 1].push_back(new_block);
+        int order = all_pages[page_index].order_;
+        free_blocks[order - MIN_ORDER].push_back(&all_pages[page_index]);
     }
 }
 
