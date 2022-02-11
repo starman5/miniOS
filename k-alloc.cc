@@ -54,13 +54,10 @@ void init_kalloc() {
                     all_pages[local_index].free_ = true;
                 }
             // Set up lists in free_blocks
-            page_meta original_block;
-            original_block.addr_ = all_pages[page_index].addr_;
-            original_block.root_addr_ =  all_pages[page_index].root_addr_;
-            original_block.order_ = all_pages[page_index].order_;
-            original_block.free_ =  all_pages[page_index].free_;
-            //assert(free_blocks[range_order - 1].front() != nullptr);
-            free_blocks[range_order - 1].push_back(&original_block);
+            assert(free_blocks[range_order - 1].front() != nullptr);
+
+            //free_blocks[range_order - 1].push_back(&original_block);
+            free_blocks[range_order - 1].push_back(&all_pages[page_index]);
         }       
         ++range;
     }
@@ -91,8 +88,8 @@ page_meta* split(int original_order, page_meta* starting_block) {
         second_new.free_ = all_pages[second_index].free_;
 
         assert(free_blocks[starting_block->order_ - 1].front());
-        free_blocks[starting_block->order_ - 1].push_back(&first_new);
-        free_blocks[starting_block->order_ - 1].push_back(&second_new);
+        free_blocks[starting_block->order_ - 1].push_back(&all_pages[second_index]);
+        free_blocks[starting_block->order_ - 1].push_back(&all_pages[second_index]);
 
         return split(original_order, &first_new);
     }
