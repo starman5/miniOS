@@ -6,6 +6,10 @@
         "array": "cpp",
         "deque": "cpp",
         "string_view": "cpp",
-        "vector": "cpp"
+        "vector": "cpp",
+        "__node_handle": "cpp",
+        "iterator": "cpp",
+        "unordered_map": "cpp",
+        "unordered_set": "cpp"
     }
 }

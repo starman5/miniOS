@@ -14,9 +14,9 @@ struct page_meta {
     bool free_;
     list_links link_;
     
-    page_meta(void* addr, void* root_addr, int order, bool free)
+    /*page_meta(void* addr, void* root_addr, int order, bool free)
         : addr_(addr), root_addr_(root_addr), order_(order), free_(free) {
-    }
+    }*/
     // add methods
 };
 
@@ -33,6 +33,7 @@ page_meta all_pages[MEMSIZE_PHYSICAL / PAGESIZE];
 //    Initialize stuff needed by `kalloc`. Called from `init_hardware`,
 //    after `physical_ranges` is initialized.
 void init_kalloc() {
+    log_printf("initializing stuff\n");
     auto range = physical_ranges.begin();
     while (range != physical_ranges.end()) {
         if (range->type() == mem_available) {
@@ -41,19 +42,24 @@ void init_kalloc() {
             assert(page_addr % PAGESIZE == 0);
             int page_index = (page_addr / PAGESIZE) - 1;
             // Set up the page that is the beginning of the range "block"
-            all_pages[page_index].addr_ = range->first();
-            all_pages[page_index].root_addr_ = range->first();
+            //all_pages[page_index].addr_ = (void*) range->first();
+            all_pages[page_index].root_addr_ = (void*) range->first();
             all_pages[page_index].order_ = range_order;
             // Set up all other pages
             for (int local_index = page_index;
-                local_index < ((range->last() - 1) / PAGESIZE);
+                local_index < ((range->last() - 1) / PAGESIZE - 1);
                 ++local_index) {
 
                     all_pages[local_index].link_.reset();
                     all_pages[local_index].free_ = true;
                 }
             // Set up lists in free_blocks
-            page_meta original_block = all_pages[page_index];
+            page_meta original_block;
+            original_block.addr_ = all_pages[page_index].addr_;
+            original_block.root_addr_ =  all_pages[page_index].root_addr_;
+            original_block.order_ = all_pages[page_index].order_;
+            original_block.free_ =  all_pages[page_index].free_;
+            //assert(free_blocks[range_order - 1].front() != nullptr);
             free_blocks[range_order - 1].push_back(&original_block);
         }       
         ++range;
@@ -61,27 +67,34 @@ void init_kalloc() {
 }
 
 
-block* split(int original_order, block* starting_block) {
+page_meta* split(int original_order, page_meta* starting_block) {
     log_printf("In split function\n");
-    if (original_order != starting_block->order) {
+    if (original_order != starting_block->order_) {
         // set address based on starting_block->address
-        block* first_new;
-        first_new->order = starting_block->order - 1;
-        first_new->addr = starting_block->addr;
-        block* second_new;
-        second_new->order = starting_block->order - 1;
-        second_new->addr = starting_block->addr + (1 << first_new->order);
-        //free_blocks[original_order].reset();
-        free_blocks[starting_block->order - 1].pop_back();
-        second_new->order = starting_block->order - 1;
-        //free_blocks[original_order - 1].reset();
-        free_blocks[starting_block->order - 1].push_back(first_new);
-        //free_blocks[original_order - 1].reset();
-        free_blocks[starting_block->order - 1].push_back(second_new);
+        uintptr_t starting_addr = (uintptr_t) starting_block->addr_;
+        uintptr_t starting_index = (uintptr_t) starting_addr / PAGESIZE - 1;
+        all_pages[starting_index].order_ -= 1;
+        page_meta first_new;
+        first_new.addr_ = all_pages[starting_index].addr_;
+        first_new.root_addr_ = all_pages[starting_index].root_addr_;
+        first_new.order_ = all_pages[starting_index].order_;
+        first_new.free_ = all_pages[starting_index].free_;
 
-        int page_index = (uintptr_t) first_new->addr;
+        uintptr_t second_addr = starting_addr + (1 << all_pages[starting_index].order_);
+        uintptr_t second_index = second_addr / PAGESIZE - 1;
+        all_pages[second_index].order_ -= 1;
+        all_pages[second_index].root_addr_ = (void*) starting_addr;
+        page_meta second_new;
+        second_new.addr_ = all_pages[second_index].addr_;
+        second_new.root_addr_ = all_pages[second_index].root_addr_;
+        second_new.order_ = all_pages[second_index].order_;
+        second_new.free_ = all_pages[second_index].free_;
 
-        return split(original_order, first_new);
+        assert(free_blocks[starting_block->order_ - 1].front());
+        free_blocks[starting_block->order_ - 1].push_back(&first_new);
+        free_blocks[starting_block->order_ - 1].push_back(&second_new);
+
+        return split(original_order, &first_new);
     }
 
     else {
@@ -120,14 +133,12 @@ void* kalloc(size_t sz) {
 
     // If there are no free blocks with the exact order, find next largest order
     // and split a block of that order into two new blocks with order - 1
-    block* return_block;
-    if (free_blocks[order - MIN_ORDER].empty()) {
+    page_meta* return_block;
+    if (!free_blocks[order - MIN_ORDER].front()) {
         log_printf("None of desired order\n");
         for (int i = order - MIN_ORDER + 1; i < MAX_ORDER; ++i) {
-            if (!free_blocks[i].empty()) {
-                //block* newly_freed = free_blocks[i].pop_back();
-                //free_blocks[i].reset();
-                block* newly_freed = free_blocks[i].back();
+            if (!free_blocks[i].front()) {
+                page_meta* newly_freed = free_blocks[i].back();
                 return_block = split(order, newly_freed);
             }
         }
@@ -161,7 +172,7 @@ uintptr_t find_buddy(void* ptr) {
 }
 
 void merge(void* ptr) {
-    uintptr_t buddy_addr = find_buddy(ptr);
+    /*uintptr_t buddy_addr = find_buddy(ptr);
     int buddy_index = (buddy_addr / PAGESIZE) - 1;
     int page_index = ((uintptr_t) ptr / PAGESIZE) - 1;
     
@@ -194,7 +205,7 @@ void merge(void* ptr) {
         int order = all_pages[page_index].order;
         new_block->order = order;
         free_blocks[order - 1].push_back(new_block);
-    }
+    }*/
 }
 
 // kfree(ptr)
