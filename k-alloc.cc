@@ -30,7 +30,7 @@ void* find_buddy(void* ptr) {
         return (void*) ((uintptr_t) ptr + (1 << order));
     }
     else {
-        assert((uintptr_t) ptr - (1 << order) % (1 << (order + 1)) == 0);
+        assert(((uintptr_t) ptr - (1 << order)) % (1 << (order + 1)) == 0);
         return (void*) ((uintptr_t) ptr - (1 << order));
     }
 }
@@ -171,9 +171,6 @@ void init_kalloc() {
 
 void* kalloc(size_t sz) {
     log_printf("In kalloc\n");
-    while (true) {
-
-    }
 
     if (sz == 0 || sz > (1 << MAX_ORDER)) {
         return nullptr;
