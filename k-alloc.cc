@@ -49,8 +49,8 @@ page_meta* split(int original_order, page_meta* starting_block) {
 
     if (original_order != starting_block->order_) {
 
-        uintptr_t starting_addr = (uintptr_t) ka2pa(starting_block->addr_);
-        uintptr_t starting_index = (uintptr_t) starting_addr / PAGESIZE;
+        uintptr_t starting_addr = ka2pa(starting_block->addr_);
+        uintptr_t starting_index = starting_addr / PAGESIZE;
         log_printf("original order: %i order: %i\n", original_order, all_pages[starting_index].order_);
         all_pages[starting_index].order_ -= 1;
         all_pages[starting_index].link_.reset();
@@ -61,9 +61,9 @@ page_meta* split(int original_order, page_meta* starting_block) {
         all_pages[second_index].link_.reset();
 
 
-        log_printf("original order: %i current order: %i\n", original_order, all_pages[starting_index].order_);
+        log_printf("starting index order: %i second index order: %i\n", all_pages[starting_index].order_, all_pages[second_index].order_);
         free_blocks[all_pages[starting_index].order_ - MIN_ORDER].push_back(&all_pages[starting_index]);
-        free_blocks[all_pages[second_index].order_ - MIN_ORDER].push_back(&all_pages[second_index]);
+        free_blocks[all_pages[starting_index].order_ - MIN_ORDER].push_back(&all_pages[second_index]);
 
         page_lock.unlock(irqs);
 
@@ -157,16 +157,15 @@ void init_kalloc() {
     /*for (int i = 0; i < MEMSIZE_PHYSICAL; i += PAGESIZE) {
         log_printf("Page: order: %i, address: %p\n", all_pages[i / PAGESIZE].order_, all_pages[i / PAGESIZE].addr_);
     }*/
-    page_meta* pg;
+    /*page_meta* pg;
     for (int i = 0; i < MAX_ORDER - MIN_ORDER; i++) {
         while (free_blocks[i].front() != nullptr) {
             pg = free_blocks[i].pop_back();
             log_printf("index order: %i order: %i\n", i + MIN_ORDER, pg->order_);
         }
-    }
+    }*/
     log_printf("END of init kalloc\n");
     page_lock.unlock(irqs);
-    assert(1 == 0);
 }
 
 
