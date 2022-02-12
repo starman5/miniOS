@@ -49,11 +49,13 @@ page_meta* split(int original_order, page_meta* starting_block) {
         uintptr_t starting_index = (uintptr_t) starting_addr / PAGESIZE;
         all_pages[starting_index].order_ -= 1;
         all_pages[starting_index].link_.erase();
+        all_pages[starting_index].link_.reset();
     
         uintptr_t second_addr = starting_addr + (1 << all_pages[starting_index].order_);
         uintptr_t second_index = second_addr / PAGESIZE;
         all_pages[second_index].order_ -= 1;
         all_pages[second_index].link_.erase();
+        all_pages[second_index].link_.reset();
 
         free_blocks[starting_block->order_ - MIN_ORDER].push_back(&all_pages[starting_index]);
         free_blocks[starting_block->order_ - MIN_ORDER].push_back(&all_pages[second_index]);
@@ -62,6 +64,7 @@ page_meta* split(int original_order, page_meta* starting_block) {
     }
 
     else {
+        assert(free_blocks[original_order - MIN_ORDER].front() != nullptr);
         return free_blocks[original_order - MIN_ORDER].pop_back();
     }
 
@@ -79,8 +82,13 @@ void merge(void* ptr) {
     
     assert(all_pages[page_index].free_ == true);
     if (all_pages[buddy_index].free_ == true) {
+        assert(all_pages[page_index].link_.is_linked());
         all_pages[page_index].link_.erase();
+        all_pages[page_index].link_.reset();
+
+        assert(all_pages[buddy_index].link_.is_linked());
         all_pages[buddy_index].link_.erase();
+        all_pages[buddy_index].link_.reset();
         
         // If buddy is to the left:
         //      Increase the order of the buddy page and add to free_blocks 
@@ -117,16 +125,22 @@ void init_kalloc() {
 
     // Set all available_pages to free and add them to free_blocks[0]
     auto range = physical_ranges.begin();
+    log_printf("pleeeaseee\n");
     while (range != physical_ranges.end()) {
+        log_printf("in loop\n");
         if (range->type() == mem_available) {
-            for (int pg_addr = range->first(); pg_addr < range->last(); pg_addr++) {
+            log_printf("mem available\n");
+            for (int pg_addr = range->first(); pg_addr < range->last(); pg_addr += PAGESIZE) {
                 all_pages[pg_addr / PAGESIZE].free_ = true;
+                log_printf("made it\n");
                 free_blocks[0].push_back(&all_pages[pg_addr / PAGESIZE]);
             }
         }
+        log_printf("end of loop\n");
         ++range;
     }
 
+    log_printf("middle of init\n");
     // Merge all available pages.  This will take care of free_blocks as well
     range = physical_ranges.begin();
     while (range != physical_ranges.end()) {
@@ -135,6 +149,8 @@ void init_kalloc() {
         }
         ++range;
     }
+    log_printf("end of init\n");
+    return;
 }
 
 
@@ -154,6 +170,11 @@ void init_kalloc() {
 //    of pages.
 
 void* kalloc(size_t sz) {
+    log_printf("In kalloc\n");
+    while (true) {
+
+    }
+
     if (sz == 0 || sz > (1 << MAX_ORDER)) {
         return nullptr;
     }
@@ -167,10 +188,12 @@ void* kalloc(size_t sz) {
 
     // If there are no free blocks with the exact order, find next largest order
     // and split a block of that order into two new blocks with order - 1
+    log_printf("%i\n", order - MIN_ORDER);
     page_meta* return_block;
     if (free_blocks[order - MIN_ORDER].front() == nullptr) {
         
-        for (int i = order - MIN_ORDER + 1; i < MAX_ORDER - MIN_ORDER; ++i) {
+        for (int i = order - MIN_ORDER + 1; i < MAX_ORDER - MIN_ORDER + 1; ++i) {
+            log_printf("%i\n", i);
             if (free_blocks[i].front() != nullptr) {
                 page_meta* newly_freed = free_blocks[i].back();
                 return_block = split(order, newly_freed);
@@ -180,6 +203,7 @@ void* kalloc(size_t sz) {
         return nullptr;
     }
     else {
+        assert(free_blocks[order - MIN_ORDER].front() != nullptr);
         void* return_block = free_blocks[order - MIN_ORDER].pop_back();
         page_lock.unlock(irqs);
         return return_block;
@@ -202,12 +226,14 @@ void* kalloc(size_t sz) {
 //    Free a pointer previously returned by `kalloc`. Does nothing if
 //    `ptr == nullptr`.
 void kfree(void* ptr) {
+    log_printf("In kfree\n");
     // check to make sure fields are not nullptr
     if (ptr) {
         // tell sanitizers the freed page is inaccessible
         asan_mark_memory(ka2pa(ptr), PAGESIZE, true);
     }
     int page_index = (uintptr_t) ptr / PAGESIZE;
+    log_printf("%i\n", all_pages[page_index].order_ - MIN_ORDER);
     free_blocks[all_pages[page_index].order_ - MIN_ORDER].push_back(&all_pages[page_index]);
     merge(ptr);
     return;
