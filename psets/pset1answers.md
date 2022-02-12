@@ -16,6 +16,7 @@ A. Memory Allocator
         physical_ranges.set(0, MEMSIZE_PHYSICAL, mem_available);
    to this:
         physical_ranges.set(0, 0x300000, mem_available);
+8. If there was no page lock, multiple cpus could mess with the state of memory simultaneously, leading to bad synchronization issues.
 
 B. Memory Viewer
 1. The line of code that marks physical page 0x100000 as kernel-restricted:
@@ -24,6 +25,18 @@ B. Memory Viewer
     mark(ka2pa(p), f_kernel | f_process(pid));
 3. Ptiter maps the physical addresses of page table pages.  If these addresses were to be marked as user accessible, that would allow unprivileged code to manipulate these page table pages and give itself more privilege or mark as present mappings that don't exist, or do other mischief.  This is not possible in vmiter because vmiter traverses the page table structure using the various indexes to arrive at a particular physical address - not the physical addresses of page table pages.
 4. All pages marked by the pid loop should have the same mem_ type constant.  That memory type is mem_available.  They are not mem_kernel because we previously marked kernel memory as kernel-restricted.  They are not mem_nonexistent, because they do exist.  They are not mem_console because they don't belong to the console.  They are not mem_reserved because they are not reserved. They are user-accessible addresses that the user can access.
+5. It runs faster
+
+
+C.
+Breakpoints:
+jmp_Z12kernel_startPKc
+call _ZN4proc9exceptionEP8regstate
+call _ZN4proc7syscallEP8regstate
+call _ZN4proc17panic_nonrunnableEv
+call _Z11assert_failPKciS0_S0_
+movabsq $_ZN8cpustate7init_apEv, %rbx
+movw $boot_start, %sp
 
 
 
