@@ -192,19 +192,6 @@ uintptr_t proc::syscall(regstate* regs) {
 
     case SYSCALL_PAGE_ALLOC: {
         uintptr_t addr = regs->reg_rdi;
-        size_t sz = regs->reg_rsi;
-        if (addr >= VA_LOWEND || addr & 0xFFF) {
-            return -1;
-        }
-        void* pg = kalloc(sz);
-        if (!pg || vmiter(this, addr).try_map(ka2pa(pg), PTE_PWU) < 0) {
-            return -1;
-        }
-        return 0;
-    }
-
-    case SYSCALL_WHATEVER_ALLOC: {
-        uintptr_t addr = regs->reg_rdi;
         if (addr >= VA_LOWEND || addr & 0xFFF) {
             return -1;
         }
@@ -213,6 +200,27 @@ uintptr_t proc::syscall(regstate* regs) {
             return -1;
         }
         return 0;
+    }
+
+    case SYSCALL_WHATEVER_ALLOC: {
+        uintptr_t addr = regs->reg_rdi;
+        size_t sz = regs->reg_rsi;
+        int order = msb(sz) - 1;
+
+        if (addr >= VA_LOWEND || addr & 0xFFF) {
+            return -1;
+        }
+        void* pg = kalloc(PAGESIZE);
+        for (int i = 0; i < (1 << order); i += PAGESIZE) {
+            if (vmiter(this, addr + i).try_map(ka2pa(pg) + i, PTE_PWU) < 0) {
+                return -1;
+            }
+        }
+        return 0;
+        /*if (!pg || vmiter(this, addr).try_map(ka2pa(pg), PTE_PWU) < 0) {
+            return -1;
+        }
+        return 0;*/
     }
 
     case SYSCALL_MAP_CONSOLE: {
@@ -293,11 +301,13 @@ int proc::syscall_fork(regstate* regs) {
     
     proc* p = knew<proc>();
     if (p == nullptr) {
+        log_printf("fork failure\n");
         return -1;
     }
     
     x86_64_pagetable* child_pagetable = kalloc_pagetable();
     if (child_pagetable == nullptr) {
+        log_printf("fork failure\n");
         return -1;
     }
 

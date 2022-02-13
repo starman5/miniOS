@@ -309,14 +309,14 @@ void* kalloc(size_t sz) {
                 return_block = split(order, free_blocks[i].back(), 1);
                 if (return_block->addr_) {
                     log_printf("kernal adress: %p  kernel text: %p  highmem_base: %p\n", return_block->addr_, KTEXT_BASE, HIGHMEM_BASE);
-                    uintptr_t start_block = ka2pa(return_block->addr_);
-                    uintptr_t end_block = start_block + (1 << return_block->order_);
-                    for (uintptr_t a = start_block; a < end_block; a += PAGESIZE) {
-                        asan_mark_memory(a, PAGESIZE, false);
-                        memset(pa2kptr<void*> (a), 0xCC, PAGESIZE);
-                    }
-                    // asan_mark_memory(ka2pa(return_block->addr_), PAGESIZE, false);
-                    // memset(return_block->addr_, 0xCC, PAGESIZE);
+                    // uintptr_t start_block = ka2pa(return_block->addr_);
+                    // uintptr_t end_block = start_block + (1 << return_block->order_);
+                    // for (uintptr_t a = start_block; a < end_block; a += PAGESIZE) {
+                    //     asan_mark_memory(a, PAGESIZE, false);
+                    //     memset(pa2kptr<void*> (a), 0xCC, PAGESIZE);
+                    // }
+                    asan_mark_memory(ka2pa(return_block->addr_), (1 << return_block->order_), false);
+                    memset(return_block->addr_, 0xCC, (1 << return_block->order_));
                 }
                 return return_block->addr_;
             }
@@ -338,12 +338,14 @@ void* kalloc(size_t sz) {
         log_printf("return block: %p\n", return_block->addr_);
         if (return_block->addr_) {
             log_printf("kernal adress: %p  kernel text: %p  highmem_base: %p\n", return_block->addr_, KTEXT_BASE, HIGHMEM_BASE);
-            uintptr_t start_block = ka2pa(return_block->addr_);
-            uintptr_t end_block = start_block + (1 << return_block->order_);
-            for (uintptr_t a = start_block; a < end_block; a += PAGESIZE) {
-                asan_mark_memory(a, PAGESIZE, false);
-                memset(pa2kptr<void*> (a), 0xCC, PAGESIZE);
-            }
+            // uintptr_t start_block = ka2pa(return_block->addr_);
+            // uintptr_t end_block = start_block + (1 << return_block->order_);
+            // for (uintptr_t a = start_block; a < end_block; a += PAGESIZE) {
+            //     asan_mark_memory(a, PAGESIZE, false);
+            //     memset(pa2kptr<void*> (a), 0xCC, PAGESIZE);
+            // }
+            asan_mark_memory(ka2pa(return_block->addr_), (1 << return_block->order_), false);
+            memset(return_block->addr_, 0xCC, (1 << return_block->order_));
         }
         return return_block->addr_;
     }
@@ -370,7 +372,15 @@ void kfree(void* ptr) {
     // check to make sure fields are not nullptr
     if (ptr) {
         // tell sanitizers the freed page is inaccessible
-        asan_mark_memory(ka2pa(ptr), PAGESIZE, true);
+        page_meta* block = (page_meta*) ptr;
+        // uintptr_t start_block = ka2pa(block->addr_);
+        // uintptr_t end_block = start_block + (1 << block->order_);
+        // for (uintptr_t a = start_block; a < end_block; a += PAGESIZE) {
+        //     asan_mark_memory(a, PAGESIZE, false);
+        //     memset(pa2kptr<void*> (a), 0xCC, PAGESIZE);
+        // }
+        asan_mark_memory(ka2pa(block->addr_), (1 << block->order_), true);
+        memset(block->addr_, 0xCC, (1 << block->order_));
     }
     int page_index = (uintptr_t) ka2pa(ptr) / PAGESIZE;
     log_printf("%i\n", all_pages[page_index].order_ - MIN_ORDER);
