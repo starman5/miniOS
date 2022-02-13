@@ -115,14 +115,14 @@ page_meta* split(int original_order, page_meta* starting_block, int count) {
             all_pages[index].order_ -= 1;
         }
 
-        // if (count == 1) {
+        // if (count == 4) {
         //     for (int ix = 0; ix < MAX_ORDER - MIN_ORDER; ++ix) {
         //         while (free_blocks[ix].back() != nullptr) {
         //             log_printf("order in list: %i, actual order: %i\n", ix + MIN_ORDER, free_blocks[ix].pop_back()->order_);
         //         }
         //     }
+        //     assert(1==0);
         // }
-        // assert(1==0);
         
         all_pages[starting_index].link_.reset();
         all_pages[second_index].link_.reset();
@@ -134,14 +134,14 @@ page_meta* split(int original_order, page_meta* starting_block, int count) {
 
         page_lock.unlock(irqs);
 
-        /*if (count == 1) {
-            for (int ix = 0; ix < MAX_ORDER - MIN_ORDER; ++ix) {
-                while (free_blocks[ix].back() != nullptr) {
-                    log_printf("order in list: %i, actual order: %i\n", ix + MIN_ORDER, free_blocks[ix].pop_back()->order_);
-                }
-            }
-        }
-        assert(1==0);*/
+        // if (count == 3) {
+        //     for (int ix = 0; ix < MAX_ORDER - MIN_ORDER; ++ix) {
+        //         while (free_blocks[ix].back() != nullptr) {
+        //             log_printf("order in list: %i, actual order: %i\n", ix + MIN_ORDER, free_blocks[ix].pop_back()->order_);
+        //         }
+        //     }
+        //      assert(1==0);
+        // }
 
         return split(original_order, &all_pages[starting_index], count + 1);
     }
@@ -287,7 +287,7 @@ void* kalloc(size_t sz) {
         return nullptr;
     }
 
-    int order = msb(sz);
+    int order = msb(sz) - 1;
     if (order < MIN_ORDER) {
         order = MIN_ORDER;
     }
@@ -309,8 +309,14 @@ void* kalloc(size_t sz) {
                 return_block = split(order, free_blocks[i].back(), 1);
                 if (return_block->addr_) {
                     log_printf("kernal adress: %p  kernel text: %p  highmem_base: %p\n", return_block->addr_, KTEXT_BASE, HIGHMEM_BASE);
-                    asan_mark_memory(ka2pa(return_block->addr_), PAGESIZE, false);
-                    memset(return_block->addr_, 0xCC, PAGESIZE);
+                    uintptr_t start_block = ka2pa(return_block->addr_);
+                    uintptr_t end_block = start_block + (1 << return_block->order_);
+                    for (uintptr_t a = start_block; a < end_block; a += PAGESIZE) {
+                        asan_mark_memory(a, PAGESIZE, false);
+                        memset(pa2kptr<void*> (a), 0xCC, PAGESIZE);
+                    }
+                    // asan_mark_memory(ka2pa(return_block->addr_), PAGESIZE, false);
+                    // memset(return_block->addr_, 0xCC, PAGESIZE);
                 }
                 return return_block->addr_;
             }
@@ -332,8 +338,12 @@ void* kalloc(size_t sz) {
         log_printf("return block: %p\n", return_block->addr_);
         if (return_block->addr_) {
             log_printf("kernal adress: %p  kernel text: %p  highmem_base: %p\n", return_block->addr_, KTEXT_BASE, HIGHMEM_BASE);
-            asan_mark_memory(ka2pa(return_block->addr_), PAGESIZE, false);
-            memset(return_block->addr_, 0xCC, PAGESIZE);
+            uintptr_t start_block = ka2pa(return_block->addr_);
+            uintptr_t end_block = start_block + (1 << return_block->order_);
+            for (uintptr_t a = start_block; a < end_block; a += PAGESIZE) {
+                asan_mark_memory(a, PAGESIZE, false);
+                memset(pa2kptr<void*> (a), 0xCC, PAGESIZE);
+            }
         }
         return return_block->addr_;
     }

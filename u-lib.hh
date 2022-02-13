@@ -127,6 +127,10 @@ inline int sys_page_alloc(void* addr) {
     return make_syscall(SYSCALL_PAGE_ALLOC, reinterpret_cast<uintptr_t>(addr));
 }
 
+inline int sys_whatever_alloc(void* addr, size_t sz) {
+    return make_syscall(SYSCALL_WHATEVER_ALLOC, reinterpret_cast<uintptr_t>(addr), sz);
+}
+
 // sys_fork()
 //    Fork the current process. On success, return the child's process ID to
 //    the parent, and return 0 to the child. On failure, return E_NOMEM on out

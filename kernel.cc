@@ -192,6 +192,19 @@ uintptr_t proc::syscall(regstate* regs) {
 
     case SYSCALL_PAGE_ALLOC: {
         uintptr_t addr = regs->reg_rdi;
+        size_t sz = regs->reg_rsi;
+        if (addr >= VA_LOWEND || addr & 0xFFF) {
+            return -1;
+        }
+        void* pg = kalloc(sz);
+        if (!pg || vmiter(this, addr).try_map(ka2pa(pg), PTE_PWU) < 0) {
+            return -1;
+        }
+        return 0;
+    }
+
+    case SYSCALL_WHATEVER_ALLOC: {
+        uintptr_t addr = regs->reg_rdi;
         if (addr >= VA_LOWEND || addr & 0xFFF) {
             return -1;
         }
