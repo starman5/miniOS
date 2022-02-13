@@ -210,7 +210,7 @@ uintptr_t proc::syscall(regstate* regs) {
         if (addr >= VA_LOWEND || addr & 0xFFF) {
             return -1;
         }
-        void* pg = kalloc(PAGESIZE);
+        void* pg = kalloc(sz);
         for (int i = 0; i < (1 << order); i += PAGESIZE) {
             if (vmiter(this, addr + i).try_map(ka2pa(pg) + i, PTE_PWU) < 0) {
                 return -1;
