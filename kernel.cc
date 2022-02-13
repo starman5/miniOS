@@ -212,7 +212,7 @@ uintptr_t proc::syscall(regstate* regs) {
         }
         void* pg = kalloc(sz);
         for (int i = 0; i < (1 << order); i += PAGESIZE) {
-            if (vmiter(this, addr + i).try_map(ka2pa(pg) + i, PTE_PWU) < 0) {
+            if (!pg || vmiter(this, addr + i).try_map(ka2pa(pg) + i, PTE_PWU) < 0) {
                 return -1;
             }
         }
@@ -322,6 +322,7 @@ int proc::syscall_fork(regstate* regs) {
             }
         
         if (i == NPROC) {
+            log_printf("fork failure\n");
             return -1;
         }
         
@@ -336,16 +337,19 @@ int proc::syscall_fork(regstate* regs) {
 
             if (parentiter.pa() == CONSOLE_ADDR) {
                 if (childiter.try_map(parentiter.pa(), parentiter.perm()) == -1) {
-                        return -1;
+                    log_printf("fork failure\n");
+                    return -1;
                 }
             }
             
             else if (parentiter.user()) {
                 void* addr = kalloc(PAGESIZE);
                 if (addr == nullptr) {
+                    log_printf("fork failure\n");
                     return -1;
                 }
                 if (childiter.try_map(addr, parentiter.perm()) == -1) {
+                    log_printf("fork failure\n");
                     return -1;
                 }
                 memcpy(addr, (const void*) parentiter.va(), PAGESIZE);
