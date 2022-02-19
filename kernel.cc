@@ -62,6 +62,7 @@ void boot_process_start(pid_t pid, const char* name) {
     void* stkpg = kalloc(PAGESIZE);
     assert(stkpg);
     vmiter(p, MEMSIZE_VIRTUAL - PAGESIZE).map(stkpg, PTE_PWU);
+    //vmiter(p, 0xB800).map(0xB800, PTE_PWU);
     p->regs_->reg_rsp = MEMSIZE_VIRTUAL;
 
     // add to process table (requires lock in case another CPU is already
@@ -192,35 +193,72 @@ uintptr_t proc::syscall(regstate* regs) {
 
     case SYSCALL_PAGE_ALLOC: {
         uintptr_t addr = regs->reg_rdi;
-        if (addr >= VA_LOWEND || addr & 0xFFF) {
+        if (addr >= VA_LOWEND/* || addr & 0xFFF*/) {
             return -1;
         }
         void* pg = kalloc(PAGESIZE);
         if (!pg || vmiter(this, addr).try_map(ka2pa(pg), PTE_PWU) < 0) {
             return -1;
         }
+
         return 0;
     }
 
     case SYSCALL_WHATEVER_ALLOC: {
+        log_printf("beginning of syscall_whatever");
         uintptr_t addr = regs->reg_rdi;
         size_t sz = regs->reg_rsi;
         int order = msb(sz) - 1;
 
         if (addr >= VA_LOWEND || addr & 0xFFF) {
+            log_printf("bad addr\n");
             return -1;
         }
+
         void* pg = kalloc(sz);
+        log_printf("pg is %p. Will try to map to %p\n", pg, ka2pa(pg));
+
         for (int i = 0; i < (1 << order); i += PAGESIZE) {
-            if (!pg || vmiter(this, addr + i).try_map(ka2pa(pg) + i, PTE_PWU) < 0) {
+            if (!pg) {
+                log_printf("!pg\n");
+            }
+                
+            if (vmiter(this, addr + i).try_map(ka2pa(pg) + i, PTE_PWU) < 0) {
+                log_printf("can't map\n");
                 return -1;
             }
         }
+        log_printf("end of syscall whatever\n");
         return 0;
         /*if (!pg || vmiter(this, addr).try_map(ka2pa(pg), PTE_PWU) < 0) {
             return -1;
         }
         return 0;*/
+    }
+    case SYSCALL_EXIT: {
+        // Remove the current process from the process table
+        // Free all memory associated with the current process
+            //ptable must be protected by lock
+            //
+        {
+            spinlock_guard guard(ptable_lock);
+            pid_t pid = this->id_;
+            ptable[pid] = nullptr;
+
+            // remove the current process from the process table
+        }
+        
+
+    }
+
+    case SYSCALL_MSLEEP: {
+        // use ticks atomic variable
+        unsigned long wakeup_time = ticks + (regs->reg_rdi + 9) / 10;
+        while (long(wakeup_time - ticks) > 0) {
+            this->yield();
+        }
+
+        return 0;
     }
 
     case SYSCALL_MAP_CONSOLE: {
@@ -308,6 +346,7 @@ int proc::syscall_fork(regstate* regs) {
     x86_64_pagetable* child_pagetable = kalloc_pagetable();
     if (child_pagetable == nullptr) {
         log_printf("fork failure\n");
+        kfree(this);
         return -1;
     }
 
@@ -323,6 +362,7 @@ int proc::syscall_fork(regstate* regs) {
         
         if (i == NPROC) {
             log_printf("fork failure\n");
+            kfree(this);
             return -1;
         }
         
@@ -338,6 +378,7 @@ int proc::syscall_fork(regstate* regs) {
             if (parentiter.pa() == CONSOLE_ADDR) {
                 if (childiter.try_map(parentiter.pa(), parentiter.perm()) == -1) {
                     log_printf("fork failure\n");
+                    kfree(this);
                     return -1;
                 }
             }
@@ -346,10 +387,12 @@ int proc::syscall_fork(regstate* regs) {
                 void* addr = kalloc(PAGESIZE);
                 if (addr == nullptr) {
                     log_printf("fork failure\n");
+                    kfree(this);
                     return -1;
                 }
                 if (childiter.try_map(addr, parentiter.perm()) == -1) {
                     log_printf("fork failure\n");
+                    kfree(this);
                     return -1;
                 }
                 memcpy(addr, (const void*) parentiter.va(), PAGESIZE);

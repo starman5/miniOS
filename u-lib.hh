@@ -131,6 +131,14 @@ inline int sys_whatever_alloc(void* addr, size_t sz) {
     return make_syscall(SYSCALL_WHATEVER_ALLOC, reinterpret_cast<uintptr_t>(addr), sz);
 }
 
+inline int sys_exit() {
+    return make_syscall(SYSCALL_EXIT);
+}
+
+inline int sys_msleep(unsigned long ms) {
+    return make_syscall(SYSCALL_MSLEEP, ms);
+}
+
 // sys_fork()
 //    Fork the current process. On success, return the child's process ID to
 //    the parent, and return 0 to the child. On failure, return E_NOMEM on out

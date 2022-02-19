@@ -45,25 +45,17 @@ page_meta* split(int original_order, page_meta* starting_block, int count) {
     auto irqs = page_lock.lock();
 
     log_printf("In split function\n");
-    log_printf("original_order: %i starting_order: %i\n", original_order, starting_block->order_);
-    log_printf("starting addr: %p\n", starting_block->addr_);
 
     if (original_order != starting_block->order_) {
         uintptr_t starting_addr = ka2pa(starting_block->addr_);
         uintptr_t starting_index = starting_addr / PAGESIZE;    
-        log_printf("starting index: %i\n", starting_index);
         free_blocks[all_pages[starting_index].order_ - MIN_ORDER].erase(&all_pages[starting_index]);
 
         uintptr_t second_addr = starting_addr + (1 << (all_pages[starting_index].order_ - 1));   
         uintptr_t second_index = second_addr / PAGESIZE;
-        log_printf("second_index: %i\n", second_index);
-        log_printf("second - first: %i\n", second_addr - starting_addr);
 
         uintptr_t third_addr = second_addr + (1 << (all_pages[second_index].order_ - 1));
         uintptr_t third_index = third_addr / PAGESIZE;
-
-        log_printf("third_index: %i\n", third_index);
-        log_printf("third - second: %i\n", third_addr - second_addr);
 
         for (int index = starting_index; index < third_index; ++index) {
             all_pages[index].order_ -= 1;
@@ -85,13 +77,6 @@ page_meta* split(int original_order, page_meta* starting_block, int count) {
     else {
         //assert(free_blocks[original_order - MIN_ORDER].front() != nullptr);
         log_printf("return value: %p\n", free_blocks[original_order - MIN_ORDER].back());
-        /*if (count == 1) {
-            for (int ix = 0; ix < MAX_ORDER - MIN_ORDER; ++ix) {
-                if (free_blocks[ix].back() != nullptr) {
-                    log_printf("order in list: %i, actual order: %i\n", ix + MIN_ORDER, free_blocks[ix].pop_back()->order_);
-                }
-            }
-        }*/
         page_lock.unlock(irqs);
         return free_blocks[original_order - MIN_ORDER].pop_back();
     }
@@ -104,14 +89,13 @@ page_meta* split(int original_order, page_meta* starting_block, int count) {
 //      Recursively coalesce free buddies
 
 void merge(uintptr_t p_addr) {
-    //log_printf("In merge\n");
+    log_printf("In merge\n");
     uintptr_t buddy_phys = find_buddy_pa(p_addr);
     int buddy_index = (buddy_phys / PAGESIZE);
     uintptr_t page_index = p_addr / PAGESIZE;
     
     //assert(all_pages[page_index].free_ == true);
     if (all_pages[buddy_index].free_ == true) {
-        //log_printf("if\n");
         //assert(all_pages[page_index].link_.is_linked());
         free_blocks[all_pages[page_index].order_ - MIN_ORDER].erase(&all_pages[page_index]);
 
@@ -122,11 +106,9 @@ void merge(uintptr_t p_addr) {
         // If buddy is to the left:
         //      Increase the order of the buddy page and add to free_blocks 
         if (buddy_phys < p_addr) {
-            //log_printf("before addition: %i\n", all_pages[buddy_index].order_);
             for (int ind = buddy_index; ind <= page_index; ++ind) {
                 all_pages[ind].order_ += 1;
             }
-            //log_printf("after addition: %i\n", all_pages[buddy_index].order_);
             free_blocks[all_pages[buddy_index].order_ - MIN_ORDER].push_back(&all_pages[buddy_index]);
 
             merge(buddy_phys);
@@ -145,8 +127,7 @@ void merge(uintptr_t p_addr) {
     }
 
     else {
-        //log_printf("else\n");
-        return;
+        
     }
 }
 
@@ -178,14 +159,8 @@ void init_kalloc() {
         }
     }
 
-    log_printf("END of init kalloc\n");
+    log_printf("End of init kalloc\n");
     page_lock.unlock(irqs);
-    /*for (int ix = 0; ix < MAX_ORDER - MIN_ORDER; ++ix) {
-        while (free_blocks[ix].back() != nullptr) {
-            log_printf("order in list: %i, actual order: %i\n", ix + MIN_ORDER, free_blocks[ix].pop_back()->order_);
-        }
-    }
-    assert(1 == 0);*/
 }
 
 
@@ -224,7 +199,6 @@ void* kalloc(size_t sz) {
     // and split a block of that order into two new blocks with order - 1
     page_meta* return_block = nullptr;
     if (free_blocks[order - MIN_ORDER].front() == nullptr) {
-        log_printf("in the if\n");
         
         for (int i = order - MIN_ORDER + 1; i <= MAX_ORDER - MIN_ORDER; ++i) {
             log_printf("in for\n");
@@ -237,12 +211,6 @@ void* kalloc(size_t sz) {
                 auto irqs = page_lock.lock();
                 if (return_block->addr_) {
                     log_printf("kernal adress: %p  kernel text: %p  highmem_base: %p\n", return_block->addr_, KTEXT_BASE, HIGHMEM_BASE);
-                    // uintptr_t start_block = ka2pa(return_block->addr_);
-                    // uintptr_t end_block = start_block + (1 << return_block->order_);
-                    // for (uintptr_t a = start_block; a < end_block; a += PAGESIZE) {
-                    //     asan_mark_memory(a, PAGESIZE, false);
-                    //     memset(pa2kptr<void*> (a), 0xCC, PAGESIZE);
-                    // }
                     asan_mark_memory(ka2pa(return_block->addr_), (1 << return_block->order_), false);
                     memset(return_block->addr_, 0xCC, (1 << return_block->order_));
                 }
@@ -250,28 +218,17 @@ void* kalloc(size_t sz) {
                 return return_block->addr_;
             }
         }
-        log_printf("got here\n");
+
+        log_printf("all lists empty\n");
         page_lock.unlock(irqs);
         return nullptr;
     }
     else {
-        log_printf("in the else\n");
         assert(free_blocks[order - MIN_ORDER].front() != nullptr);
-        log_printf("addddd: %p\n", free_blocks[order - MIN_ORDER].front()->addr_);
         //log_printf("index: %i\n", order - MIN_ORDER);
         return_block = free_blocks[order - MIN_ORDER].pop_back();
-        log_printf("pop back addr: %p\n", return_block);
-        log_printf("return block addr: %p\n", return_block->addr_);
-        log_printf("got here\n");
-        log_printf("return block: %p\n", return_block->addr_);
         if (return_block->addr_) {
             log_printf("kernal adress: %p  kernel text: %p  highmem_base: %p\n", return_block->addr_, KTEXT_BASE, HIGHMEM_BASE);
-            // uintptr_t start_block = ka2pa(return_block->addr_);
-            // uintptr_t end_block = start_block + (1 << return_block->order_);
-            // for (uintptr_t a = start_block; a < end_block; a += PAGESIZE) {
-            //     asan_mark_memory(a, PAGESIZE, false);
-            //     memset(pa2kptr<void*> (a), 0xCC, PAGESIZE);
-            // }
             asan_mark_memory(ka2pa(return_block->addr_), (1 << return_block->order_), false);
             memset(return_block->addr_, 0xCC, (1 << return_block->order_));
         }
@@ -293,12 +250,6 @@ void kfree(void* ptr) {
     if (ptr) {
         // tell sanitizers the freed page is inaccessible
         page_meta* block = (page_meta*) ptr;
-        // uintptr_t start_block = ka2pa(block->addr_);
-        // uintptr_t end_block = start_block + (1 << block->order_);
-        // for (uintptr_t a = start_block; a < end_block; a += PAGESIZE) {
-        //     asan_mark_memory(a, PAGESIZE, false);
-        //     memset(pa2kptr<void*> (a), 0xCC, PAGESIZE);
-        // }
         asan_mark_memory(ka2pa(block->addr_), (1 << block->order_), true);
         memset(block->addr_, 0xCC, (1 << block->order_));
     }

@@ -43,11 +43,11 @@ void process_main() {
 
     while (true) {
         if (rand(0, ALLOC_SLOWDOWN - 1) < p) {
-            if (heap_top == stack_bottom || sys_whatever_alloc(heap_top, 8*PAGESIZE) < 0) {
+            if (heap_top == stack_bottom || sys_whatever_alloc(heap_top, PAGESIZE) < 0) {
                 break;
             }
             *heap_top = p;      /* check we have write access to new page */
-            heap_top += 8*PAGESIZE;
+            heap_top += PAGESIZE;
         }
         sys_yield();
         if (rand() < RAND_MAX / 32) {
