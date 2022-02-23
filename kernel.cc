@@ -235,9 +235,9 @@ uintptr_t proc::syscall(regstate* regs) {
                 return -1;
             }
         }
-
-        kfree(pg);
-        log_printf("after kfree\n");
+        // Given a certain probability, free the first page of memory
+        //kfree(pg);
+        //log_printf("after kfree\n");
 
         return 0;
 

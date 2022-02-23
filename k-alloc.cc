@@ -92,24 +92,24 @@ page_meta* split(int original_order, page_meta* starting_block, int count) {
 //      Recursively coalesce free buddies
 
 void merge(uintptr_t p_addr) {
-    log_printf("merge address: %p\n", p_addr);
+    //log_printf("merge address: %p\n", p_addr);
     //log_printf("In merge\n");
     uintptr_t buddy_phys = find_buddy_pa(p_addr);
     int buddy_index = (buddy_phys / PAGESIZE);
     uintptr_t page_index = p_addr / PAGESIZE;
-    log_printf("page index in merge: %i\n", page_index);
-    log_printf("before erase\n");
+    //log_printf("page index in merge: %i\n", page_index);
+    //log_printf("before erase\n");
     
     //assert(all_pages[page_index].free_ == true);
     if (all_pages[buddy_index].free_ == true) {
-        log_printf("in if\n");
+        //log_printf("in if\n");
         //assert(all_pages[page_index].link_.is_linked());
         free_blocks[all_pages[page_index].order_ - MIN_ORDER].erase(&all_pages[page_index]);
-        log_printf("yooo\n");
+        //log_printf("yooo\n");
         //assert(all_pages[buddy_index].link_.is_linked());
         free_blocks[all_pages[buddy_index].order_ - MIN_ORDER].erase(&all_pages[buddy_index]);
         //all_pages[buddy_index].link_.reset();
-        log_printf("after erase\n");
+        //log_printf("after erase\n");
         // If buddy is to the left:
         //      Increase the order of the buddy page and add to free_blocks 
         if (buddy_phys < p_addr) {
@@ -124,7 +124,7 @@ void merge(uintptr_t p_addr) {
         // If buddy is to the right:
         //      Increase the order of the current page and add to free_blocks
         else {
-            log_printf("in else\n");
+            //log_printf("in else\n");
             for (int ind2 = buddy_index; ind2 <= page_index; ++ind2) {
                 all_pages[ind2].order_ += 1;
             }
@@ -134,7 +134,7 @@ void merge(uintptr_t p_addr) {
         }
     }
     else {
-        log_printf("in else\n");
+        //log_printf("in else\n");
         return;
     }
 
