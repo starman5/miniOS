@@ -29,6 +29,7 @@ struct __attribute__((aligned(4096))) proc {
 
     // These four members must come first:
     pid_t id_ = 0;                             // Process ID
+    pid_t parent_id_ = 1;                      // Parent Process ID
     regstate* regs_ = nullptr;                 // Process's current registers
     yieldstate* yields_ = nullptr;             // Process's current yield state
     std::atomic<int> pstate_ = ps_blank;       // Process state

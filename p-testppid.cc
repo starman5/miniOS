@@ -1,6 +1,7 @@
 #include "u-lib.hh"
 
 void process_main() {
+    sys_consoletype(CONSOLE_MEMVIEWER);
     assert_eq(sys_getppid(), 1);
     pid_t original = sys_getpid();
 
@@ -33,18 +34,21 @@ void process_main() {
         assert_eq(after1, after2);
         assert_eq(sys_getppid(), 1);
     }
-
     sys_msleep(50);
     if (sys_getpid() == original) {
+        //printf("succeeded\n");
         console_printf("ppid tests without exit succeed\n");
     } else {
         sys_exit(0);
     }
+    //printf("first\n");
 
 
     // Tests that implicate `exit` behavior
+    //printf("yo\n");
     assert(original != 1);
     fork1 = sys_fork();
+    //printf("here\n");
 
     if (fork1 == 0) {
         after1 = sys_getpid();
@@ -63,6 +67,7 @@ void process_main() {
         fork3 = -1;
     }
 
+    //printf("hereee\n");
     if (fork3 == 0) {
         assert_ne(original, after1);
         assert_eq(after1_parent, original);

@@ -10,6 +10,9 @@
         "__node_handle": "cpp",
         "iterator": "cpp",
         "unordered_map": "cpp",
-        "unordered_set": "cpp"
+        "unordered_set": "cpp",
+        "__bit_reference": "cpp",
+        "__string": "cpp",
+        "cstring": "cpp"
     }
 }

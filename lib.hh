@@ -283,8 +283,9 @@ struct bitset_view {
 #define SYSCALL_MAP_CONSOLE     128
 #define SYSCALL_NASTY           130
 #define SYSCALL_WHATEVER_ALLOC  131
-#define SYSCALL_EXIT            132
-#define SYSCALL_MSLEEP           133
+#define SYSCALL_MSLEEP          133
+#define SYSCALL_GETPPID         134
+#define SYSCALL_TEST_ALLOC      135
 
 // Add new system calls here.
 // Your numbers should be >=128 to avoid conflicts.

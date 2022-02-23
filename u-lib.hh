@@ -91,6 +91,7 @@ inline pid_t sys_getpid() {
     return make_syscall(SYSCALL_GETPID);
 }
 
+
 // sys_yield
 //    Yield control of the CPU to the kernel. The kernel will pick another
 //    process to run, if possible.
@@ -131,12 +132,8 @@ inline int sys_whatever_alloc(void* addr, size_t sz) {
     return make_syscall(SYSCALL_WHATEVER_ALLOC, reinterpret_cast<uintptr_t>(addr), sz);
 }
 
-inline int sys_exit() {
-    return make_syscall(SYSCALL_EXIT);
-}
-
-inline int sys_msleep(unsigned long ms) {
-    return make_syscall(SYSCALL_MSLEEP, ms);
+inline int sys_test_alloc(void* addr, size_t sz) {
+    return make_syscall(SYSCALL_TEST_ALLOC, reinterpret_cast<uintptr_t>(addr), sz);
 }
 
 // sys_fork()
@@ -157,13 +154,14 @@ inline pid_t sys_fork() {
 // sys_msleep(msec)
 //    Block for approximately `msec` milliseconds.
 inline int sys_msleep(unsigned msec) {
-    return E_NOSYS;
+    return make_syscall(SYSCALL_MSLEEP, msec);
 }
 
 // sys_getppid()
 //    Return parent process ID.
 inline pid_t sys_getppid() {
-    return E_NOSYS;
+    //return E_NOSYS;
+    return make_syscall(SYSCALL_GETPPID);
 }
 
 // sys_waitpid(pid, status, options)

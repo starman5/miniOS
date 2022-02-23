@@ -9,7 +9,7 @@
 
 // kernel.cc
 //
-//    This is the kernel.
+//    This is the kernel
 
 
 // # timer interrupts so far on CPU 0
@@ -62,7 +62,12 @@ void boot_process_start(pid_t pid, const char* name) {
     void* stkpg = kalloc(PAGESIZE);
     assert(stkpg);
     vmiter(p, MEMSIZE_VIRTUAL - PAGESIZE).map(stkpg, PTE_PWU);
-    //vmiter(p, 0xB800).map(0xB800, PTE_PWU);
+    log_printf("before\n");
+    uintptr_t console_page = 47104 - (47104 % 4096);
+    log_printf("%p\n", console_page);
+    log_printf("%p\n", ktext2pa(console));
+    vmiter(p, console_page).try_map(ktext2pa(console), PTE_PWU);
+    log_printf("after\n");
     p->regs_->reg_rsp = MEMSIZE_VIRTUAL;
 
     // add to process table (requires lock in case another CPU is already
@@ -186,6 +191,9 @@ uintptr_t proc::syscall(regstate* regs) {
 
     case SYSCALL_GETPID:
         return id_;
+    
+    case SYSCALL_GETPPID:
+        return parent_id_;
 
     case SYSCALL_YIELD:
         yield();
@@ -204,19 +212,50 @@ uintptr_t proc::syscall(regstate* regs) {
         return 0;
     }
 
+    case SYSCALL_TEST_ALLOC: {
+        uintptr_t addr = regs->reg_rdi;
+        size_t sz = regs->reg_rsi;
+        int order = msb(sz) - 1;
+
+        if (addr >= VA_LOWEND || addr & 0xFF) {
+            return -1;
+        }
+
+        log_printf("---- about to kalloc ---");
+        void* pg = kalloc(sz);
+        
+        for (int i = 0; i < (1 << order); i += PAGESIZE) {
+            if (!pg) {
+                log_printf("!pg\n");
+                return -1;
+            }
+                
+            if (vmiter(this, addr + i).try_map(ka2pa(pg) + i, PTE_PWU) < 0) {
+                //log_printf("can't map\n");
+                return -1;
+            }
+        }
+
+        kfree(pg);
+        log_printf("after kfree\n");
+
+        return 0;
+
+    }
+
     case SYSCALL_WHATEVER_ALLOC: {
-        log_printf("beginning of syscall_whatever");
+        //log_printf("beginning of syscall_whatever");
         uintptr_t addr = regs->reg_rdi;
         size_t sz = regs->reg_rsi;
         int order = msb(sz) - 1;
 
         if (addr >= VA_LOWEND || addr & 0xFFF) {
-            log_printf("bad addr\n");
+            //log_printf("bad addr\n");
             return -1;
         }
 
         void* pg = kalloc(sz);
-        log_printf("pg is %p. Will try to map to %p\n", pg, ka2pa(pg));
+        //log_printf("pg is %p. Will try to map to %p\n", pg, ka2pa(pg));
 
         for (int i = 0; i < (1 << order); i += PAGESIZE) {
             if (!pg) {
@@ -224,11 +263,11 @@ uintptr_t proc::syscall(regstate* regs) {
             }
                 
             if (vmiter(this, addr + i).try_map(ka2pa(pg) + i, PTE_PWU) < 0) {
-                log_printf("can't map\n");
+                //log_printf("can't map\n");
                 return -1;
             }
         }
-        log_printf("end of syscall whatever\n");
+        //log_printf("end of syscall whatever\n");
         return 0;
         /*if (!pg || vmiter(this, addr).try_map(ka2pa(pg), PTE_PWU) < 0) {
             return -1;
@@ -241,11 +280,20 @@ uintptr_t proc::syscall(regstate* regs) {
             //ptable must be protected by lock
             //
         {
+            log_printf("----- sys_exit on process %i\n", id_);
             spinlock_guard guard(ptable_lock);
-            pid_t pid = this->id_;
-            ptable[pid] = nullptr;
+
+            set_pagetable(early_pagetable);
+
+            // free the stuff inside the pagetable
+            // free the pagetable
+            
+            for (vmiter it(this->pagetable_, 0); it.va() < MEMSIZE_VIRTUAL; it.next()) {
+                kfree((void*) it.va());
+            }
 
             // remove the current process from the process table
+            pagetable_ = nullptr;
         }
         
 
@@ -336,7 +384,8 @@ uintptr_t proc::syscall(regstate* regs) {
 
 int proc::syscall_fork(regstate* regs) {
     // Find the next available pid by looping through the ones already used
-    
+    pid_t parent_id = this->id_;
+
     proc* p = knew<proc>();
     if (p == nullptr) {
         log_printf("fork failure\n");
@@ -405,6 +454,7 @@ int proc::syscall_fork(regstate* regs) {
         ptable[i] = p;
 
         p->regs_->reg_rax = 0;
+        p->parent_id_ = parent_id;
 
         ptable[i]->pstate_ = ps_runnable;
         cpus[i % ncpu].enqueue(p);
