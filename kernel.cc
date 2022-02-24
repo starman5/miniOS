@@ -222,28 +222,27 @@ uintptr_t proc::syscall(regstate* regs) {
             return -1;
         }
 
-        log_printf("---- about to kalloc ---");
+        log_printf("---- about to kalloc ---\n");
         void* pg = kalloc(sz);
 
         if (!pg) {
             log_printf("---- time to free now ---\n");
             for (vmiter it(this, HIGHMEM_BASE + PAGESIZE); it.va() < VA_HIGHMAX; it.next()) {
-                //log_printf("process %i freeing addr %p, containing %i\n", this->id_, (void*) it.va(), *(int*)it.va());
+                log_printf("process %i freeing addr %p, containing %i\n", this->id_, (void*) it.va(), *(int*)it.va());
                 log_printf("process %i pa highmem_base: %p\n", this->id_, vmiter(this, HIGHMEM_BASE).pa());
-                //kfree((void*) it.va());
-                return -1;
+                kfree((void*) it.va());
+                pg = kalloc(sz);
+                assert(pg != nullptr);
             }
             //kfree(pg);
-            return -1;
+            //return -1;
         }
         
-        else {
-            for (int i = 0; i < (1 << order); i += PAGESIZE) {
+        for (int i = 0; i < (1 << order); i += PAGESIZE) {
                 
-                if (vmiter(this, addr + i).try_map(ka2pa(pg) + i, PTE_PWU) < 0) {
-                    log_printf("can't map\n");
-                    return -1;
-                }
+            if (vmiter(this, addr + i).try_map(ka2pa(pg) + i, PTE_PWU) < 0) {
+                log_printf("can't map\n");
+                return -1;
             }
         }
         // Given a certain probability, free the first page of memory
