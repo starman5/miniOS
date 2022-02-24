@@ -64,9 +64,9 @@ void boot_process_start(pid_t pid, const char* name) {
     vmiter(p, MEMSIZE_VIRTUAL - PAGESIZE).map(stkpg, PTE_PWU);
     log_printf("before\n");
     uintptr_t console_page = 47104 - (47104 % 4096);
-    log_printf("%p\n", console_page);
-    log_printf("%p\n", ktext2pa(console));
-    vmiter(p, console_page).try_map(ktext2pa(console), PTE_PWU);
+    //log_printf("CONSOLE PAGE VA %p\n", console_page);
+    //log_printf("CONSOLE PA%p\n", ktext2pa(console));
+    vmiter(p, ktext2pa(console)).try_map(ktext2pa(console), PTE_PWU);
     log_printf("after\n");
     p->regs_->reg_rsp = MEMSIZE_VIRTUAL;
 
@@ -218,21 +218,32 @@ uintptr_t proc::syscall(regstate* regs) {
         int order = msb(sz) - 1;
 
         if (addr >= VA_LOWEND || addr & 0xFF) {
+            log_printf("random reason\n");
             return -1;
         }
 
         log_printf("---- about to kalloc ---");
         void* pg = kalloc(sz);
-        
-        for (int i = 0; i < (1 << order); i += PAGESIZE) {
-            if (!pg) {
-                log_printf("!pg\n");
+
+        if (!pg) {
+            log_printf("---- time to free now ---\n");
+            for (vmiter it(this, HIGHMEM_BASE + PAGESIZE); it.va() < VA_HIGHMAX; it.next()) {
+                //log_printf("process %i freeing addr %p, containing %i\n", this->id_, (void*) it.va(), *(int*)it.va());
+                log_printf("process %i pa highmem_base: %p\n", this->id_, vmiter(this, HIGHMEM_BASE).pa());
+                //kfree((void*) it.va());
                 return -1;
             }
+            //kfree(pg);
+            return -1;
+        }
+        
+        else {
+            for (int i = 0; i < (1 << order); i += PAGESIZE) {
                 
-            if (vmiter(this, addr + i).try_map(ka2pa(pg) + i, PTE_PWU) < 0) {
-                //log_printf("can't map\n");
-                return -1;
+                if (vmiter(this, addr + i).try_map(ka2pa(pg) + i, PTE_PWU) < 0) {
+                    log_printf("can't map\n");
+                    return -1;
+                }
             }
         }
         // Given a certain probability, free the first page of memory
@@ -283,17 +294,29 @@ uintptr_t proc::syscall(regstate* regs) {
             log_printf("----- sys_exit on process %i\n", id_);
             spinlock_guard guard(ptable_lock);
 
+            // Set the current pagetable to be early_pagetable.  It is:
+            //      Never freed
+            //      Only maps the kernel (i guess there is no risk of it mapping stuff we might need to free rn?)
+            // Now, we can free the pagetable associated with the process we want to free
+            log_printf("early pagetable: %p\n", early_pagetable);
             set_pagetable(early_pagetable);
-
-            // free the stuff inside the pagetable
-            // free the pagetable
+            log_printf("successfully set_pagetable to %p\n", early_pagetable);
             
-            for (vmiter it(this->pagetable_, 0); it.va() < MEMSIZE_VIRTUAL; it.next()) {
-                kfree((void*) it.va());
+            log_printf("Process' pagetable: %p\n", this->pagetable_);
+            // Delete all mappings in the pagetable and free all the pages
+            // I think the problem is I can't yet delete high canonical addresses.  Only low canonical
+            for (vmiter it(this, VA_LOWMIN); it.va() < VA_LOWMAX; it.next()) {
+                //log_printf("Virtual address: %p -- physical adress: %p\n", it.va(), it.pa());
+                if (it.pa() != 0) {
+                    it.kfree_page();
+                }
             }
 
+            // This might not be necessary unless kalloc_pagetable() allocates extra space not used for pages
+            kfree(pagetable_);
+
             // remove the current process from the process table
-            pagetable_ = nullptr;
+            this->pagetable_ = nullptr;
         }
         
 
