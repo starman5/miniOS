@@ -231,9 +231,9 @@ uintptr_t proc::syscall(regstate* regs) {
                 log_printf("process %i freeing addr %p, containing %i\n", this->id_, (void*) it.va(), *(int*)it.va());
                 log_printf("process %i pa highmem_base: %p\n", this->id_, vmiter(this, HIGHMEM_BASE).pa());
                 kfree((void*) it.va());
-                pg = kalloc(sz);
-                assert(pg != nullptr);
             }
+            pg = kalloc(sz);
+            assert(pg != nullptr);
             //kfree(pg);
             //return -1;
         }
