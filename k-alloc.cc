@@ -96,10 +96,10 @@ page_meta* split(int original_order, page_meta* starting_block, int count) {
 //      Recursively coalesce free buddies
 
 void merge(uintptr_t p_addr) {
-    log_printf("merge pa: %p. ka: %p\n", p_addr, pa2kptr<void*>(p_addr));
+    //log_printf("merge pa: %p. ka: %p\n", p_addr, pa2kptr<void*>(p_addr));
     //log_printf("In merge\n");
     uintptr_t buddy_phys = find_buddy_pa(p_addr);
-    log_printf("buddy pa: %p, buddy ka: %p\n", buddy_phys, pa2kptr<void*>(buddy_phys));
+    //log_printf("buddy pa: %p, buddy ka: %p\n", buddy_phys, pa2kptr<void*>(buddy_phys));
     int buddy_index = (buddy_phys / PAGESIZE);
     uintptr_t page_index = p_addr / PAGESIZE;
     //log_printf("page index in merge: %i\n", page_index);
@@ -107,15 +107,15 @@ void merge(uintptr_t p_addr) {
     
     //assert(all_pages[page_index].free_ == true);
     if (all_pages[buddy_index].free_ == true) {
-        log_printf("in if\n");
+        //log_printf("in if\n");
         //assert(all_pages[page_index].link_.is_linked());
         //log_printf("before erase one\n");
         free_blocks[all_pages[page_index].order_ - MIN_ORDER].erase(&all_pages[page_index]);
-        log_printf("after erasing current page\n");
+        //log_printf("after erasing current page\n");
         //assert(all_pages[buddy_index].link_.is_linked());
         //log_printf("before erase 2\n");
         free_blocks[all_pages[buddy_index].order_ - MIN_ORDER].erase(&all_pages[buddy_index]);
-        log_printf("after erasing buddy\n");
+        //log_printf("after erasing buddy\n");
         //all_pages[buddy_index].link_.reset();
         //log_printf("after erase\n");
         // If buddy is to the left:
@@ -125,7 +125,7 @@ void merge(uintptr_t p_addr) {
             for (int ind = buddy_index; ind < final_index; ++ind) {
                 //log_printf("%i\n", ((1 << (all_pages[page_index].order_ - 1)) / PAGESIZE));
                 all_pages[ind].order_ += 1;
-                log_printf("changed order of %p to %i\n", pa2kptr<void*>(ind*PAGESIZE), all_pages[ind].order_);
+                //log_printf("changed order of %p to %i\n", pa2kptr<void*>(ind*PAGESIZE), all_pages[ind].order_);
                 //all_pages[ind].free_ = true;
             }
 
@@ -137,23 +137,23 @@ void merge(uintptr_t p_addr) {
         // If buddy is to the right:
         //      Increase the order of the current page and add to free_blocks
         else {
-            log_printf("in else\n");
+            //log_printf("in else\n");
             //for (int ind2 = buddy_index; ind2 <= page_index; ++ind2) {
             int final_index = buddy_index + (1 << (all_pages[buddy_index].order_ - MIN_ORDER));
             for (int ind2 = page_index; ind2 < final_index; ++ind2) {
-                log_printf("changing order and free of %p\n", pa2kptr<void*>(ind2*PAGESIZE));
+                //log_printf("changing order and free of %p\n", pa2kptr<void*>(ind2*PAGESIZE));
                 all_pages[ind2].order_ += 1;
                 all_pages[ind2].free_ = true;
             }
             free_blocks[all_pages[page_index].order_ - MIN_ORDER].push_back(&all_pages[page_index]);
 
-            log_printf("p_addr: %p, buddy_phys: %p\n", p_addr, buddy_phys);
+            //log_printf("p_addr: %p, buddy_phys: %p\n", p_addr, buddy_phys);
             merge(p_addr);
             //merge(buddy_phys);
         }
     }
     else {
-        log_printf("in real else\n");
+        //log_printf("in real else\n");
         return;
     }
 
