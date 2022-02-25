@@ -1,62 +1,44 @@
 #include "u-lib.hh"
 
-    // Your code here!
-    // Running `testkalloc` should cause the kernel to run buddy allocator
-    // tests. How you make this work is up to you.
-
-#include "u-lib.hh"
-#define ALLOC_SLOWDOWN 1
-
 extern uint8_t end[];
 
 uint8_t* heap_top;
 uint8_t* stack_bottom;
 
 void process_main() {
+    // Your code here!
+    // Running testkalloc should cause the kernel to run buddy allocator
+    // tests. How you make this work is up to you.
+
     sys_consoletype(CONSOLE_MEMVIEWER);
 
-
-    sys_map_console(console);
-    for (int i = 0; i < CONSOLE_ROWS * CONSOLE_COLUMNS; ++i) {
-        console[i] = '*' | 0x5000;
-    }
-
-    // Fork three new copies. (But ignore failures.)
     //(void) sys_fork();
     //(void) sys_fork();
 
-    pid_t p = sys_getpid();
-    srand(p);
-
-    // The heap starts on the page right after the 'end' symbol,
-    // whose address is the first address not allocated to process code
-    // or data.
     heap_top = reinterpret_cast<uint8_t*>(
         round_up(reinterpret_cast<uintptr_t>(end), PAGESIZE)
     );
 
-    // The bottom of the stack is the first address on the current
-    // stack page (this process never needs more than one stack page).
     stack_bottom = reinterpret_cast<uint8_t*>(
         round_down(rdrsp() - 1, PAGESIZE)
     );
 
-    while (true) {
-        if (rand(0, ALLOC_SLOWDOWN - 1) < p) {
-            if (heap_top == stack_bottom || sys_test_alloc(heap_top, PAGESIZE) < 0) {
-                break;
-            }
-            *heap_top = p;      /* check we have write access to new page */
-            heap_top += PAGESIZE;
-        }
-        sys_yield();
-        if (rand() < RAND_MAX / 32) {
-            sys_pause();
-        }
-    }
+    console_printf("heap top: %p\n", heap_top);
 
-    // After running out of memory, do nothing forever
-    while (true) {
-        sys_yield();
+    console_printf("stack bottom %p\n", stack_bottom);
+
+    while(true) {
+        for (uint8_t* addr = heap_top ; addr < stack_bottom; addr += PAGESIZE) {
+            if (addr != (uint8_t*) 0x200000) {
+                //log_printf("addr going into syscall: %p\n", addr);
+                if (sys_test_alloc(addr) == -1) {
+                    sys_test_free(stack_bottom, heap_top);
+                    sys_yield();
+
+                }
+            }
+        }
+        sys_pause();
     }
+    //sys_exit(0);
 }

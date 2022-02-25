@@ -214,43 +214,39 @@ uintptr_t proc::syscall(regstate* regs) {
 
     case SYSCALL_TEST_ALLOC: {
         uintptr_t addr = regs->reg_rdi;
-        size_t sz = regs->reg_rsi;
-        int order = msb(sz) - 1;
-
-        if (addr >= VA_LOWEND || addr & 0xFF) {
-            log_printf("random reason\n");
+        log_printf("test alloc syscall on %p\n", addr);
+        if(addr >= VA_LOWEND) {
+            log_printf("addr >= VA_LOWEND\n");
             return -1;
         }
 
-        log_printf("---- about to kalloc ---\n");
-        void* pg = kalloc(sz);
-
-        if (!pg) {
-            log_printf("---- time to free now ---\n");
-            for (vmiter it(this, HIGHMEM_BASE + PAGESIZE); it.va() < VA_HIGHMAX; it.next()) {
-                log_printf("process %i freeing addr %p, containing %i\n", this->id_, (void*) it.va(), *(int*)it.va());
-                log_printf("process %i pa highmem_base: %p\n", this->id_, vmiter(this, HIGHMEM_BASE).pa());
-                kfree((void*) it.va());
-            }
-            pg = kalloc(sz);
-            assert(pg != nullptr);
-            //kfree(pg);
-            //return -1;
+        void* pg = kalloc(PAGESIZE);
+        if (!pg || vmiter(this, addr).try_map(ka2pa(pg), PTE_PWU) < 0) {
+            log_printf("time to free\n");
+            return -1;
         }
-        
-        for (int i = 0; i < (1 << order); i += PAGESIZE) {
-                
-            if (vmiter(this, addr + i).try_map(ka2pa(pg) + i, PTE_PWU) < 0) {
-                log_printf("can't map\n");
-                return -1;
-            }
-        }
-        // Given a certain probability, free the first page of memory
-        //kfree(pg);
-        //log_printf("after kfree\n");
 
         return 0;
+    }  
 
+    case SYSCALL_TEST_FREE: {
+        log_printf("in test free bruh\n");
+        //log_printf("%p\n", regs_);
+        uintptr_t stack_bottom = regs->reg_rdi;
+        //log_printf("heap top: %p\n", heap_top);
+        uintptr_t heap_top = regs->reg_rsi;
+        //log_printf("stack bottom: %p\n", stack_bottom);
+        for (vmiter it(pagetable_, 0); it.low(); it.next()) {
+            log_printf("heap top: %p\n", heap_top);
+            log_printf("stack bottom: %p\n", stack_bottom);
+            log_printf("va: %p\n", it.va());
+            if (it.user() && it.va() != CONSOLE_ADDR && it.va() >= heap_top && it.va() < stack_bottom) {  //it.va() >= heap_top && it.va() < stack_bottom) {
+                // CHANGE WHEN VARIABLE SIZE IS SUPPORTED
+                log_printf("calling kfree on %p associated with va %p\n", it.pa(), it.va());
+                it.kfree_page();
+            }
+        }
+    return 0;
     }
 
     case SYSCALL_WHATEVER_ALLOC: {

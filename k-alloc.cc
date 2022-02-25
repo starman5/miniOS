@@ -95,7 +95,7 @@ page_meta* split(int original_order, page_meta* starting_block, int count) {
 //      Recursively coalesce free buddies
 
 void merge(uintptr_t p_addr) {
-    log_printf("merge pa: %p. va: %p\n", p_addr, pa2kptr<void*>(p_addr));
+    //log_printf("merge pa: %p. va: %p\n", p_addr, pa2kptr<void*>(p_addr));
     //log_printf("In merge\n");
     uintptr_t buddy_phys = find_buddy_pa(p_addr);
     //log_printf("buddy pa: %p, buddy va: %p\n", buddy_phys, pa2kptr<void*>(buddy_phys));
@@ -302,7 +302,7 @@ void kfree(void* ptr) {
         //log_printf("marking memory\n");
         asan_mark_memory(ka2pa(ptr), 1 << order, true);
         //log_printf("after marking memory\n");
-        memset(ptr, 0, (1 << order));
+        memset(ptr, 0xCC, (1 << order));
         //log_printf("afterm marking memset\n");
     }
 

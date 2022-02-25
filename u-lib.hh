@@ -132,8 +132,12 @@ inline int sys_whatever_alloc(void* addr, size_t sz) {
     return make_syscall(SYSCALL_WHATEVER_ALLOC, reinterpret_cast<uintptr_t>(addr), sz);
 }
 
-inline int sys_test_alloc(void* addr, size_t sz) {
-    return make_syscall(SYSCALL_TEST_ALLOC, reinterpret_cast<uintptr_t>(addr), sz);
+inline int sys_test_alloc(void* addr) {
+    return make_syscall(SYSCALL_TEST_ALLOC, reinterpret_cast<uintptr_t>(addr));
+}
+
+inline int sys_test_free(uint8_t* bottom, uint8_t* top) {
+    return make_syscall(SYSCALL_TEST_FREE, reinterpret_cast<uintptr_t>(bottom), reinterpret_cast<uintptr_t>(top));
 }
 
 // sys_fork()
