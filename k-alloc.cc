@@ -138,13 +138,16 @@ void merge(uintptr_t p_addr) {
         //      Increase the order of the current page and add to free_blocks
         else {
             log_printf("in else\n");
-            for (int ind2 = buddy_index; ind2 <= page_index; ++ind2) {
+            //for (int ind2 = buddy_index; ind2 <= page_index; ++ind2) {
+            int final_index = buddy_index + (1 << (all_pages[buddy_index].order_ - MIN_ORDER));
+            for (int ind2 = page_index; ind2 < final_index; ++ind2) {
                 //log_printf("changing order and free of %p\n", pa2kptr<void*>(ind2*PAGESIZE));
                 all_pages[ind2].order_ += 1;
                 all_pages[ind2].free_ = true;
             }
             free_blocks[all_pages[page_index].order_ - MIN_ORDER].push_back(&all_pages[page_index]);
 
+            log_printf("p_addr: %p, buddy_phys: %p\n", p_addr, buddy_phys);
             merge(p_addr);
             //merge(buddy_phys);
         }
