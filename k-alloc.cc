@@ -125,7 +125,7 @@ void merge(uintptr_t p_addr) {
             for (int ind = buddy_index; ind < final_index; ++ind) {
                 //log_printf("%i\n", ((1 << (all_pages[page_index].order_ - 1)) / PAGESIZE));
                 all_pages[ind].order_ += 1;
-                //log_printf("changed order of %p to %i\n", pa2kptr<void*>(ind*PAGESIZE), all_pages[ind].order_);
+                log_printf("changed order of %p to %i\n", pa2kptr<void*>(ind*PAGESIZE), all_pages[ind].order_);
                 //all_pages[ind].free_ = true;
             }
 
@@ -141,7 +141,7 @@ void merge(uintptr_t p_addr) {
             //for (int ind2 = buddy_index; ind2 <= page_index; ++ind2) {
             int final_index = buddy_index + (1 << (all_pages[buddy_index].order_ - MIN_ORDER));
             for (int ind2 = page_index; ind2 < final_index; ++ind2) {
-                //log_printf("changing order and free of %p\n", pa2kptr<void*>(ind2*PAGESIZE));
+                log_printf("changing order and free of %p\n", pa2kptr<void*>(ind2*PAGESIZE));
                 all_pages[ind2].order_ += 1;
                 all_pages[ind2].free_ = true;
             }
