@@ -12,7 +12,7 @@ void process_main() {
 
     sys_consoletype(CONSOLE_MEMVIEWER);
 
-    //(void) sys_fork();
+    (void) sys_fork();
     //(void) sys_fork();
 
     heap_top = reinterpret_cast<uint8_t*>(

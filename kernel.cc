@@ -230,16 +230,16 @@ uintptr_t proc::syscall(regstate* regs) {
     }  
 
     case SYSCALL_TEST_FREE: {
-        log_printf("in test free bruh\n");
+        //log_printf("in test free bruh\n");
         //log_printf("%p\n", regs_);
         uintptr_t stack_bottom = regs->reg_rdi;
         //log_printf("heap top: %p\n", heap_top);
         uintptr_t heap_top = regs->reg_rsi;
         //log_printf("stack bottom: %p\n", stack_bottom);
         for (vmiter it(pagetable_, 0); it.low(); it.next()) {
-            log_printf("heap top: %p\n", heap_top);
-            log_printf("stack bottom: %p\n", stack_bottom);
-            log_printf("va: %p\n", it.va());
+            //log_printf("heap top: %p\n", heap_top);
+            //log_printf("stack bottom: %p\n", stack_bottom);
+            //log_printf("va: %p\n", it.va());
             if (it.user() && it.va() != CONSOLE_ADDR && it.va() >= heap_top && it.va() < stack_bottom) {  //it.va() >= heap_top && it.va() < stack_bottom) {
                 // CHANGE WHEN VARIABLE SIZE IS SUPPORTED
                 log_printf("calling kfree on %p associated with va %p\n", it.pa(), it.va());

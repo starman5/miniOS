@@ -49,8 +49,10 @@ page_meta* split(int original_order, page_meta* starting_block, int count) {
     auto irqs = page_lock.lock();
 
     //log_printf("In split function\n");
+    log_printf("starting block: %p\n", starting_block);
 
     if (original_order != starting_block->order_) {
+        log_printf("will change order\n");
         uintptr_t starting_addr = ka2pa(starting_block->addr_);
         uintptr_t starting_index = starting_addr / PAGESIZE;    
         free_blocks[all_pages[starting_index].order_ - MIN_ORDER].erase(&all_pages[starting_index]);
@@ -80,7 +82,7 @@ page_meta* split(int original_order, page_meta* starting_block, int count) {
 
     else {
         //assert(free_blocks[original_order - MIN_ORDER].front() != nullptr);
-        //log_printf("return value: %p\n", free_blocks[original_order - MIN_ORDER].back());
+        log_printf("return value: %p\n", free_blocks[original_order - MIN_ORDER].back());
         page_meta* thing = free_blocks[original_order - MIN_ORDER].pop_back();
         thing->free_ = false;
 
@@ -96,26 +98,26 @@ page_meta* split(int original_order, page_meta* starting_block, int count) {
 //      Recursively coalesce free buddies
 
 void merge(uintptr_t p_addr) {
-    //log_printf("merge pa: %p. ka: %p\n", p_addr, pa2kptr<void*>(p_addr));
+    log_printf("merge pa: %p. ka: %p\n", p_addr, pa2kptr<void*>(p_addr));
     //log_printf("In merge\n");
     uintptr_t buddy_phys = find_buddy_pa(p_addr);
-    //log_printf("buddy pa: %p, buddy ka: %p\n", buddy_phys, pa2kptr<void*>(buddy_phys));
+    log_printf("buddy pa: %p, buddy ka: %p\n", buddy_phys, pa2kptr<void*>(buddy_phys));
     int buddy_index = (buddy_phys / PAGESIZE);
     uintptr_t page_index = p_addr / PAGESIZE;
-    //log_printf("page index in merge: %i\n", page_index);
+    log_printf("current page order: %i, buddy order: %i\n", all_pages[page_index].order_, all_pages[buddy_index].order_);
     //log_printf("before erase\n");
     
     //assert(all_pages[page_index].free_ == true);
-    if (all_pages[buddy_index].free_ == true) {
-        //log_printf("in if\n");
+    if (all_pages[buddy_index].free_ == true && (all_pages[buddy_index].order_ == all_pages[page_index].order_)) {
+        log_printf("in if\n");
         //assert(all_pages[page_index].link_.is_linked());
         //log_printf("before erase one\n");
         free_blocks[all_pages[page_index].order_ - MIN_ORDER].erase(&all_pages[page_index]);
-        //log_printf("after erasing current page\n");
+        log_printf("after erasing current page\n");
         //assert(all_pages[buddy_index].link_.is_linked());
         //log_printf("before erase 2\n");
         free_blocks[all_pages[buddy_index].order_ - MIN_ORDER].erase(&all_pages[buddy_index]);
-        //log_printf("after erasing buddy\n");
+        log_printf("after erasing buddy\n");
         //all_pages[buddy_index].link_.reset();
         //log_printf("after erase\n");
         // If buddy is to the left:
@@ -137,7 +139,7 @@ void merge(uintptr_t p_addr) {
         // If buddy is to the right:
         //      Increase the order of the current page and add to free_blocks
         else {
-            //log_printf("in else\n");
+            log_printf("in else\n");
             //for (int ind2 = buddy_index; ind2 <= page_index; ++ind2) {
             int final_index = buddy_index + (1 << (all_pages[buddy_index].order_ - MIN_ORDER));
             for (int ind2 = page_index; ind2 < final_index; ++ind2) {
@@ -153,7 +155,7 @@ void merge(uintptr_t p_addr) {
         }
     }
     else {
-        //log_printf("in real else\n");
+        log_printf("in real else\n");
         return;
     }
 
@@ -228,10 +230,11 @@ void* kalloc(size_t sz) {
     // and split a block of that order into two new blocks with order - 1
     page_meta* return_block = nullptr;
     if (free_blocks[order - MIN_ORDER].front() == nullptr) {
+        log_printf("there is not a free block of this order\n");
         
         for (int i = order - MIN_ORDER + 1; i <= MAX_ORDER - MIN_ORDER; ++i) {
             //log_printf("in for\n");
-            if (free_blocks[i].front() != nullptr) {
+            if (free_blocks[i].back() != nullptr) {
                 //log_printf("will need to call split\n");
                 //log_printf("will get to: %i there is a free block at: %i\n", order, i + MIN_ORDER);
                 //log_printf("order of free_blocks[i].back(): %i\n", free_blocks[i].back()->order_);
@@ -254,7 +257,7 @@ void* kalloc(size_t sz) {
         return nullptr;
     }
     else {
-        //log_printf("there is a free block of this order\n");
+        log_printf("there is a free block of this order\n");
         assert(free_blocks[order - MIN_ORDER].front() != nullptr);
         //log_printf("index: %i\n", order - MIN_ORDER);
         return_block = free_blocks[order - MIN_ORDER].pop_back();
