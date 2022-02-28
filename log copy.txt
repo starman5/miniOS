@@ -1,0 +1,1673 @@
+ ---- In init_kalloc() ---merge pa: 0x1000. ka: 0xffff800000001000
+buddy pa: 0x0, buddy ka: 0xffff800000000000
+merge pa: 0x2000. ka: 0xffff800000002000
+buddy pa: 0x3000, buddy ka: 0xffff800000003000
+merge pa: 0x3000. ka: 0xffff800000003000
+buddy pa: 0x2000, buddy ka: 0xffff800000002000
+merge pa: 0x2000. ka: 0xffff800000002000
+buddy pa: 0x0, buddy ka: 0xffff800000000000
+merge pa: 0x9000. ka: 0xffff800000009000
+buddy pa: 0x8000, buddy ka: 0xffff800000008000
+merge pa: 0xa000. ka: 0xffff80000000a000
+buddy pa: 0xb000, buddy ka: 0xffff80000000b000
+merge pa: 0xb000. ka: 0xffff80000000b000
+buddy pa: 0xa000, buddy ka: 0xffff80000000a000
+merge pa: 0xa000. ka: 0xffff80000000a000
+buddy pa: 0x8000, buddy ka: 0xffff800000008000
+merge pa: 0xc000. ka: 0xffff80000000c000
+buddy pa: 0xd000, buddy ka: 0xffff80000000d000
+merge pa: 0xd000. ka: 0xffff80000000d000
+buddy pa: 0xc000, buddy ka: 0xffff80000000c000
+merge pa: 0xc000. ka: 0xffff80000000c000
+buddy pa: 0xe000, buddy ka: 0xffff80000000e000
+merge pa: 0xe000. ka: 0xffff80000000e000
+buddy pa: 0xf000, buddy ka: 0xffff80000000f000
+merge pa: 0xf000. ka: 0xffff80000000f000
+buddy pa: 0xe000, buddy ka: 0xffff80000000e000
+merge pa: 0xe000. ka: 0xffff80000000e000
+buddy pa: 0xc000, buddy ka: 0xffff80000000c000
+merge pa: 0xc000. ka: 0xffff80000000c000
+buddy pa: 0x8000, buddy ka: 0xffff800000008000
+merge pa: 0x10000. ka: 0xffff800000010000
+buddy pa: 0x11000, buddy ka: 0xffff800000011000
+merge pa: 0x11000. ka: 0xffff800000011000
+buddy pa: 0x10000, buddy ka: 0xffff800000010000
+merge pa: 0x10000. ka: 0xffff800000010000
+buddy pa: 0x12000, buddy ka: 0xffff800000012000
+merge pa: 0x12000. ka: 0xffff800000012000
+buddy pa: 0x13000, buddy ka: 0xffff800000013000
+merge pa: 0x13000. ka: 0xffff800000013000
+buddy pa: 0x12000, buddy ka: 0xffff800000012000
+merge pa: 0x12000. ka: 0xffff800000012000
+buddy pa: 0x10000, buddy ka: 0xffff800000010000
+merge pa: 0x10000. ka: 0xffff800000010000
+buddy pa: 0x14000, buddy ka: 0xffff800000014000
+merge pa: 0x14000. ka: 0xffff800000014000
+buddy pa: 0x15000, buddy ka: 0xffff800000015000
+merge pa: 0x15000. ka: 0xffff800000015000
+buddy pa: 0x14000, buddy ka: 0xffff800000014000
+merge pa: 0x14000. ka: 0xffff800000014000
+buddy pa: 0x16000, buddy ka: 0xffff800000016000
+merge pa: 0x16000. ka: 0xffff800000016000
+buddy pa: 0x17000, buddy ka: 0xffff800000017000
+merge pa: 0x17000. ka: 0xffff800000017000
+buddy pa: 0x16000, buddy ka: 0xffff800000016000
+merge pa: 0x16000. ka: 0xffff800000016000
+buddy pa: 0x14000, buddy ka: 0xffff800000014000
+merge pa: 0x14000. ka: 0xffff800000014000
+buddy pa: 0x10000, buddy ka: 0xffff800000010000
+merge pa: 0x10000. ka: 0xffff800000010000
+buddy pa: 0x18000, buddy ka: 0xffff800000018000
+merge pa: 0x18000. ka: 0xffff800000018000
+buddy pa: 0x19000, buddy ka: 0xffff800000019000
+merge pa: 0x19000. ka: 0xffff800000019000
+buddy pa: 0x18000, buddy ka: 0xffff800000018000
+merge pa: 0x18000. ka: 0xffff800000018000
+buddy pa: 0x1a000, buddy ka: 0xffff80000001a000
+merge pa: 0x1a000. ka: 0xffff80000001a000
+buddy pa: 0x1b000, buddy ka: 0xffff80000001b000
+merge pa: 0x1b000. ka: 0xffff80000001b000
+buddy pa: 0x1a000, buddy ka: 0xffff80000001a000
+merge pa: 0x1a000. ka: 0xffff80000001a000
+buddy pa: 0x18000, buddy ka: 0xffff800000018000
+merge pa: 0x18000. ka: 0xffff800000018000
+buddy pa: 0x1c000, buddy ka: 0xffff80000001c000
+merge pa: 0x1c000. ka: 0xffff80000001c000
+buddy pa: 0x1d000, buddy ka: 0xffff80000001d000
+merge pa: 0x1d000. ka: 0xffff80000001d000
+buddy pa: 0x1c000, buddy ka: 0xffff80000001c000
+merge pa: 0x1c000. ka: 0xffff80000001c000
+buddy pa: 0x1e000, buddy ka: 0xffff80000001e000
+merge pa: 0x1e000. ka: 0xffff80000001e000
+buddy pa: 0x1f000, buddy ka: 0xffff80000001f000
+merge pa: 0x1f000. ka: 0xffff80000001f000
+buddy pa: 0x1e000, buddy ka: 0xffff80000001e000
+merge pa: 0x1e000. ka: 0xffff80000001e000
+buddy pa: 0x1c000, buddy ka: 0xffff80000001c000
+merge pa: 0x1c000. ka: 0xffff80000001c000
+buddy pa: 0x18000, buddy ka: 0xffff800000018000
+merge pa: 0x18000. ka: 0xffff800000018000
+buddy pa: 0x10000, buddy ka: 0xffff800000010000
+merge pa: 0x10000. ka: 0xffff800000010000
+buddy pa: 0x0, buddy ka: 0xffff800000000000
+merge pa: 0x20000. ka: 0xffff800000020000
+buddy pa: 0x21000, buddy ka: 0xffff800000021000
+merge pa: 0x21000. ka: 0xffff800000021000
+buddy pa: 0x20000, buddy ka: 0xffff800000020000
+merge pa: 0x20000. ka: 0xffff800000020000
+buddy pa: 0x22000, buddy ka: 0xffff800000022000
+merge pa: 0x22000. ka: 0xffff800000022000
+buddy pa: 0x23000, buddy ka: 0xffff800000023000
+merge pa: 0x23000. ka: 0xffff800000023000
+buddy pa: 0x22000, buddy ka: 0xffff800000022000
+merge pa: 0x22000. ka: 0xffff800000022000
+buddy pa: 0x20000, buddy ka: 0xffff800000020000
+merge pa: 0x20000. ka: 0xffff800000020000
+buddy pa: 0x24000, buddy ka: 0xffff800000024000
+merge pa: 0x24000. ka: 0xffff800000024000
+buddy pa: 0x25000, buddy ka: 0xffff800000025000
+merge pa: 0x25000. ka: 0xffff800000025000
+buddy pa: 0x24000, buddy ka: 0xffff800000024000
+merge pa: 0x24000. ka: 0xffff800000024000
+buddy pa: 0x26000, buddy ka: 0xffff800000026000
+merge pa: 0x26000. ka: 0xffff800000026000
+buddy pa: 0x27000, buddy ka: 0xffff800000027000
+merge pa: 0x27000. ka: 0xffff800000027000
+buddy pa: 0x26000, buddy ka: 0xffff800000026000
+merge pa: 0x26000. ka: 0xffff800000026000
+buddy pa: 0x24000, buddy ka: 0xffff800000024000
+merge pa: 0x24000. ka: 0xffff800000024000
+buddy pa: 0x20000, buddy ka: 0xffff800000020000
+merge pa: 0x20000. ka: 0xffff800000020000
+buddy pa: 0x28000, buddy ka: 0xffff800000028000
+merge pa: 0x28000. ka: 0xffff800000028000
+buddy pa: 0x29000, buddy ka: 0xffff800000029000
+merge pa: 0x29000. ka: 0xffff800000029000
+buddy pa: 0x28000, buddy ka: 0xffff800000028000
+merge pa: 0x28000. ka: 0xffff800000028000
+buddy pa: 0x2a000, buddy ka: 0xffff80000002a000
+merge pa: 0x2a000. ka: 0xffff80000002a000
+buddy pa: 0x2b000, buddy ka: 0xffff80000002b000
+merge pa: 0x2b000. ka: 0xffff80000002b000
+buddy pa: 0x2a000, buddy ka: 0xffff80000002a000
+merge pa: 0x2a000. ka: 0xffff80000002a000
+buddy pa: 0x28000, buddy ka: 0xffff800000028000
+merge pa: 0x28000. ka: 0xffff800000028000
+buddy pa: 0x2c000, buddy ka: 0xffff80000002c000
+merge pa: 0x2c000. ka: 0xffff80000002c000
+buddy pa: 0x2d000, buddy ka: 0xffff80000002d000
+merge pa: 0x2d000. ka: 0xffff80000002d000
+buddy pa: 0x2c000, buddy ka: 0xffff80000002c000
+merge pa: 0x2c000. ka: 0xffff80000002c000
+buddy pa: 0x2e000, buddy ka: 0xffff80000002e000
+merge pa: 0x2e000. ka: 0xffff80000002e000
+buddy pa: 0x2f000, buddy ka: 0xffff80000002f000
+merge pa: 0x2f000. ka: 0xffff80000002f000
+buddy pa: 0x2e000, buddy ka: 0xffff80000002e000
+merge pa: 0x2e000. ka: 0xffff80000002e000
+buddy pa: 0x2c000, buddy ka: 0xffff80000002c000
+merge pa: 0x2c000. ka: 0xffff80000002c000
+buddy pa: 0x28000, buddy ka: 0xffff800000028000
+merge pa: 0x28000. ka: 0xffff800000028000
+buddy pa: 0x20000, buddy ka: 0xffff800000020000
+merge pa: 0x20000. ka: 0xffff800000020000
+buddy pa: 0x30000, buddy ka: 0xffff800000030000
+merge pa: 0x30000. ka: 0xffff800000030000
+buddy pa: 0x31000, buddy ka: 0xffff800000031000
+merge pa: 0x31000. ka: 0xffff800000031000
+buddy pa: 0x30000, buddy ka: 0xffff800000030000
+merge pa: 0x30000. ka: 0xffff800000030000
+buddy pa: 0x32000, buddy ka: 0xffff800000032000
+merge pa: 0x32000. ka: 0xffff800000032000
+buddy pa: 0x33000, buddy ka: 0xffff800000033000
+merge pa: 0x33000. ka: 0xffff800000033000
+buddy pa: 0x32000, buddy ka: 0xffff800000032000
+merge pa: 0x32000. ka: 0xffff800000032000
+buddy pa: 0x30000, buddy ka: 0xffff800000030000
+merge pa: 0x30000. ka: 0xffff800000030000
+buddy pa: 0x34000, buddy ka: 0xffff800000034000
+merge pa: 0x34000. ka: 0xffff800000034000
+buddy pa: 0x35000, buddy ka: 0xffff800000035000
+merge pa: 0x35000. ka: 0xffff800000035000
+buddy pa: 0x34000, buddy ka: 0xffff800000034000
+merge pa: 0x34000. ka: 0xffff800000034000
+buddy pa: 0x36000, buddy ka: 0xffff800000036000
+merge pa: 0x36000. ka: 0xffff800000036000
+buddy pa: 0x37000, buddy ka: 0xffff800000037000
+merge pa: 0x37000. ka: 0xffff800000037000
+buddy pa: 0x36000, buddy ka: 0xffff800000036000
+merge pa: 0x36000. ka: 0xffff800000036000
+buddy pa: 0x34000, buddy ka: 0xffff800000034000
+merge pa: 0x34000. ka: 0xffff800000034000
+buddy pa: 0x30000, buddy ka: 0xffff800000030000
+merge pa: 0x30000. ka: 0xffff800000030000
+buddy pa: 0x38000, buddy ka: 0xffff800000038000
+merge pa: 0x38000. ka: 0xffff800000038000
+buddy pa: 0x39000, buddy ka: 0xffff800000039000
+merge pa: 0x39000. ka: 0xffff800000039000
+buddy pa: 0x38000, buddy ka: 0xffff800000038000
+merge pa: 0x38000. ka: 0xffff800000038000
+buddy pa: 0x3a000, buddy ka: 0xffff80000003a000
+merge pa: 0x3a000. ka: 0xffff80000003a000
+buddy pa: 0x3b000, buddy ka: 0xffff80000003b000
+merge pa: 0x3b000. ka: 0xffff80000003b000
+buddy pa: 0x3a000, buddy ka: 0xffff80000003a000
+merge pa: 0x3a000. ka: 0xffff80000003a000
+buddy pa: 0x38000, buddy ka: 0xffff800000038000
+merge pa: 0x38000. ka: 0xffff800000038000
+buddy pa: 0x3c000, buddy ka: 0xffff80000003c000
+merge pa: 0x3c000. ka: 0xffff80000003c000
+buddy pa: 0x3d000, buddy ka: 0xffff80000003d000
+merge pa: 0x3d000. ka: 0xffff80000003d000
+buddy pa: 0x3c000, buddy ka: 0xffff80000003c000
+merge pa: 0x3c000. ka: 0xffff80000003c000
+buddy pa: 0x3e000, buddy ka: 0xffff80000003e000
+merge pa: 0x3e000. ka: 0xffff80000003e000
+buddy pa: 0x3f000, buddy ka: 0xffff80000003f000
+merge pa: 0x3f000. ka: 0xffff80000003f000
+buddy pa: 0x3e000, buddy ka: 0xffff80000003e000
+merge pa: 0x3e000. ka: 0xffff80000003e000
+buddy pa: 0x3c000, buddy ka: 0xffff80000003c000
+merge pa: 0x3c000. ka: 0xffff80000003c000
+buddy pa: 0x38000, buddy ka: 0xffff800000038000
+merge pa: 0x38000. ka: 0xffff800000038000
+buddy pa: 0x30000, buddy ka: 0xffff800000030000
+merge pa: 0x30000. ka: 0xffff800000030000
+buddy pa: 0x20000, buddy ka: 0xffff800000020000
+merge pa: 0x20000. ka: 0xffff800000020000
+buddy pa: 0x0, buddy ka: 0xffff800000000000
+merge pa: 0x40000. ka: 0xffff800000040000
+buddy pa: 0x41000, buddy ka: 0xffff800000041000
+merge pa: 0x41000. ka: 0xffff800000041000
+buddy pa: 0x40000, buddy ka: 0xffff800000040000
+merge pa: 0x40000. ka: 0xffff800000040000
+buddy pa: 0x42000, buddy ka: 0xffff800000042000
+merge pa: 0x42000. ka: 0xffff800000042000
+buddy pa: 0x43000, buddy ka: 0xffff800000043000
+merge pa: 0x43000. ka: 0xffff800000043000
+buddy pa: 0x42000, buddy ka: 0xffff800000042000
+merge pa: 0x42000. ka: 0xffff800000042000
+buddy pa: 0x40000, buddy ka: 0xffff800000040000
+merge pa: 0x40000. ka: 0xffff800000040000
+buddy pa: 0x44000, buddy ka: 0xffff800000044000
+merge pa: 0x44000. ka: 0xffff800000044000
+buddy pa: 0x45000, buddy ka: 0xffff800000045000
+merge pa: 0x45000. ka: 0xffff800000045000
+buddy pa: 0x44000, buddy ka: 0xffff800000044000
+merge pa: 0x44000. ka: 0xffff800000044000
+buddy pa: 0x46000, buddy ka: 0xffff800000046000
+merge pa: 0x46000. ka: 0xffff800000046000
+buddy pa: 0x47000, buddy ka: 0xffff800000047000
+merge pa: 0x47000. ka: 0xffff800000047000
+buddy pa: 0x46000, buddy ka: 0xffff800000046000
+merge pa: 0x46000. ka: 0xffff800000046000
+buddy pa: 0x44000, buddy ka: 0xffff800000044000
+merge pa: 0x44000. ka: 0xffff800000044000
+buddy pa: 0x40000, buddy ka: 0xffff800000040000
+merge pa: 0x40000. ka: 0xffff800000040000
+buddy pa: 0x48000, buddy ka: 0xffff800000048000
+merge pa: 0x48000. ka: 0xffff800000048000
+buddy pa: 0x49000, buddy ka: 0xffff800000049000
+merge pa: 0x49000. ka: 0xffff800000049000
+buddy pa: 0x48000, buddy ka: 0xffff800000048000
+merge pa: 0x48000. ka: 0xffff800000048000
+buddy pa: 0x4a000, buddy ka: 0xffff80000004a000
+merge pa: 0x4a000. ka: 0xffff80000004a000
+buddy pa: 0x4b000, buddy ka: 0xffff80000004b000
+merge pa: 0x4b000. ka: 0xffff80000004b000
+buddy pa: 0x4a000, buddy ka: 0xffff80000004a000
+merge pa: 0x4a000. ka: 0xffff80000004a000
+buddy pa: 0x48000, buddy ka: 0xffff800000048000
+merge pa: 0x48000. ka: 0xffff800000048000
+buddy pa: 0x4c000, buddy ka: 0xffff80000004c000
+merge pa: 0x4c000. ka: 0xffff80000004c000
+buddy pa: 0x4d000, buddy ka: 0xffff80000004d000
+merge pa: 0x4d000. ka: 0xffff80000004d000
+buddy pa: 0x4c000, buddy ka: 0xffff80000004c000
+merge pa: 0x4c000. ka: 0xffff80000004c000
+buddy pa: 0x4e000, buddy ka: 0xffff80000004e000
+merge pa: 0x4e000. ka: 0xffff80000004e000
+buddy pa: 0x4f000, buddy ka: 0xffff80000004f000
+merge pa: 0x4f000. ka: 0xffff80000004f000
+buddy pa: 0x4e000, buddy ka: 0xffff80000004e000
+merge pa: 0x4e000. ka: 0xffff80000004e000
+buddy pa: 0x4c000, buddy ka: 0xffff80000004c000
+merge pa: 0x4c000. ka: 0xffff80000004c000
+buddy pa: 0x48000, buddy ka: 0xffff800000048000
+merge pa: 0x48000. ka: 0xffff800000048000
+buddy pa: 0x40000, buddy ka: 0xffff800000040000
+merge pa: 0x40000. ka: 0xffff800000040000
+buddy pa: 0x50000, buddy ka: 0xffff800000050000
+merge pa: 0x50000. ka: 0xffff800000050000
+buddy pa: 0x51000, buddy ka: 0xffff800000051000
+merge pa: 0x51000. ka: 0xffff800000051000
+buddy pa: 0x50000, buddy ka: 0xffff800000050000
+merge pa: 0x50000. ka: 0xffff800000050000
+buddy pa: 0x52000, buddy ka: 0xffff800000052000
+merge pa: 0x52000. ka: 0xffff800000052000
+buddy pa: 0x53000, buddy ka: 0xffff800000053000
+merge pa: 0x53000. ka: 0xffff800000053000
+buddy pa: 0x52000, buddy ka: 0xffff800000052000
+merge pa: 0x52000. ka: 0xffff800000052000
+buddy pa: 0x50000, buddy ka: 0xffff800000050000
+merge pa: 0x50000. ka: 0xffff800000050000
+buddy pa: 0x54000, buddy ka: 0xffff800000054000
+merge pa: 0x54000. ka: 0xffff800000054000
+buddy pa: 0x55000, buddy ka: 0xffff800000055000
+merge pa: 0x55000. ka: 0xffff800000055000
+buddy pa: 0x54000, buddy ka: 0xffff800000054000
+merge pa: 0x54000. ka: 0xffff800000054000
+buddy pa: 0x56000, buddy ka: 0xffff800000056000
+merge pa: 0x56000. ka: 0xffff800000056000
+buddy pa: 0x57000, buddy ka: 0xffff800000057000
+merge pa: 0x57000. ka: 0xffff800000057000
+buddy pa: 0x56000, buddy ka: 0xffff800000056000
+merge pa: 0x56000. ka: 0xffff800000056000
+buddy pa: 0x54000, buddy ka: 0xffff800000054000
+merge pa: 0x54000. ka: 0xffff800000054000
+buddy pa: 0x50000, buddy ka: 0xffff800000050000
+merge pa: 0x50000. ka: 0xffff800000050000
+buddy pa: 0x58000, buddy ka: 0xffff800000058000
+merge pa: 0x58000. ka: 0xffff800000058000
+buddy pa: 0x59000, buddy ka: 0xffff800000059000
+merge pa: 0x59000. ka: 0xffff800000059000
+buddy pa: 0x58000, buddy ka: 0xffff800000058000
+merge pa: 0x58000. ka: 0xffff800000058000
+buddy pa: 0x5a000, buddy ka: 0xffff80000005a000
+merge pa: 0x5a000. ka: 0xffff80000005a000
+buddy pa: 0x5b000, buddy ka: 0xffff80000005b000
+merge pa: 0x5b000. ka: 0xffff80000005b000
+buddy pa: 0x5a000, buddy ka: 0xffff80000005a000
+merge pa: 0x5a000. ka: 0xffff80000005a000
+buddy pa: 0x58000, buddy ka: 0xffff800000058000
+merge pa: 0x58000. ka: 0xffff800000058000
+buddy pa: 0x5c000, buddy ka: 0xffff80000005c000
+merge pa: 0x5c000. ka: 0xffff80000005c000
+buddy pa: 0x5d000, buddy ka: 0xffff80000005d000
+merge pa: 0x5d000. ka: 0xffff80000005d000
+buddy pa: 0x5c000, buddy ka: 0xffff80000005c000
+merge pa: 0x5c000. ka: 0xffff80000005c000
+buddy pa: 0x5e000, buddy ka: 0xffff80000005e000
+merge pa: 0x5e000. ka: 0xffff80000005e000
+buddy pa: 0x5f000, buddy ka: 0xffff80000005f000
+merge pa: 0x5f000. ka: 0xffff80000005f000
+buddy pa: 0x5e000, buddy ka: 0xffff80000005e000
+merge pa: 0x5e000. ka: 0xffff80000005e000
+buddy pa: 0x5c000, buddy ka: 0xffff80000005c000
+merge pa: 0x5c000. ka: 0xffff80000005c000
+buddy pa: 0x58000, buddy ka: 0xffff800000058000
+merge pa: 0x58000. ka: 0xffff800000058000
+buddy pa: 0x50000, buddy ka: 0xffff800000050000
+merge pa: 0x50000. ka: 0xffff800000050000
+buddy pa: 0x40000, buddy ka: 0xffff800000040000
+merge pa: 0x40000. ka: 0xffff800000040000
+buddy pa: 0x60000, buddy ka: 0xffff800000060000
+merge pa: 0x60000. ka: 0xffff800000060000
+buddy pa: 0x61000, buddy ka: 0xffff800000061000
+merge pa: 0x61000. ka: 0xffff800000061000
+buddy pa: 0x60000, buddy ka: 0xffff800000060000
+merge pa: 0x60000. ka: 0xffff800000060000
+buddy pa: 0x62000, buddy ka: 0xffff800000062000
+merge pa: 0x62000. ka: 0xffff800000062000
+buddy pa: 0x63000, buddy ka: 0xffff800000063000
+merge pa: 0x63000. ka: 0xffff800000063000
+buddy pa: 0x62000, buddy ka: 0xffff800000062000
+merge pa: 0x62000. ka: 0xffff800000062000
+buddy pa: 0x60000, buddy ka: 0xffff800000060000
+merge pa: 0x60000. ka: 0xffff800000060000
+buddy pa: 0x64000, buddy ka: 0xffff800000064000
+merge pa: 0x64000. ka: 0xffff800000064000
+buddy pa: 0x65000, buddy ka: 0xffff800000065000
+merge pa: 0x65000. ka: 0xffff800000065000
+buddy pa: 0x64000, buddy ka: 0xffff800000064000
+merge pa: 0x64000. ka: 0xffff800000064000
+buddy pa: 0x66000, buddy ka: 0xffff800000066000
+merge pa: 0x66000. ka: 0xffff800000066000
+buddy pa: 0x67000, buddy ka: 0xffff800000067000
+merge pa: 0x67000. ka: 0xffff800000067000
+buddy pa: 0x66000, buddy ka: 0xffff800000066000
+merge pa: 0x66000. ka: 0xffff800000066000
+buddy pa: 0x64000, buddy ka: 0xffff800000064000
+merge pa: 0x64000. ka: 0xffff800000064000
+buddy pa: 0x60000, buddy ka: 0xffff800000060000
+merge pa: 0x60000. ka: 0xffff800000060000
+buddy pa: 0x68000, buddy ka: 0xffff800000068000
+merge pa: 0x68000. ka: 0xffff800000068000
+buddy pa: 0x69000, buddy ka: 0xffff800000069000
+merge pa: 0x69000. ka: 0xffff800000069000
+buddy pa: 0x68000, buddy ka: 0xffff800000068000
+merge pa: 0x68000. ka: 0xffff800000068000
+buddy pa: 0x6a000, buddy ka: 0xffff80000006a000
+merge pa: 0x6a000. ka: 0xffff80000006a000
+buddy pa: 0x6b000, buddy ka: 0xffff80000006b000
+merge pa: 0x6b000. ka: 0xffff80000006b000
+buddy pa: 0x6a000, buddy ka: 0xffff80000006a000
+merge pa: 0x6a000. ka: 0xffff80000006a000
+buddy pa: 0x68000, buddy ka: 0xffff800000068000
+merge pa: 0x68000. ka: 0xffff800000068000
+buddy pa: 0x6c000, buddy ka: 0xffff80000006c000
+merge pa: 0x6c000. ka: 0xffff80000006c000
+buddy pa: 0x6d000, buddy ka: 0xffff80000006d000
+merge pa: 0x6d000. ka: 0xffff80000006d000
+buddy pa: 0x6c000, buddy ka: 0xffff80000006c000
+merge pa: 0x6c000. ka: 0xffff80000006c000
+buddy pa: 0x6e000, buddy ka: 0xffff80000006e000
+merge pa: 0x6e000. ka: 0xffff80000006e000
+buddy pa: 0x6f000, buddy ka: 0xffff80000006f000
+merge pa: 0x6f000. ka: 0xffff80000006f000
+buddy pa: 0x6e000, buddy ka: 0xffff80000006e000
+merge pa: 0x6e000. ka: 0xffff80000006e000
+buddy pa: 0x6c000, buddy ka: 0xffff80000006c000
+merge pa: 0x6c000. ka: 0xffff80000006c000
+buddy pa: 0x68000, buddy ka: 0xffff800000068000
+merge pa: 0x68000. ka: 0xffff800000068000
+buddy pa: 0x60000, buddy ka: 0xffff800000060000
+merge pa: 0x60000. ka: 0xffff800000060000
+buddy pa: 0x70000, buddy ka: 0xffff800000070000
+merge pa: 0x70000. ka: 0xffff800000070000
+buddy pa: 0x71000, buddy ka: 0xffff800000071000
+merge pa: 0x71000. ka: 0xffff800000071000
+buddy pa: 0x70000, buddy ka: 0xffff800000070000
+merge pa: 0x70000. ka: 0xffff800000070000
+buddy pa: 0x72000, buddy ka: 0xffff800000072000
+merge pa: 0x72000. ka: 0xffff800000072000
+buddy pa: 0x73000, buddy ka: 0xffff800000073000
+merge pa: 0x73000. ka: 0xffff800000073000
+buddy pa: 0x72000, buddy ka: 0xffff800000072000
+merge pa: 0x72000. ka: 0xffff800000072000
+buddy pa: 0x70000, buddy ka: 0xffff800000070000
+merge pa: 0x70000. ka: 0xffff800000070000
+buddy pa: 0x74000, buddy ka: 0xffff800000074000
+merge pa: 0x74000. ka: 0xffff800000074000
+buddy pa: 0x75000, buddy ka: 0xffff800000075000
+merge pa: 0x75000. ka: 0xffff800000075000
+buddy pa: 0x74000, buddy ka: 0xffff800000074000
+merge pa: 0x74000. ka: 0xffff800000074000
+buddy pa: 0x76000, buddy ka: 0xffff800000076000
+merge pa: 0x76000. ka: 0xffff800000076000
+buddy pa: 0x77000, buddy ka: 0xffff800000077000
+merge pa: 0x77000. ka: 0xffff800000077000
+buddy pa: 0x76000, buddy ka: 0xffff800000076000
+merge pa: 0x76000. ka: 0xffff800000076000
+buddy pa: 0x74000, buddy ka: 0xffff800000074000
+merge pa: 0x74000. ka: 0xffff800000074000
+buddy pa: 0x70000, buddy ka: 0xffff800000070000
+merge pa: 0x70000. ka: 0xffff800000070000
+buddy pa: 0x78000, buddy ka: 0xffff800000078000
+merge pa: 0x78000. ka: 0xffff800000078000
+buddy pa: 0x79000, buddy ka: 0xffff800000079000
+merge pa: 0x79000. ka: 0xffff800000079000
+buddy pa: 0x78000, buddy ka: 0xffff800000078000
+merge pa: 0x78000. ka: 0xffff800000078000
+buddy pa: 0x7a000, buddy ka: 0xffff80000007a000
+merge pa: 0x7a000. ka: 0xffff80000007a000
+buddy pa: 0x7b000, buddy ka: 0xffff80000007b000
+merge pa: 0x7b000. ka: 0xffff80000007b000
+buddy pa: 0x7a000, buddy ka: 0xffff80000007a000
+merge pa: 0x7a000. ka: 0xffff80000007a000
+buddy pa: 0x78000, buddy ka: 0xffff800000078000
+merge pa: 0x78000. ka: 0xffff800000078000
+buddy pa: 0x7c000, buddy ka: 0xffff80000007c000
+merge pa: 0x7c000. ka: 0xffff80000007c000
+buddy pa: 0x7d000, buddy ka: 0xffff80000007d000
+merge pa: 0x7d000. ka: 0xffff80000007d000
+buddy pa: 0x7c000, buddy ka: 0xffff80000007c000
+merge pa: 0x7c000. ka: 0xffff80000007c000
+buddy pa: 0x7e000, buddy ka: 0xffff80000007e000
+merge pa: 0x7e000. ka: 0xffff80000007e000
+buddy pa: 0x7f000, buddy ka: 0xffff80000007f000
+merge pa: 0x7f000. ka: 0xffff80000007f000
+buddy pa: 0x7e000, buddy ka: 0xffff80000007e000
+merge pa: 0x7e000. ka: 0xffff80000007e000
+buddy pa: 0x7c000, buddy ka: 0xffff80000007c000
+merge pa: 0x7c000. ka: 0xffff80000007c000
+buddy pa: 0x78000, buddy ka: 0xffff800000078000
+merge pa: 0x78000. ka: 0xffff800000078000
+buddy pa: 0x70000, buddy ka: 0xffff800000070000
+merge pa: 0x70000. ka: 0xffff800000070000
+buddy pa: 0x60000, buddy ka: 0xffff800000060000
+merge pa: 0x60000. ka: 0xffff800000060000
+buddy pa: 0x40000, buddy ka: 0xffff800000040000
+merge pa: 0x40000. ka: 0xffff800000040000
+buddy pa: 0x0, buddy ka: 0xffff800000000000
+merge pa: 0x80000. ka: 0xffff800000080000
+buddy pa: 0x81000, buddy ka: 0xffff800000081000
+merge pa: 0x81000. ka: 0xffff800000081000
+buddy pa: 0x80000, buddy ka: 0xffff800000080000
+merge pa: 0x80000. ka: 0xffff800000080000
+buddy pa: 0x82000, buddy ka: 0xffff800000082000
+merge pa: 0x82000. ka: 0xffff800000082000
+buddy pa: 0x83000, buddy ka: 0xffff800000083000
+merge pa: 0x83000. ka: 0xffff800000083000
+buddy pa: 0x82000, buddy ka: 0xffff800000082000
+merge pa: 0x82000. ka: 0xffff800000082000
+buddy pa: 0x80000, buddy ka: 0xffff800000080000
+merge pa: 0x80000. ka: 0xffff800000080000
+buddy pa: 0x84000, buddy ka: 0xffff800000084000
+merge pa: 0x84000. ka: 0xffff800000084000
+buddy pa: 0x85000, buddy ka: 0xffff800000085000
+merge pa: 0x85000. ka: 0xffff800000085000
+buddy pa: 0x84000, buddy ka: 0xffff800000084000
+merge pa: 0x84000. ka: 0xffff800000084000
+buddy pa: 0x86000, buddy ka: 0xffff800000086000
+merge pa: 0x86000. ka: 0xffff800000086000
+buddy pa: 0x87000, buddy ka: 0xffff800000087000
+merge pa: 0x87000. ka: 0xffff800000087000
+buddy pa: 0x86000, buddy ka: 0xffff800000086000
+merge pa: 0x86000. ka: 0xffff800000086000
+buddy pa: 0x84000, buddy ka: 0xffff800000084000
+merge pa: 0x84000. ka: 0xffff800000084000
+buddy pa: 0x80000, buddy ka: 0xffff800000080000
+merge pa: 0x80000. ka: 0xffff800000080000
+buddy pa: 0x88000, buddy ka: 0xffff800000088000
+merge pa: 0x88000. ka: 0xffff800000088000
+buddy pa: 0x89000, buddy ka: 0xffff800000089000
+merge pa: 0x89000. ka: 0xffff800000089000
+buddy pa: 0x88000, buddy ka: 0xffff800000088000
+merge pa: 0x88000. ka: 0xffff800000088000
+buddy pa: 0x8a000, buddy ka: 0xffff80000008a000
+merge pa: 0x8a000. ka: 0xffff80000008a000
+buddy pa: 0x8b000, buddy ka: 0xffff80000008b000
+merge pa: 0x8b000. ka: 0xffff80000008b000
+buddy pa: 0x8a000, buddy ka: 0xffff80000008a000
+merge pa: 0x8a000. ka: 0xffff80000008a000
+buddy pa: 0x88000, buddy ka: 0xffff800000088000
+merge pa: 0x88000. ka: 0xffff800000088000
+buddy pa: 0x8c000, buddy ka: 0xffff80000008c000
+merge pa: 0x8c000. ka: 0xffff80000008c000
+buddy pa: 0x8d000, buddy ka: 0xffff80000008d000
+merge pa: 0x8d000. ka: 0xffff80000008d000
+buddy pa: 0x8c000, buddy ka: 0xffff80000008c000
+merge pa: 0x8c000. ka: 0xffff80000008c000
+buddy pa: 0x8e000, buddy ka: 0xffff80000008e000
+merge pa: 0x8e000. ka: 0xffff80000008e000
+buddy pa: 0x8f000, buddy ka: 0xffff80000008f000
+merge pa: 0x8f000. ka: 0xffff80000008f000
+buddy pa: 0x8e000, buddy ka: 0xffff80000008e000
+merge pa: 0x8e000. ka: 0xffff80000008e000
+buddy pa: 0x8c000, buddy ka: 0xffff80000008c000
+merge pa: 0x8c000. ka: 0xffff80000008c000
+buddy pa: 0x88000, buddy ka: 0xffff800000088000
+merge pa: 0x88000. ka: 0xffff800000088000
+buddy pa: 0x80000, buddy ka: 0xffff800000080000
+merge pa: 0x80000. ka: 0xffff800000080000
+buddy pa: 0x90000, buddy ka: 0xffff800000090000
+merge pa: 0x90000. ka: 0xffff800000090000
+buddy pa: 0x91000, buddy ka: 0xffff800000091000
+merge pa: 0x91000. ka: 0xffff800000091000
+buddy pa: 0x90000, buddy ka: 0xffff800000090000
+merge pa: 0x90000. ka: 0xffff800000090000
+buddy pa: 0x92000, buddy ka: 0xffff800000092000
+merge pa: 0x92000. ka: 0xffff800000092000
+buddy pa: 0x93000, buddy ka: 0xffff800000093000
+merge pa: 0x93000. ka: 0xffff800000093000
+buddy pa: 0x92000, buddy ka: 0xffff800000092000
+merge pa: 0x92000. ka: 0xffff800000092000
+buddy pa: 0x90000, buddy ka: 0xffff800000090000
+merge pa: 0x90000. ka: 0xffff800000090000
+buddy pa: 0x94000, buddy ka: 0xffff800000094000
+merge pa: 0x94000. ka: 0xffff800000094000
+buddy pa: 0x95000, buddy ka: 0xffff800000095000
+merge pa: 0x95000. ka: 0xffff800000095000
+buddy pa: 0x94000, buddy ka: 0xffff800000094000
+merge pa: 0x94000. ka: 0xffff800000094000
+buddy pa: 0x96000, buddy ka: 0xffff800000096000
+merge pa: 0x96000. ka: 0xffff800000096000
+buddy pa: 0x97000, buddy ka: 0xffff800000097000
+merge pa: 0x97000. ka: 0xffff800000097000
+buddy pa: 0x96000, buddy ka: 0xffff800000096000
+merge pa: 0x96000. ka: 0xffff800000096000
+buddy pa: 0x94000, buddy ka: 0xffff800000094000
+merge pa: 0x94000. ka: 0xffff800000094000
+buddy pa: 0x90000, buddy ka: 0xffff800000090000
+merge pa: 0x90000. ka: 0xffff800000090000
+buddy pa: 0x98000, buddy ka: 0xffff800000098000
+merge pa: 0x98000. ka: 0xffff800000098000
+buddy pa: 0x99000, buddy ka: 0xffff800000099000
+merge pa: 0x99000. ka: 0xffff800000099000
+buddy pa: 0x98000, buddy ka: 0xffff800000098000
+merge pa: 0x98000. ka: 0xffff800000098000
+buddy pa: 0x9a000, buddy ka: 0xffff80000009a000
+merge pa: 0x9a000. ka: 0xffff80000009a000
+buddy pa: 0x9b000, buddy ka: 0xffff80000009b000
+merge pa: 0x9b000. ka: 0xffff80000009b000
+buddy pa: 0x9a000, buddy ka: 0xffff80000009a000
+merge pa: 0x9a000. ka: 0xffff80000009a000
+buddy pa: 0x98000, buddy ka: 0xffff800000098000
+merge pa: 0x98000. ka: 0xffff800000098000
+buddy pa: 0x9c000, buddy ka: 0xffff80000009c000
+merge pa: 0x9c000. ka: 0xffff80000009c000
+buddy pa: 0x9d000, buddy ka: 0xffff80000009d000
+merge pa: 0x9d000. ka: 0xffff80000009d000
+buddy pa: 0x9c000, buddy ka: 0xffff80000009c000
+merge pa: 0x9c000. ka: 0xffff80000009c000
+buddy pa: 0x9e000, buddy ka: 0xffff80000009e000
+merge pa: 0x9e000. ka: 0xffff80000009e000
+buddy pa: 0x9f000, buddy ka: 0xffff80000009f000
+merge pa: 0x9f000. ka: 0xffff80000009f000
+buddy pa: 0x9e000, buddy ka: 0xffff80000009e000
+merge pa: 0x9e000. ka: 0xffff80000009e000
+buddy pa: 0x9c000, buddy ka: 0xffff80000009c000
+merge pa: 0x9c000. ka: 0xffff80000009c000
+buddy pa: 0x98000, buddy ka: 0xffff800000098000
+merge pa: 0x98000. ka: 0xffff800000098000
+buddy pa: 0x90000, buddy ka: 0xffff800000090000
+merge pa: 0x90000. ka: 0xffff800000090000
+buddy pa: 0x80000, buddy ka: 0xffff800000080000
+merge pa: 0x80000. ka: 0xffff800000080000
+buddy pa: 0xa0000, buddy ka: 0xffff8000000a0000
+merge pa: 0x16b000. ka: 0xffff80000016b000
+buddy pa: 0x16a000, buddy ka: 0xffff80000016a000
+merge pa: 0x16c000. ka: 0xffff80000016c000
+buddy pa: 0x16d000, buddy ka: 0xffff80000016d000
+merge pa: 0x16d000. ka: 0xffff80000016d000
+buddy pa: 0x16c000, buddy ka: 0xffff80000016c000
+merge pa: 0x16c000. ka: 0xffff80000016c000
+buddy pa: 0x16e000, buddy ka: 0xffff80000016e000
+merge pa: 0x16e000. ka: 0xffff80000016e000
+buddy pa: 0x16f000, buddy ka: 0xffff80000016f000
+merge pa: 0x16f000. ka: 0xffff80000016f000
+buddy pa: 0x16e000, buddy ka: 0xffff80000016e000
+merge pa: 0x16e000. ka: 0xffff80000016e000
+buddy pa: 0x16c000, buddy ka: 0xffff80000016c000
+merge pa: 0x16c000. ka: 0xffff80000016c000
+buddy pa: 0x168000, buddy ka: 0xffff800000168000
+merge pa: 0x170000. ka: 0xffff800000170000
+buddy pa: 0x171000, buddy ka: 0xffff800000171000
+merge pa: 0x171000. ka: 0xffff800000171000
+buddy pa: 0x170000, buddy ka: 0xffff800000170000
+merge pa: 0x170000. ka: 0xffff800000170000
+buddy pa: 0x172000, buddy ka: 0xffff800000172000
+merge pa: 0x172000. ka: 0xffff800000172000
+buddy pa: 0x173000, buddy ka: 0xffff800000173000
+merge pa: 0x173000. ka: 0xffff800000173000
+buddy pa: 0x172000, buddy ka: 0xffff800000172000
+merge pa: 0x172000. ka: 0xffff800000172000
+buddy pa: 0x170000, buddy ka: 0xffff800000170000
+merge pa: 0x170000. ka: 0xffff800000170000
+buddy pa: 0x174000, buddy ka: 0xffff800000174000
+merge pa: 0x174000. ka: 0xffff800000174000
+buddy pa: 0x175000, buddy ka: 0xffff800000175000
+merge pa: 0x175000. ka: 0xffff800000175000
+buddy pa: 0x174000, buddy ka: 0xffff800000174000
+merge pa: 0x174000. ka: 0xffff800000174000
+buddy pa: 0x176000, buddy ka: 0xffff800000176000
+merge pa: 0x176000. ka: 0xffff800000176000
+buddy pa: 0x177000, buddy ka: 0xffff800000177000
+merge pa: 0x177000. ka: 0xffff800000177000
+buddy pa: 0x176000, buddy ka: 0xffff800000176000
+merge pa: 0x176000. ka: 0xffff800000176000
+buddy pa: 0x174000, buddy ka: 0xffff800000174000
+merge pa: 0x174000. ka: 0xffff800000174000
+buddy pa: 0x170000, buddy ka: 0xffff800000170000
+merge pa: 0x170000. ka: 0xffff800000170000
+buddy pa: 0x178000, buddy ka: 0xffff800000178000
+merge pa: 0x178000. ka: 0xffff800000178000
+buddy pa: 0x179000, buddy ka: 0xffff800000179000
+merge pa: 0x179000. ka: 0xffff800000179000
+buddy pa: 0x178000, buddy ka: 0xffff800000178000
+merge pa: 0x178000. ka: 0xffff800000178000
+buddy pa: 0x17a000, buddy ka: 0xffff80000017a000
+merge pa: 0x17a000. ka: 0xffff80000017a000
+buddy pa: 0x17b000, buddy ka: 0xffff80000017b000
+merge pa: 0x17b000. ka: 0xffff80000017b000
+buddy pa: 0x17a000, buddy ka: 0xffff80000017a000
+merge pa: 0x17a000. ka: 0xffff80000017a000
+buddy pa: 0x178000, buddy ka: 0xffff800000178000
+merge pa: 0x178000. ka: 0xffff800000178000
+buddy pa: 0x17c000, buddy ka: 0xffff80000017c000
+merge pa: 0x17c000. ka: 0xffff80000017c000
+buddy pa: 0x17d000, buddy ka: 0xffff80000017d000
+merge pa: 0x17d000. ka: 0xffff80000017d000
+buddy pa: 0x17c000, buddy ka: 0xffff80000017c000
+merge pa: 0x17c000. ka: 0xffff80000017c000
+buddy pa: 0x17e000, buddy ka: 0xffff80000017e000
+merge pa: 0x17e000. ka: 0xffff80000017e000
+buddy pa: 0x17f000, buddy ka: 0xffff80000017f000
+merge pa: 0x17f000. ka: 0xffff80000017f000
+buddy pa: 0x17e000, buddy ka: 0xffff80000017e000
+merge pa: 0x17e000. ka: 0xffff80000017e000
+buddy pa: 0x17c000, buddy ka: 0xffff80000017c000
+merge pa: 0x17c000. ka: 0xffff80000017c000
+buddy pa: 0x178000, buddy ka: 0xffff800000178000
+merge pa: 0x178000. ka: 0xffff800000178000
+buddy pa: 0x170000, buddy ka: 0xffff800000170000
+merge pa: 0x170000. ka: 0xffff800000170000
+buddy pa: 0x160000, buddy ka: 0xffff800000160000
+merge pa: 0x180000. ka: 0xffff800000180000
+buddy pa: 0x181000, buddy ka: 0xffff800000181000
+merge pa: 0x181000. ka: 0xffff800000181000
+buddy pa: 0x180000, buddy ka: 0xffff800000180000
+merge pa: 0x180000. ka: 0xffff800000180000
+buddy pa: 0x182000, buddy ka: 0xffff800000182000
+merge pa: 0x182000. ka: 0xffff800000182000
+buddy pa: 0x183000, buddy ka: 0xffff800000183000
+merge pa: 0x183000. ka: 0xffff800000183000
+buddy pa: 0x182000, buddy ka: 0xffff800000182000
+merge pa: 0x182000. ka: 0xffff800000182000
+buddy pa: 0x180000, buddy ka: 0xffff800000180000
+merge pa: 0x180000. ka: 0xffff800000180000
+buddy pa: 0x184000, buddy ka: 0xffff800000184000
+merge pa: 0x184000. ka: 0xffff800000184000
+buddy pa: 0x185000, buddy ka: 0xffff800000185000
+merge pa: 0x185000. ka: 0xffff800000185000
+buddy pa: 0x184000, buddy ka: 0xffff800000184000
+merge pa: 0x184000. ka: 0xffff800000184000
+buddy pa: 0x186000, buddy ka: 0xffff800000186000
+merge pa: 0x186000. ka: 0xffff800000186000
+buddy pa: 0x187000, buddy ka: 0xffff800000187000
+merge pa: 0x187000. ka: 0xffff800000187000
+buddy pa: 0x186000, buddy ka: 0xffff800000186000
+merge pa: 0x186000. ka: 0xffff800000186000
+buddy pa: 0x184000, buddy ka: 0xffff800000184000
+merge pa: 0x184000. ka: 0xffff800000184000
+buddy pa: 0x180000, buddy ka: 0xffff800000180000
+merge pa: 0x180000. ka: 0xffff800000180000
+buddy pa: 0x188000, buddy ka: 0xffff800000188000
+merge pa: 0x188000. ka: 0xffff800000188000
+buddy pa: 0x189000, buddy ka: 0xffff800000189000
+merge pa: 0x189000. ka: 0xffff800000189000
+buddy pa: 0x188000, buddy ka: 0xffff800000188000
+merge pa: 0x188000. ka: 0xffff800000188000
+buddy pa: 0x18a000, buddy ka: 0xffff80000018a000
+merge pa: 0x18a000. ka: 0xffff80000018a000
+buddy pa: 0x18b000, buddy ka: 0xffff80000018b000
+merge pa: 0x18b000. ka: 0xffff80000018b000
+buddy pa: 0x18a000, buddy ka: 0xffff80000018a000
+merge pa: 0x18a000. ka: 0xffff80000018a000
+buddy pa: 0x188000, buddy ka: 0xffff800000188000
+merge pa: 0x188000. ka: 0xffff800000188000
+buddy pa: 0x18c000, buddy ka: 0xffff80000018c000
+merge pa: 0x18c000. ka: 0xffff80000018c000
+buddy pa: 0x18d000, buddy ka: 0xffff80000018d000
+merge pa: 0x18d000. ka: 0xffff80000018d000
+buddy pa: 0x18c000, buddy ka: 0xffff80000018c000
+merge pa: 0x18c000. ka: 0xffff80000018c000
+buddy pa: 0x18e000, buddy ka: 0xffff80000018e000
+merge pa: 0x18e000. ka: 0xffff80000018e000
+buddy pa: 0x18f000, buddy ka: 0xffff80000018f000
+merge pa: 0x18f000. ka: 0xffff80000018f000
+buddy pa: 0x18e000, buddy ka: 0xffff80000018e000
+merge pa: 0x18e000. ka: 0xffff80000018e000
+buddy pa: 0x18c000, buddy ka: 0xffff80000018c000
+merge pa: 0x18c000. ka: 0xffff80000018c000
+buddy pa: 0x188000, buddy ka: 0xffff800000188000
+merge pa: 0x188000. ka: 0xffff800000188000
+buddy pa: 0x180000, buddy ka: 0xffff800000180000
+merge pa: 0x180000. ka: 0xffff800000180000
+buddy pa: 0x190000, buddy ka: 0xffff800000190000
+merge pa: 0x190000. ka: 0xffff800000190000
+buddy pa: 0x191000, buddy ka: 0xffff800000191000
+merge pa: 0x191000. ka: 0xffff800000191000
+buddy pa: 0x190000, buddy ka: 0xffff800000190000
+merge pa: 0x190000. ka: 0xffff800000190000
+buddy pa: 0x192000, buddy ka: 0xffff800000192000
+merge pa: 0x192000. ka: 0xffff800000192000
+buddy pa: 0x193000, buddy ka: 0xffff800000193000
+merge pa: 0x193000. ka: 0xffff800000193000
+buddy pa: 0x192000, buddy ka: 0xffff800000192000
+merge pa: 0x192000. ka: 0xffff800000192000
+buddy pa: 0x190000, buddy ka: 0xffff800000190000
+merge pa: 0x190000. ka: 0xffff800000190000
+buddy pa: 0x194000, buddy ka: 0xffff800000194000
+merge pa: 0x194000. ka: 0xffff800000194000
+buddy pa: 0x195000, buddy ka: 0xffff800000195000
+merge pa: 0x195000. ka: 0xffff800000195000
+buddy pa: 0x194000, buddy ka: 0xffff800000194000
+merge pa: 0x194000. ka: 0xffff800000194000
+buddy pa: 0x196000, buddy ka: 0xffff800000196000
+merge pa: 0x196000. ka: 0xffff800000196000
+buddy pa: 0x197000, buddy ka: 0xffff800000197000
+merge pa: 0x197000. ka: 0xffff800000197000
+buddy pa: 0x196000, buddy ka: 0xffff800000196000
+merge pa: 0x196000. ka: 0xffff800000196000
+buddy pa: 0x194000, buddy ka: 0xffff800000194000
+merge pa: 0x194000. ka: 0xffff800000194000
+buddy pa: 0x190000, buddy ka: 0xffff800000190000
+merge pa: 0x190000. ka: 0xffff800000190000
+buddy pa: 0x198000, buddy ka: 0xffff800000198000
+merge pa: 0x198000. ka: 0xffff800000198000
+buddy pa: 0x199000, buddy ka: 0xffff800000199000
+merge pa: 0x199000. ka: 0xffff800000199000
+buddy pa: 0x198000, buddy ka: 0xffff800000198000
+merge pa: 0x198000. ka: 0xffff800000198000
+buddy pa: 0x19a000, buddy ka: 0xffff80000019a000
+merge pa: 0x19a000. ka: 0xffff80000019a000
+buddy pa: 0x19b000, buddy ka: 0xffff80000019b000
+merge pa: 0x19b000. ka: 0xffff80000019b000
+buddy pa: 0x19a000, buddy ka: 0xffff80000019a000
+merge pa: 0x19a000. ka: 0xffff80000019a000
+buddy pa: 0x198000, buddy ka: 0xffff800000198000
+merge pa: 0x198000. ka: 0xffff800000198000
+buddy pa: 0x19c000, buddy ka: 0xffff80000019c000
+merge pa: 0x19c000. ka: 0xffff80000019c000
+buddy pa: 0x19d000, buddy ka: 0xffff80000019d000
+merge pa: 0x19d000. ka: 0xffff80000019d000
+buddy pa: 0x19c000, buddy ka: 0xffff80000019c000
+merge pa: 0x19c000. ka: 0xffff80000019c000
+buddy pa: 0x19e000, buddy ka: 0xffff80000019e000
+merge pa: 0x19e000. ka: 0xffff80000019e000
+buddy pa: 0x19f000, buddy ka: 0xffff80000019f000
+merge pa: 0x19f000. ka: 0xffff80000019f000
+buddy pa: 0x19e000, buddy ka: 0xffff80000019e000
+merge pa: 0x19e000. ka: 0xffff80000019e000
+buddy pa: 0x19c000, buddy ka: 0xffff80000019c000
+merge pa: 0x19c000. ka: 0xffff80000019c000
+buddy pa: 0x198000, buddy ka: 0xffff800000198000
+merge pa: 0x198000. ka: 0xffff800000198000
+buddy pa: 0x190000, buddy ka: 0xffff800000190000
+merge pa: 0x190000. ka: 0xffff800000190000
+buddy pa: 0x180000, buddy ka: 0xffff800000180000
+merge pa: 0x180000. ka: 0xffff800000180000
+buddy pa: 0x1a0000, buddy ka: 0xffff8000001a0000
+merge pa: 0x1a0000. ka: 0xffff8000001a0000
+buddy pa: 0x1a1000, buddy ka: 0xffff8000001a1000
+merge pa: 0x1a1000. ka: 0xffff8000001a1000
+buddy pa: 0x1a0000, buddy ka: 0xffff8000001a0000
+merge pa: 0x1a0000. ka: 0xffff8000001a0000
+buddy pa: 0x1a2000, buddy ka: 0xffff8000001a2000
+merge pa: 0x1a2000. ka: 0xffff8000001a2000
+buddy pa: 0x1a3000, buddy ka: 0xffff8000001a3000
+merge pa: 0x1a3000. ka: 0xffff8000001a3000
+buddy pa: 0x1a2000, buddy ka: 0xffff8000001a2000
+merge pa: 0x1a2000. ka: 0xffff8000001a2000
+buddy pa: 0x1a0000, buddy ka: 0xffff8000001a0000
+merge pa: 0x1a0000. ka: 0xffff8000001a0000
+buddy pa: 0x1a4000, buddy ka: 0xffff8000001a4000
+merge pa: 0x1a4000. ka: 0xffff8000001a4000
+buddy pa: 0x1a5000, buddy ka: 0xffff8000001a5000
+merge pa: 0x1a5000. ka: 0xffff8000001a5000
+buddy pa: 0x1a4000, buddy ka: 0xffff8000001a4000
+merge pa: 0x1a4000. ka: 0xffff8000001a4000
+buddy pa: 0x1a6000, buddy ka: 0xffff8000001a6000
+merge pa: 0x1a6000. ka: 0xffff8000001a6000
+buddy pa: 0x1a7000, buddy ka: 0xffff8000001a7000
+merge pa: 0x1a7000. ka: 0xffff8000001a7000
+buddy pa: 0x1a6000, buddy ka: 0xffff8000001a6000
+merge pa: 0x1a6000. ka: 0xffff8000001a6000
+buddy pa: 0x1a4000, buddy ka: 0xffff8000001a4000
+merge pa: 0x1a4000. ka: 0xffff8000001a4000
+buddy pa: 0x1a0000, buddy ka: 0xffff8000001a0000
+merge pa: 0x1a0000. ka: 0xffff8000001a0000
+buddy pa: 0x1a8000, buddy ka: 0xffff8000001a8000
+merge pa: 0x1a8000. ka: 0xffff8000001a8000
+buddy pa: 0x1a9000, buddy ka: 0xffff8000001a9000
+merge pa: 0x1a9000. ka: 0xffff8000001a9000
+buddy pa: 0x1a8000, buddy ka: 0xffff8000001a8000
+merge pa: 0x1a8000. ka: 0xffff8000001a8000
+buddy pa: 0x1aa000, buddy ka: 0xffff8000001aa000
+merge pa: 0x1aa000. ka: 0xffff8000001aa000
+buddy pa: 0x1ab000, buddy ka: 0xffff8000001ab000
+merge pa: 0x1ab000. ka: 0xffff8000001ab000
+buddy pa: 0x1aa000, buddy ka: 0xffff8000001aa000
+merge pa: 0x1aa000. ka: 0xffff8000001aa000
+buddy pa: 0x1a8000, buddy ka: 0xffff8000001a8000
+merge pa: 0x1a8000. ka: 0xffff8000001a8000
+buddy pa: 0x1ac000, buddy ka: 0xffff8000001ac000
+merge pa: 0x1ac000. ka: 0xffff8000001ac000
+buddy pa: 0x1ad000, buddy ka: 0xffff8000001ad000
+merge pa: 0x1ad000. ka: 0xffff8000001ad000
+buddy pa: 0x1ac000, buddy ka: 0xffff8000001ac000
+merge pa: 0x1ac000. ka: 0xffff8000001ac000
+buddy pa: 0x1ae000, buddy ka: 0xffff8000001ae000
+merge pa: 0x1ae000. ka: 0xffff8000001ae000
+buddy pa: 0x1af000, buddy ka: 0xffff8000001af000
+merge pa: 0x1af000. ka: 0xffff8000001af000
+buddy pa: 0x1ae000, buddy ka: 0xffff8000001ae000
+merge pa: 0x1ae000. ka: 0xffff8000001ae000
+buddy pa: 0x1ac000, buddy ka: 0xffff8000001ac000
+merge pa: 0x1ac000. ka: 0xffff8000001ac000
+buddy pa: 0x1a8000, buddy ka: 0xffff8000001a8000
+merge pa: 0x1a8000. ka: 0xffff8000001a8000
+buddy pa: 0x1a0000, buddy ka: 0xffff8000001a0000
+merge pa: 0x1a0000. ka: 0xffff8000001a0000
+buddy pa: 0x1b0000, buddy ka: 0xffff8000001b0000
+merge pa: 0x1b0000. ka: 0xffff8000001b0000
+buddy pa: 0x1b1000, buddy ka: 0xffff8000001b1000
+merge pa: 0x1b1000. ka: 0xffff8000001b1000
+buddy pa: 0x1b0000, buddy ka: 0xffff8000001b0000
+merge pa: 0x1b0000. ka: 0xffff8000001b0000
+buddy pa: 0x1b2000, buddy ka: 0xffff8000001b2000
+merge pa: 0x1b2000. ka: 0xffff8000001b2000
+buddy pa: 0x1b3000, buddy ka: 0xffff8000001b3000
+merge pa: 0x1b3000. ka: 0xffff8000001b3000
+buddy pa: 0x1b2000, buddy ka: 0xffff8000001b2000
+merge pa: 0x1b2000. ka: 0xffff8000001b2000
+buddy pa: 0x1b0000, buddy ka: 0xffff8000001b0000
+merge pa: 0x1b0000. ka: 0xffff8000001b0000
+buddy pa: 0x1b4000, buddy ka: 0xffff8000001b4000
+merge pa: 0x1b4000. ka: 0xffff8000001b4000
+buddy pa: 0x1b5000, buddy ka: 0xffff8000001b5000
+merge pa: 0x1b5000. ka: 0xffff8000001b5000
+buddy pa: 0x1b4000, buddy ka: 0xffff8000001b4000
+merge pa: 0x1b4000. ka: 0xffff8000001b4000
+buddy pa: 0x1b6000, buddy ka: 0xffff8000001b6000
+merge pa: 0x1b6000. ka: 0xffff8000001b6000
+buddy pa: 0x1b7000, buddy ka: 0xffff8000001b7000
+merge pa: 0x1b7000. ka: 0xffff8000001b7000
+buddy pa: 0x1b6000, buddy ka: 0xffff8000001b6000
+merge pa: 0x1b6000. ka: 0xffff8000001b6000
+buddy pa: 0x1b4000, buddy ka: 0xffff8000001b4000
+merge pa: 0x1b4000. ka: 0xffff8000001b4000
+buddy pa: 0x1b0000, buddy ka: 0xffff8000001b0000
+merge pa: 0x1b0000. ka: 0xffff8000001b0000
+buddy pa: 0x1b8000, buddy ka: 0xffff8000001b8000
+merge pa: 0x1b8000. ka: 0xffff8000001b8000
+buddy pa: 0x1b9000, buddy ka: 0xffff8000001b9000
+merge pa: 0x1b9000. ka: 0xffff8000001b9000
+buddy pa: 0x1b8000, buddy ka: 0xffff8000001b8000
+merge pa: 0x1b8000. ka: 0xffff8000001b8000
+buddy pa: 0x1ba000, buddy ka: 0xffff8000001ba000
+merge pa: 0x1ba000. ka: 0xffff8000001ba000
+buddy pa: 0x1bb000, buddy ka: 0xffff8000001bb000
+merge pa: 0x1bb000. ka: 0xffff8000001bb000
+buddy pa: 0x1ba000, buddy ka: 0xffff8000001ba000
+merge pa: 0x1ba000. ka: 0xffff8000001ba000
+buddy pa: 0x1b8000, buddy ka: 0xffff8000001b8000
+merge pa: 0x1b8000. ka: 0xffff8000001b8000
+buddy pa: 0x1bc000, buddy ka: 0xffff8000001bc000
+merge pa: 0x1bc000. ka: 0xffff8000001bc000
+buddy pa: 0x1bd000, buddy ka: 0xffff8000001bd000
+merge pa: 0x1bd000. ka: 0xffff8000001bd000
+buddy pa: 0x1bc000, buddy ka: 0xffff8000001bc000
+merge pa: 0x1bc000. ka: 0xffff8000001bc000
+buddy pa: 0x1be000, buddy ka: 0xffff8000001be000
+merge pa: 0x1be000. ka: 0xffff8000001be000
+buddy pa: 0x1bf000, buddy ka: 0xffff8000001bf000
+merge pa: 0x1bf000. ka: 0xffff8000001bf000
+buddy pa: 0x1be000, buddy ka: 0xffff8000001be000
+merge pa: 0x1be000. ka: 0xffff8000001be000
+buddy pa: 0x1bc000, buddy ka: 0xffff8000001bc000
+merge pa: 0x1bc000. ka: 0xffff8000001bc000
+buddy pa: 0x1b8000, buddy ka: 0xffff8000001b8000
+merge pa: 0x1b8000. ka: 0xffff8000001b8000
+buddy pa: 0x1b0000, buddy ka: 0xffff8000001b0000
+merge pa: 0x1b0000. ka: 0xffff8000001b0000
+buddy pa: 0x1a0000, buddy ka: 0xffff8000001a0000
+merge pa: 0x1a0000. ka: 0xffff8000001a0000
+buddy pa: 0x180000, buddy ka: 0xffff800000180000
+merge pa: 0x180000. ka: 0xffff800000180000
+buddy pa: 0x1c0000, buddy ka: 0xffff8000001c0000
+merge pa: 0x1c0000. ka: 0xffff8000001c0000
+buddy pa: 0x1c1000, buddy ka: 0xffff8000001c1000
+merge pa: 0x1c1000. ka: 0xffff8000001c1000
+buddy pa: 0x1c0000, buddy ka: 0xffff8000001c0000
+merge pa: 0x1c0000. ka: 0xffff8000001c0000
+buddy pa: 0x1c2000, buddy ka: 0xffff8000001c2000
+merge pa: 0x1c2000. ka: 0xffff8000001c2000
+buddy pa: 0x1c3000, buddy ka: 0xffff8000001c3000
+merge pa: 0x1c3000. ka: 0xffff8000001c3000
+buddy pa: 0x1c2000, buddy ka: 0xffff8000001c2000
+merge pa: 0x1c2000. ka: 0xffff8000001c2000
+buddy pa: 0x1c0000, buddy ka: 0xffff8000001c0000
+merge pa: 0x1c0000. ka: 0xffff8000001c0000
+buddy pa: 0x1c4000, buddy ka: 0xffff8000001c4000
+merge pa: 0x1c4000. ka: 0xffff8000001c4000
+buddy pa: 0x1c5000, buddy ka: 0xffff8000001c5000
+merge pa: 0x1c5000. ka: 0xffff8000001c5000
+buddy pa: 0x1c4000, buddy ka: 0xffff8000001c4000
+merge pa: 0x1c4000. ka: 0xffff8000001c4000
+buddy pa: 0x1c6000, buddy ka: 0xffff8000001c6000
+merge pa: 0x1c6000. ka: 0xffff8000001c6000
+buddy pa: 0x1c7000, buddy ka: 0xffff8000001c7000
+merge pa: 0x1c7000. ka: 0xffff8000001c7000
+buddy pa: 0x1c6000, buddy ka: 0xffff8000001c6000
+merge pa: 0x1c6000. ka: 0xffff8000001c6000
+buddy pa: 0x1c4000, buddy ka: 0xffff8000001c4000
+merge pa: 0x1c4000. ka: 0xffff8000001c4000
+buddy pa: 0x1c0000, buddy ka: 0xffff8000001c0000
+merge pa: 0x1c0000. ka: 0xffff8000001c0000
+buddy pa: 0x1c8000, buddy ka: 0xffff8000001c8000
+merge pa: 0x1c8000. ka: 0xffff8000001c8000
+buddy pa: 0x1c9000, buddy ka: 0xffff8000001c9000
+merge pa: 0x1c9000. ka: 0xffff8000001c9000
+buddy pa: 0x1c8000, buddy ka: 0xffff8000001c8000
+merge pa: 0x1c8000. ka: 0xffff8000001c8000
+buddy pa: 0x1ca000, buddy ka: 0xffff8000001ca000
+merge pa: 0x1ca000. ka: 0xffff8000001ca000
+buddy pa: 0x1cb000, buddy ka: 0xffff8000001cb000
+merge pa: 0x1cb000. ka: 0xffff8000001cb000
+buddy pa: 0x1ca000, buddy ka: 0xffff8000001ca000
+merge pa: 0x1ca000. ka: 0xffff8000001ca000
+buddy pa: 0x1c8000, buddy ka: 0xffff8000001c8000
+merge pa: 0x1c8000. ka: 0xffff8000001c8000
+buddy pa: 0x1cc000, buddy ka: 0xffff8000001cc000
+merge pa: 0x1cc000. ka: 0xffff8000001cc000
+buddy pa: 0x1cd000, buddy ka: 0xffff8000001cd000
+merge pa: 0x1cd000. ka: 0xffff8000001cd000
+buddy pa: 0x1cc000, buddy ka: 0xffff8000001cc000
+merge pa: 0x1cc000. ka: 0xffff8000001cc000
+buddy pa: 0x1ce000, buddy ka: 0xffff8000001ce000
+merge pa: 0x1ce000. ka: 0xffff8000001ce000
+buddy pa: 0x1cf000, buddy ka: 0xffff8000001cf000
+merge pa: 0x1cf000. ka: 0xffff8000001cf000
+buddy pa: 0x1ce000, buddy ka: 0xffff8000001ce000
+merge pa: 0x1ce000. ka: 0xffff8000001ce000
+buddy pa: 0x1cc000, buddy ka: 0xffff8000001cc000
+merge pa: 0x1cc000. ka: 0xffff8000001cc000
+buddy pa: 0x1c8000, buddy ka: 0xffff8000001c8000
+merge pa: 0x1c8000. ka: 0xffff8000001c8000
+buddy pa: 0x1c0000, buddy ka: 0xffff8000001c0000
+merge pa: 0x1c0000. ka: 0xffff8000001c0000
+buddy pa: 0x1d0000, buddy ka: 0xffff8000001d0000
+merge pa: 0x1d0000. ka: 0xffff8000001d0000
+buddy pa: 0x1d1000, buddy ka: 0xffff8000001d1000
+merge pa: 0x1d1000. ka: 0xffff8000001d1000
+buddy pa: 0x1d0000, buddy ka: 0xffff8000001d0000
+merge pa: 0x1d0000. ka: 0xffff8000001d0000
+buddy pa: 0x1d2000, buddy ka: 0xffff8000001d2000
+merge pa: 0x1d2000. ka: 0xffff8000001d2000
+buddy pa: 0x1d3000, buddy ka: 0xffff8000001d3000
+merge pa: 0x1d3000. ka: 0xffff8000001d3000
+buddy pa: 0x1d2000, buddy ka: 0xffff8000001d2000
+merge pa: 0x1d2000. ka: 0xffff8000001d2000
+buddy pa: 0x1d0000, buddy ka: 0xffff8000001d0000
+merge pa: 0x1d0000. ka: 0xffff8000001d0000
+buddy pa: 0x1d4000, buddy ka: 0xffff8000001d4000
+merge pa: 0x1d4000. ka: 0xffff8000001d4000
+buddy pa: 0x1d5000, buddy ka: 0xffff8000001d5000
+merge pa: 0x1d5000. ka: 0xffff8000001d5000
+buddy pa: 0x1d4000, buddy ka: 0xffff8000001d4000
+merge pa: 0x1d4000. ka: 0xffff8000001d4000
+buddy pa: 0x1d6000, buddy ka: 0xffff8000001d6000
+merge pa: 0x1d6000. ka: 0xffff8000001d6000
+buddy pa: 0x1d7000, buddy ka: 0xffff8000001d7000
+merge pa: 0x1d7000. ka: 0xffff8000001d7000
+buddy pa: 0x1d6000, buddy ka: 0xffff8000001d6000
+merge pa: 0x1d6000. ka: 0xffff8000001d6000
+buddy pa: 0x1d4000, buddy ka: 0xffff8000001d4000
+merge pa: 0x1d4000. ka: 0xffff8000001d4000
+buddy pa: 0x1d0000, buddy ka: 0xffff8000001d0000
+merge pa: 0x1d0000. ka: 0xffff8000001d0000
+buddy pa: 0x1d8000, buddy ka: 0xffff8000001d8000
+merge pa: 0x1d8000. ka: 0xffff8000001d8000
+buddy pa: 0x1d9000, buddy ka: 0xffff8000001d9000
+merge pa: 0x1d9000. ka: 0xffff8000001d9000
+buddy pa: 0x1d8000, buddy ka: 0xffff8000001d8000
+merge pa: 0x1d8000. ka: 0xffff8000001d8000
+buddy pa: 0x1da000, buddy ka: 0xffff8000001da000
+merge pa: 0x1da000. ka: 0xffff8000001da000
+buddy pa: 0x1db000, buddy ka: 0xffff8000001db000
+merge pa: 0x1db000. ka: 0xffff8000001db000
+buddy pa: 0x1da000, buddy ka: 0xffff8000001da000
+merge pa: 0x1da000. ka: 0xffff8000001da000
+buddy pa: 0x1d8000, buddy ka: 0xffff8000001d8000
+merge pa: 0x1d8000. ka: 0xffff8000001d8000
+buddy pa: 0x1dc000, buddy ka: 0xffff8000001dc000
+merge pa: 0x1dc000. ka: 0xffff8000001dc000
+buddy pa: 0x1dd000, buddy ka: 0xffff8000001dd000
+merge pa: 0x1dd000. ka: 0xffff8000001dd000
+buddy pa: 0x1dc000, buddy ka: 0xffff8000001dc000
+merge pa: 0x1dc000. ka: 0xffff8000001dc000
+buddy pa: 0x1de000, buddy ka: 0xffff8000001de000
+merge pa: 0x1de000. ka: 0xffff8000001de000
+buddy pa: 0x1df000, buddy ka: 0xffff8000001df000
+merge pa: 0x1df000. ka: 0xffff8000001df000
+buddy pa: 0x1de000, buddy ka: 0xffff8000001de000
+merge pa: 0x1de000. ka: 0xffff8000001de000
+buddy pa: 0x1dc000, buddy ka: 0xffff8000001dc000
+merge pa: 0x1dc000. ka: 0xffff8000001dc000
+buddy pa: 0x1d8000, buddy ka: 0xffff8000001d8000
+merge pa: 0x1d8000. ka: 0xffff8000001d8000
+buddy pa: 0x1d0000, buddy ka: 0xffff8000001d0000
+merge pa: 0x1d0000. ka: 0xffff8000001d0000
+buddy pa: 0x1c0000, buddy ka: 0xffff8000001c0000
+merge pa: 0x1c0000. ka: 0xffff8000001c0000
+buddy pa: 0x1e0000, buddy ka: 0xffff8000001e0000
+merge pa: 0x1e0000. ka: 0xffff8000001e0000
+buddy pa: 0x1e1000, buddy ka: 0xffff8000001e1000
+merge pa: 0x1e1000. ka: 0xffff8000001e1000
+buddy pa: 0x1e0000, buddy ka: 0xffff8000001e0000
+merge pa: 0x1e0000. ka: 0xffff8000001e0000
+buddy pa: 0x1e2000, buddy ka: 0xffff8000001e2000
+merge pa: 0x1e2000. ka: 0xffff8000001e2000
+buddy pa: 0x1e3000, buddy ka: 0xffff8000001e3000
+merge pa: 0x1e3000. ka: 0xffff8000001e3000
+buddy pa: 0x1e2000, buddy ka: 0xffff8000001e2000
+merge pa: 0x1e2000. ka: 0xffff8000001e2000
+buddy pa: 0x1e0000, buddy ka: 0xffff8000001e0000
+merge pa: 0x1e0000. ka: 0xffff8000001e0000
+buddy pa: 0x1e4000, buddy ka: 0xffff8000001e4000
+merge pa: 0x1e4000. ka: 0xffff8000001e4000
+buddy pa: 0x1e5000, buddy ka: 0xffff8000001e5000
+merge pa: 0x1e5000. ka: 0xffff8000001e5000
+buddy pa: 0x1e4000, buddy ka: 0xffff8000001e4000
+merge pa: 0x1e4000. ka: 0xffff8000001e4000
+buddy pa: 0x1e6000, buddy ka: 0xffff8000001e6000
+merge pa: 0x1e6000. ka: 0xffff8000001e6000
+buddy pa: 0x1e7000, buddy ka: 0xffff8000001e7000
+merge pa: 0x1e7000. ka: 0xffff8000001e7000
+buddy pa: 0x1e6000, buddy ka: 0xffff8000001e6000
+merge pa: 0x1e6000. ka: 0xffff8000001e6000
+buddy pa: 0x1e4000, buddy ka: 0xffff8000001e4000
+merge pa: 0x1e4000. ka: 0xffff8000001e4000
+buddy pa: 0x1e0000, buddy ka: 0xffff8000001e0000
+merge pa: 0x1e0000. ka: 0xffff8000001e0000
+buddy pa: 0x1e8000, buddy ka: 0xffff8000001e8000
+merge pa: 0x1e8000. ka: 0xffff8000001e8000
+buddy pa: 0x1e9000, buddy ka: 0xffff8000001e9000
+merge pa: 0x1e9000. ka: 0xffff8000001e9000
+buddy pa: 0x1e8000, buddy ka: 0xffff8000001e8000
+merge pa: 0x1e8000. ka: 0xffff8000001e8000
+buddy pa: 0x1ea000, buddy ka: 0xffff8000001ea000
+merge pa: 0x1ea000. ka: 0xffff8000001ea000
+buddy pa: 0x1eb000, buddy ka: 0xffff8000001eb000
+merge pa: 0x1eb000. ka: 0xffff8000001eb000
+buddy pa: 0x1ea000, buddy ka: 0xffff8000001ea000
+merge pa: 0x1ea000. ka: 0xffff8000001ea000
+buddy pa: 0x1e8000, buddy ka: 0xffff8000001e8000
+merge pa: 0x1e8000. ka: 0xffff8000001e8000
+buddy pa: 0x1ec000, buddy ka: 0xffff8000001ec000
+merge pa: 0x1ec000. ka: 0xffff8000001ec000
+buddy pa: 0x1ed000, buddy ka: 0xffff8000001ed000
+merge pa: 0x1ed000. ka: 0xffff8000001ed000
+buddy pa: 0x1ec000, buddy ka: 0xffff8000001ec000
+merge pa: 0x1ec000. ka: 0xffff8000001ec000
+buddy pa: 0x1ee000, buddy ka: 0xffff8000001ee000
+merge pa: 0x1ee000. ka: 0xffff8000001ee000
+buddy pa: 0x1ef000, buddy ka: 0xffff8000001ef000
+merge pa: 0x1ef000. ka: 0xffff8000001ef000
+buddy pa: 0x1ee000, buddy ka: 0xffff8000001ee000
+merge pa: 0x1ee000. ka: 0xffff8000001ee000
+buddy pa: 0x1ec000, buddy ka: 0xffff8000001ec000
+merge pa: 0x1ec000. ka: 0xffff8000001ec000
+buddy pa: 0x1e8000, buddy ka: 0xffff8000001e8000
+merge pa: 0x1e8000. ka: 0xffff8000001e8000
+buddy pa: 0x1e0000, buddy ka: 0xffff8000001e0000
+merge pa: 0x1e0000. ka: 0xffff8000001e0000
+buddy pa: 0x1f0000, buddy ka: 0xffff8000001f0000
+merge pa: 0x1f0000. ka: 0xffff8000001f0000
+buddy pa: 0x1f1000, buddy ka: 0xffff8000001f1000
+merge pa: 0x1f1000. ka: 0xffff8000001f1000
+buddy pa: 0x1f0000, buddy ka: 0xffff8000001f0000
+merge pa: 0x1f0000. ka: 0xffff8000001f0000
+buddy pa: 0x1f2000, buddy ka: 0xffff8000001f2000
+merge pa: 0x1f2000. ka: 0xffff8000001f2000
+buddy pa: 0x1f3000, buddy ka: 0xffff8000001f3000
+merge pa: 0x1f3000. ka: 0xffff8000001f3000
+buddy pa: 0x1f2000, buddy ka: 0xffff8000001f2000
+merge pa: 0x1f2000. ka: 0xffff8000001f2000
+buddy pa: 0x1f0000, buddy ka: 0xffff8000001f0000
+merge pa: 0x1f0000. ka: 0xffff8000001f0000
+buddy pa: 0x1f4000, buddy ka: 0xffff8000001f4000
+merge pa: 0x1f4000. ka: 0xffff8000001f4000
+buddy pa: 0x1f5000, buddy ka: 0xffff8000001f5000
+merge pa: 0x1f5000. ka: 0xffff8000001f5000
+buddy pa: 0x1f4000, buddy ka: 0xffff8000001f4000
+merge pa: 0x1f4000. ka: 0xffff8000001f4000
+buddy pa: 0x1f6000, buddy ka: 0xffff8000001f6000
+merge pa: 0x1f6000. ka: 0xffff8000001f6000
+buddy pa: 0x1f7000, buddy ka: 0xffff8000001f7000
+merge pa: 0x1f7000. ka: 0xffff8000001f7000
+buddy pa: 0x1f6000, buddy ka: 0xffff8000001f6000
+merge pa: 0x1f6000. ka: 0xffff8000001f6000
+buddy pa: 0x1f4000, buddy ka: 0xffff8000001f4000
+merge pa: 0x1f4000. ka: 0xffff8000001f4000
+buddy pa: 0x1f0000, buddy ka: 0xffff8000001f0000
+merge pa: 0x1f0000. ka: 0xffff8000001f0000
+buddy pa: 0x1f8000, buddy ka: 0xffff8000001f8000
+merge pa: 0x1f8000. ka: 0xffff8000001f8000
+buddy pa: 0x1f9000, buddy ka: 0xffff8000001f9000
+merge pa: 0x1f9000. ka: 0xffff8000001f9000
+buddy pa: 0x1f8000, buddy ka: 0xffff8000001f8000
+merge pa: 0x1f8000. ka: 0xffff8000001f8000
+buddy pa: 0x1fa000, buddy ka: 0xffff8000001fa000
+merge pa: 0x1fa000. ka: 0xffff8000001fa000
+buddy pa: 0x1fb000, buddy ka: 0xffff8000001fb000
+merge pa: 0x1fb000. ka: 0xffff8000001fb000
+buddy pa: 0x1fa000, buddy ka: 0xffff8000001fa000
+merge pa: 0x1fa000. ka: 0xffff8000001fa000
+buddy pa: 0x1f8000, buddy ka: 0xffff8000001f8000
+merge pa: 0x1f8000. ka: 0xffff8000001f8000
+buddy pa: 0x1fc000, buddy ka: 0xffff8000001fc000
+merge pa: 0x1fc000. ka: 0xffff8000001fc000
+buddy pa: 0x1fd000, buddy ka: 0xffff8000001fd000
+merge pa: 0x1fd000. ka: 0xffff8000001fd000
+buddy pa: 0x1fc000, buddy ka: 0xffff8000001fc000
+merge pa: 0x1fc000. ka: 0xffff8000001fc000
+buddy pa: 0x1fe000, buddy ka: 0xffff8000001fe000
+merge pa: 0x1fe000. ka: 0xffff8000001fe000
+buddy pa: 0x1ff000, buddy ka: 0xffff8000001ff000
+merge pa: 0x1ff000. ka: 0xffff8000001ff000
+buddy pa: 0x1fe000, buddy ka: 0xffff8000001fe000
+merge pa: 0x1fe000. ka: 0xffff8000001fe000
+buddy pa: 0x1fc000, buddy ka: 0xffff8000001fc000
+merge pa: 0x1fc000. ka: 0xffff8000001fc000
+buddy pa: 0x1f8000, buddy ka: 0xffff8000001f8000
+merge pa: 0x1f8000. ka: 0xffff8000001f8000
+buddy pa: 0x1f0000, buddy ka: 0xffff8000001f0000
+merge pa: 0x1f0000. ka: 0xffff8000001f0000
+buddy pa: 0x1e0000, buddy ka: 0xffff8000001e0000
+merge pa: 0x1e0000. ka: 0xffff8000001e0000
+buddy pa: 0x1c0000, buddy ka: 0xffff8000001c0000
+merge pa: 0x1c0000. ka: 0xffff8000001c0000
+buddy pa: 0x180000, buddy ka: 0xffff800000180000
+merge pa: 0x180000. ka: 0xffff800000180000
+buddy pa: 0x100000, buddy ka: 0xffff800000100000
+CPU 0: LAPIC ID 0
+In kalloc
+size: 15360
+kernal adress: 0xffff80000000a000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+return_block: 0xffffffff801651e0
+In kalloc
+size: 4096
+kernal adress: 0xffff80000016b000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+return_block: 0xffffffff80167e00
+In kalloc
+size: 4096
+kernal adress: 0xffff800000009000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+return_block: 0xffffffff801651c0
+In kalloc
+size: 4096
+kernal adress: 0xffff800000001000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+return_block: 0xffffffff801650c0
+In kalloc
+size: 4096
+there is not a free block of this order
+starting block: 0xffffffff801650e0
+starting block: 0xffffffff801650e0
+kernal adress: 0xffff800000003000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+In kalloc
+size: 4096
+kernal adress: 0xffff800000002000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+return_block: 0xffffffff801650e0
+In kalloc
+size: 4096
+there is not a free block of this order
+starting block: 0xffffffff80167e20
+starting block: 0xffffffff80167e20
+starting block: 0xffffffff80167e20
+kernal adress: 0xffff80000016d000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+In kalloc
+size: 4096
+kernal adress: 0xffff80000016c000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+return_block: 0xffffffff80167e20
+In kalloc
+size: 4096
+there is not a free block of this order
+starting block: 0xffffffff80167e60
+starting block: 0xffffffff80167e60
+kernal adress: 0xffff80000016f000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+In kalloc
+size: 4096
+kernal adress: 0xffff80000016e000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+return_block: 0xffffffff80167e60
+In kalloc
+size: 4096
+there is not a free block of this order
+starting block: 0xffffffff80165220
+starting block: 0xffffffff80165220
+starting block: 0xffffffff80165220
+kernal adress: 0xffff80000000d000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+In kalloc
+size: 4096
+kernal adress: 0xffff80000000c000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+return_block: 0xffffffff80165220
+in fork
+In kalloc
+size: 4096
+there is not a free block of this order
+starting block: 0xffffffff80165260
+starting block: 0xffffffff80165260
+kernal adress: 0xffff80000000f000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+In kalloc
+size: 4096
+kernal adress: 0xffff80000000e000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+return_block: 0xffffffff80165260
+In kalloc
+size: 4096
+there is not a free block of this order
+starting block: 0xffffffff80167ea0
+starting block: 0xffffffff80167ea0
+starting block: 0xffffffff80167ea0
+starting block: 0xffffffff80167ea0
+starting block: 0xffffffff80167ea0
+kernal adress: 0xffff800000171000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+In kalloc
+size: 4096
+kernal adress: 0xffff800000170000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+return_block: 0xffffffff80167ea0
+In kalloc
+size: 4096
+there is not a free block of this order
+starting block: 0xffffffff80167ee0
+starting block: 0xffffffff80167ee0
+kernal adress: 0xffff800000173000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+In kalloc
+size: 4096
+kernal adress: 0xffff800000172000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+return_block: 0xffffffff80167ee0
+In kalloc
+size: 4096
+there is not a free block of this order
+starting block: 0xffffffff80167f20
+starting block: 0xffffffff80167f20
+starting block: 0xffffffff80167f20
+kernal adress: 0xffff800000175000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+In kalloc
+size: 4096
+kernal adress: 0xffff800000174000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+return_block: 0xffffffff80167f20
+In kalloc
+size: 4096
+there is not a free block of this order
+starting block: 0xffffffff80167f60
+starting block: 0xffffffff80167f60
+kernal adress: 0xffff800000177000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+In kalloc
+size: 4096
+kernal adress: 0xffff800000176000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+return_block: 0xffffffff80167f60
+In kalloc
+size: 4096
+there is not a free block of this order
+starting block: 0xffffffff80167fa0
+starting block: 0xffffffff80167fa0
+starting block: 0xffffffff80167fa0
+starting block: 0xffffffff80167fa0
+kernal adress: 0xffff800000179000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+in fork
+In kalloc
+size: 4096
+kernal adress: 0xffff800000178000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+return_block: 0xffffffff80167fa0
+In kalloc
+size: 4096
+there is not a free block of this order
+starting block: 0xffffffff80167fe0
+starting block: 0xffffffff80167fe0
+kernal adress: 0xffff80000017b000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+In kalloc
+size: 4096
+kernal adress: 0xffff80000017a000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+return_block: 0xffffffff80167fe0
+In kalloc
+size: 4096
+there is not a free block of this order
+starting block: 0xffffffff80168020
+starting block: 0xffffffff80168020
+starting block: 0xffffffff80168020
+kernal adress: 0xffff80000017d000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+In kalloc
+size: 4096
+kernal adress: 0xffff80000017c000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+return_block: 0xffffffff80168020
+In kalloc
+size: 4096
+there is not a free block of this order
+starting block: 0xffffffff80168060
+starting block: 0xffffffff80168060
+kernal adress: 0xffff80000017f000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+In kalloc
+size: 4096
+kernal adress: 0xffff80000017e000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+return_block: 0xffffffff80168060
+In kalloc
+size: 4096
+there is not a free block of this order
+starting block: 0xffffffff801652a0
+starting block: 0xffffffff801652a0
+starting block: 0xffffffff801652a0
+starting block: 0xffffffff801652a0
+starting block: 0xffffffff801652a0
+kernal adress: 0xffff800000011000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+In kalloc
+size: 4096
+kernal adress: 0xffff800000010000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+return_block: 0xffffffff801652a0
+In kalloc
+size: 4096
+there is not a free block of this order
+starting block: 0xffffffff801652e0
+starting block: 0xffffffff801652e0
+kernal adress: 0xffff800000013000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+In kalloc
+size: 4096
+kernal adress: 0xffff800000012000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+return_block: 0xffffffff801652e0
+in fork
+In kalloc
+size: 4096
+there is not a free block of this order
+starting block: 0xffffffff80165320
+starting block: 0xffffffff80165320
+starting block: 0xffffffff80165320
+kernal adress: 0xffff800000015000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+In kalloc
+size: 4096
+kernal adress: 0xffff800000014000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+return_block: 0xffffffff80165320
+In kalloc
+size: 4096
+there is not a free block of this order
+starting block: 0xffffffff80165360
+starting block: 0xffffffff80165360
+kernal adress: 0xffff800000017000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+In kalloc
+size: 4096
+kernal adress: 0xffff800000016000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+return_block: 0xffffffff80165360
+In kalloc
+size: 4096
+there is not a free block of this order
+starting block: 0xffffffff801653a0
+starting block: 0xffffffff801653a0
+starting block: 0xffffffff801653a0
+starting block: 0xffffffff801653a0
+kernal adress: 0xffff800000019000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+In kalloc
+size: 4096
+kernal adress: 0xffff800000018000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+return_block: 0xffffffff801653a0
+In kalloc
+size: 4096
+there is not a free block of this order
+starting block: 0xffffffff801653e0
+starting block: 0xffffffff801653e0
+kernal adress: 0xffff80000001b000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+In kalloc
+size: 4096
+kernal adress: 0xffff80000001a000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+return_block: 0xffffffff801653e0
+In kalloc
+size: 4096
+there is not a free block of this order
+starting block: 0xffffffff80165420
+starting block: 0xffffffff80165420
+starting block: 0xffffffff80165420
+kernal adress: 0xffff80000001d000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+In kalloc
+size: 4096
+kernal adress: 0xffff80000001c000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+return_block: 0xffffffff80165420
+In kalloc
+size: 4096
+there is not a free block of this order
+starting block: 0xffffffff80165460
+starting block: 0xffffffff80165460
+kernal adress: 0xffff80000001f000  kernel text: 0xffffffff80000000  highmem_base: 0xffff800000000000
+----- sys_exit on process 1
+early pagetable: 0xffffffff80006000
+successfully set_pagetable to 0xffffffff80006000
+pagetable_: 0xffff80000016b000
+Process' pagetable: 0xffff80000016b000
+in kfree page
+before if
+before entering kfree
+In kfree.  Freeing virtual address 0xffff800000009000 associated with physical address 0x9000
+pushed back
+merge pa: 0x9000. ka: 0xffff800000009000
+buddy pa: 0x8000, buddy ka: 0xffff800000008000
+ptr: 0xffff800000009000
+marking memory
+after marking memory
+afterm marking memset
+before *pep
+after *pep
+in kfree page
+before if
+before entering kfree
+In kfree.  Freeing virtual address 0xffff80000016d000 associated with physical address 0x16d000
+pushed back
+merge pa: 0x16d000. ka: 0xffff80000016d000
+buddy pa: 0x16c000, buddy ka: 0xffff80000016c000
+ptr: 0xffff80000016d000
+marking memory
+after marking memory
+afterm marking memset
+before *pep
+after *pep
+in kfree page
+before if
+before entering kfree
+In kfree.  Freeing virtual address 0xffff80000016c000 associated with physical address 0x16c000
+pushed back
+merge pa: 0x16c000. ka: 0xffff80000016c000
+buddy pa: 0x16d000, buddy ka: 0xffff80000016d000
+merge pa: 0x16c000. ka: 0xffff80000016c000
+buddy pa: 0x16e000, buddy ka: 0xffff80000016e000
+ptr: 0xffff80000016c000
+marking memory
+after marking memory
+afterm marking memset
+before *pep
+after *pep
+in kfree page
+before if
+before entering kfree
+In kfree.  Freeing virtual address 0xffff80000016e000 associated with physical address 0x16e000
+pushed back
+merge pa: 0x16e000. ka: 0xffff80000016e000
+buddy pa: 0x16f000, buddy ka: 0xffff80000016f000
+ptr: 0xffff80000016e000
+marking memory
+after marking memory
+afterm marking memset
+before *pep
+after *pep
+In kfree.  Freeing virtual address 0xffff800000002000 associated with physical address 0x2000
+pushed back
+merge pa: 0x2000. ka: 0xffff800000002000
+buddy pa: 0x3000, buddy ka: 0xffff800000003000
+ptr: 0xffff800000002000
+marking memory
+after marking memory
+afterm marking memset
+In kfree.  Freeing virtual address 0xffff80000000d000 associated with physical address 0xd000
+pushed back
+merge pa: 0xd000. ka: 0xffff80000000d000
+buddy pa: 0xc000, buddy ka: 0xffff80000000c000
+ptr: 0xffff80000000d000
+marking memory
+after marking memory
+afterm marking memset
+In kfree.  Freeing virtual address 0xffff800000003000 associated with physical address 0x3000
+pushed back
+merge pa: 0x3000. ka: 0xffff800000003000
+buddy pa: 0x2000, buddy ka: 0xffff800000002000
+merge pa: 0x2000. ka: 0xffff800000002000
+buddy pa: 0x0, buddy ka: 0xffff800000000000
+ptr: 0xffff800000003000
+marking memory
+after marking memory
+afterm marking memset
+In kfree.  Freeing virtual address 0xffff800000001000 associated with physical address 0x1000
+pushed back
+merge pa: 0x1000. ka: 0xffff800000001000
+buddy pa: 0x0, buddy ka: 0xffff800000000000
+ptr: 0xffff800000001000
+marking memory
+after marking memory
+afterm marking memset
+In kfree.  Freeing virtual address 0xffff80000016b000 associated with physical address 0x16b000
+pushed back
+merge pa: 0x16b000. ka: 0xffff80000016b000
+buddy pa: 0x16a000, buddy ka: 0xffff80000016a000
+ptr: 0xffff80000016b000
+marking memory
+after marking memory
+afterm marking memset
+outside lock
+----- sys_exit on process 2
+early pagetable: 0xffffffff80006000
+successfully set_pagetable to 0xffffffff80006000
+pagetable_: 0xffff80000000e000
+Process' pagetable: 0xffff80000000e000
+in kfree page
+before if
+before entering kfree
+In kfree.  Freeing virtual address 0xffff800000172000 associated with physical address 0x172000
+pushed back
+merge pa: 0x172000. ka: 0xffff800000172000
+buddy pa: 0x173000, buddy ka: 0xffff800000173000
+ptr: 0xffff800000172000
+marking memory
+after marking memory
+afterm marking memset
+before *pep
+after *pep
+in kfree page
+before if
+before entering kfree
+In kfree.  Freeing virtual address 0xffff800000175000 associated with physical address 0x175000
+pushed back
+merge pa: 0x175000. ka: 0xffff800000175000
+buddy pa: 0x174000, buddy ka: 0xffff800000174000
+ptr: 0xffff800000175000
+marking memory
+after marking memory
+afterm marking memset
+before *pep
+after *pep
+in kfree page
+before if
+before entering kfree
+In kfree.  Freeing virtual address 0xffff800000174000 associated with physical address 0x174000
+pushed back
+merge pa: 0x174000. ka: 0xffff800000174000
+buddy pa: 0x175000, buddy ka: 0xffff800000175000
+merge pa: 0x174000. ka: 0xffff800000174000
+buddy pa: 0x176000, buddy ka: 0xffff800000176000
+ptr: 0xffff800000174000
+marking memory
+after marking memory
+afterm marking memset
+before *pep
+after *pep
+in kfree page
+before if
+before entering kfree
+In kfree.  Freeing virtual address 0xffff800000012000 associated with physical address 0x12000
+pushed back
+merge pa: 0x12000. ka: 0xffff800000012000
+buddy pa: 0x13000, buddy ka: 0xffff800000013000
+ptr: 0xffff800000012000
+marking memory
+after marking memory
+afterm marking memset
+before *pep
+after *pep
+in kfree page
+before if
+before entering kfree
+In kfree.  Freeing virtual address 0xffff80000001f000 associated with physical address 0x1f000
+pushed back
+merge pa: 0x1f000. ka: 0xffff80000001f000
+buddy pa: 0x1e000, buddy ka: 0xffff80000001e000
+merge pa: 0x1e000. ka: 0xffff80000001e000
+buddy pa: 0x1c000, buddy ka: 0xffff80000001c000
+ptr: 0xffff80000001f000
+marking memory
+after marking memory
+afterm marking memset
+before *pep
+after *pep
+in kfree page
+before if
+before entering kfree
+In kfree.  Freeing virtual address 0xffff800000177000 associated with physical address 0x177000
+pushed back
+merge pa: 0x177000. ka: 0xffff800000177000
+buddy pa: 0x176000, buddy ka: 0xffff800000176000
+ptr: 0xffff800000177000
+marking memory
+after marking memory
+afterm marking memset
+before *pep
+after *pep
+In kfree.  Freeing virtual address 0xffff800000173000 associated with physical address 0x173000
+pushed back
+merge pa: 0x173000. ka: 0xffff800000173000
+buddy pa: 0x172000, buddy ka: 0xffff800000172000
+merge pa: 0x172000. ka: 0xffff800000172000
+buddy pa: 0x170000, buddy ka: 0xffff800000170000
+ptr: 0xffff800000173000
+marking memory
+after marking memory
+afterm marking memset
+In kfree.  Freeing virtual address 0xffff800000176000 associated with physical address 0x176000
+pushed back
+merge pa: 0x176000. ka: 0xffff800000176000
+buddy pa: 0x177000, buddy ka: 0xffff800000177000
+merge pa: 0x176000. ka: 0xffff800000176000
+buddy pa: 0x174000, buddy ka: 0xffff800000174000
+merge pa: 0x174000. ka: 0xffff800000174000
+buddy pa: 0x170000, buddy ka: 0xffff800000170000
+ptr: 0xffff800000176000
+marking memory
+after marking memory
+afterm marking memset
+In kfree.  Freeing virtual address 0xffff800000170000 associated with physical address 0x170000
+pushed back
+merge pa: 0x170000. ka: 0xffff800000170000
+buddy pa: 0x171000, buddy ka: 0xffff800000171000
+ptr: 0xffff800000170000
+marking memory
+after marking memory
+afterm marking memset
+In kfree.  Freeing virtual address 0xffff800000171000 associated with physical address 0x171000
+pushed back
+merge pa: 0x171000. ka: 0xffff800000171000
+buddy pa: 0x170000, buddy ka: 0xffff800000170000
+merge pa: 0x170000. ka: 0xffff800000170000
+buddy pa: 0x172000, buddy ka: 0xffff800000172000
+merge pa: 0x170000. ka: 0xffff800000170000
+buddy pa: 0x174000, buddy ka: 0xffff800000174000
+merge pa: 0x170000. ka: 0xffff800000170000
+buddy pa: 0x178000, buddy ka: 0xffff800000178000
+ptr: 0xffff800000171000
+marking memory
+after marking memory
+afterm marking memset
+In kfree.  Freeing virtual address 0xffff80000000e000 associated with physical address 0xe000
+pushed back
+merge pa: 0xe000. ka: 0xffff80000000e000
+buddy pa: 0xf000, buddy ka: 0xffff80000000f000
+ptr: 0xffff80000000e000
+marking memory
+after marking memory
+afterm marking memset
+outside lock
+k-hardware.cc:39: kernel assertion 'vmiter(pagetable, HIGHMEM_BASE).pa() == 0' failed
+  #1  0xffffffff80100ad0  <_ZNK8pcistate5readlEi.isra.0.part.0>
+  #2  0xffffffff801045d6  <_ZN8cpustate8scheduleEP4proc>

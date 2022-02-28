@@ -12,7 +12,7 @@ void process_main() {
 
     sys_consoletype(CONSOLE_MEMVIEWER);
 
-    (void) sys_fork();
+    //(void) sys_fork();
     //(void) sys_fork();
 
     heap_top = reinterpret_cast<uint8_t*>(
@@ -23,9 +23,9 @@ void process_main() {
         round_down(rdrsp() - 1, PAGESIZE)
     );
 
-    console_printf("heap top: %p\n", heap_top);
+    //console_printf("heap top: %p\n", heap_top);
 
-    console_printf("stack bottom %p\n", stack_bottom);
+    //console_printf("stack bottom %p\n", stack_bottom);
 
     while(true) {
         for (uint8_t* addr = heap_top ; addr < stack_bottom; addr += PAGESIZE) {

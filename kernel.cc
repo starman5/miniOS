@@ -62,12 +62,12 @@ void boot_process_start(pid_t pid, const char* name) {
     void* stkpg = kalloc(PAGESIZE);
     assert(stkpg);
     vmiter(p, MEMSIZE_VIRTUAL - PAGESIZE).map(stkpg, PTE_PWU);
-    log_printf("before\n");
+    //log_printf("before\n");
     uintptr_t console_page = 47104 - (47104 % 4096);
     //log_printf("CONSOLE PAGE VA %p\n", console_page);
     //log_printf("CONSOLE PA%p\n", ktext2pa(console));
     vmiter(p, ktext2pa(console)).try_map(ktext2pa(console), PTE_PWU);
-    log_printf("after\n");
+    //log_printf("after\n");
     p->regs_->reg_rsp = MEMSIZE_VIRTUAL;
 
     // add to process table (requires lock in case another CPU is already
@@ -214,15 +214,15 @@ uintptr_t proc::syscall(regstate* regs) {
 
     case SYSCALL_TEST_ALLOC: {
         uintptr_t addr = regs->reg_rdi;
-        log_printf("test alloc syscall on %p\n", addr);
+        //log_printf("test alloc syscall on %p\n", addr);
         if(addr >= VA_LOWEND) {
-            log_printf("addr >= VA_LOWEND\n");
+            //log_printf("addr >= VA_LOWEND\n");
             return -1;
         }
 
         void* pg = kalloc(PAGESIZE);
         if (!pg || vmiter(this, addr).try_map(ka2pa(pg), PTE_PWU) < 0) {
-            log_printf("time to free\n");
+            //log_printf("time to free\n");
             return -1;
         }
 
@@ -242,7 +242,7 @@ uintptr_t proc::syscall(regstate* regs) {
             //log_printf("va: %p\n", it.va());
             if (it.user() && it.va() != CONSOLE_ADDR && it.va() >= heap_top && it.va() < stack_bottom) {  //it.va() >= heap_top && it.va() < stack_bottom) {
                 // CHANGE WHEN VARIABLE SIZE IS SUPPORTED
-                log_printf("calling kfree on %p associated with va %p\n", it.pa(), it.va());
+                //log_printf("calling kfree on %p associated with va %p\n", it.pa(), it.va());
                 it.kfree_page();
             }
         }
@@ -288,32 +288,80 @@ uintptr_t proc::syscall(regstate* regs) {
         {
             log_printf("----- sys_exit on process %i\n", id_);
             spinlock_guard guard(ptable_lock);
+            assert(ptable[this->id_] != nullptr);
+            ptable[this->id_] = nullptr;
 
-            // Set the current pagetable to be early_pagetable.  It is:
-            //      Never freed
-            //      Only maps the kernel (i guess there is no risk of it mapping stuff we might need to free rn?)
-            // Now, we can free the pagetable associated with the process we want to free
-            log_printf("early pagetable: %p\n", early_pagetable);
-            set_pagetable(early_pagetable);
-            log_printf("successfully set_pagetable to %p\n", early_pagetable);
+            //log_printf("early pagetable: %p\n", early_pagetable);
             
-            log_printf("Process' pagetable: %p\n", this->pagetable_);
+            set_pagetable(early_pagetable);
+            
+            //log_printf("successfully set_pagetable to %p\n", early_pagetable);
+            //log_printf("pagetable_: %p\n", pagetable_);
+            
+            //log_printf("Process' pagetable: %p\n", this->pagetable_);
+
+            for (vmiter it(pagetable_, 0); it.low(); it.next()) {
+                if (it.user() && it.va() != CONSOLE_ADDR) {
+                    //kfree(it.kptr());
+                    it.kfree_page();
+                }
+            }
+            //log_printf("out of vmiter\n");
+
+            assert(pagetable_ != early_pagetable);
+
+            for (ptiter it(pagetable_); it.low(); it.next()) {
+                it.kfree_ptp(); 
+            }
+            //log_printf("out of ptiter\n");
+
+            kfree(pagetable_);
+
+            pagetable_ = early_pagetable;
+    
+        //for (ptiter it(pagetable_); !it.done(); it.next()) {
+          //  kfree(it.kptr());
+        //}
+        //kfree(pagetable_);
+
+            /*for (vmiter it(pagetable_, 0); it.va() < MEMSIZE_VIRTUAL; it.next()) {
+                //log_printf("heap top: %p\n", heap_top);
+                //log_printf("stack bottom: %p\n", stack_bottom);
+                //log_printf("va: %p pa: %p\n", it.va(), it.pa());
+                if (it.writable() && it.user() && it.va() != CONSOLE_ADDR) {  //it.va() >= heap_top && it.va() < stack_bottom) {
+                // CHANGE WHEN VARIABLE SIZE IS SUPPORTED
+                //log_printf("calling kfree on %p associated with va %p\n", it.pa(), it.va());
+                    log_printf("base: %p\n", HIGHMEM_BASE);
+                    it.kfree_page();
+                    log_printf("after kfree_page\n");
+                }
+            }*/
+
+           /*for (ptiter it(pagetable_); it.low(); it.next()) {
+                it.kfree_ptp();
+            }*/
+
+            //kfree(pagetable_);
             // Delete all mappings in the pagetable and free all the pages
             // I think the problem is I can't yet delete high canonical addresses.  Only low canonical
-            for (vmiter it(this, VA_LOWMIN); it.va() < VA_LOWMAX; it.next()) {
+            /*for (vmiter it(this, VA_LOWMIN); it.va() < VA_LOWMAX; it.next()) {
                 //log_printf("Virtual address: %p -- physical adress: %p\n", it.va(), it.pa());
                 if (it.pa() != 0) {
                     it.kfree_page();
                 }
-            }
+            }*/
 
             // This might not be necessary unless kalloc_pagetable() allocates extra space not used for pages
-            kfree(pagetable_);
+            //kfree(pagetable_);
 
             // remove the current process from the process table
-            this->pagetable_ = nullptr;
+            //this->pagetable_ = nullptr;
         }
-        
+        assert(!ptable[this->id_]);
+        this->pstate_ = ps_blank;
+        //yield_noreturn();
+        log_printf("outside lock\n");
+        yield_noreturn();
 
     }
 
@@ -401,6 +449,7 @@ uintptr_t proc::syscall(regstate* regs) {
 //(void) regs;
 
 int proc::syscall_fork(regstate* regs) {
+    log_printf("in fork\n");
     // Find the next available pid by looping through the ones already used
     pid_t parent_id = this->id_;
 
@@ -413,7 +462,7 @@ int proc::syscall_fork(regstate* regs) {
     x86_64_pagetable* child_pagetable = kalloc_pagetable();
     if (child_pagetable == nullptr) {
         log_printf("fork failure\n");
-        kfree(this);
+        kfree(p);
         return -1;
     }
 
@@ -429,7 +478,7 @@ int proc::syscall_fork(regstate* regs) {
         
         if (i == NPROC) {
             log_printf("fork failure\n");
-            kfree(this);
+            kfree(p);
             return -1;
         }
         
@@ -445,7 +494,7 @@ int proc::syscall_fork(regstate* regs) {
             if (parentiter.pa() == CONSOLE_ADDR) {
                 if (childiter.try_map(parentiter.pa(), parentiter.perm()) == -1) {
                     log_printf("fork failure\n");
-                    kfree(this);
+                    kfree(p);
                     return -1;
                 }
             }
@@ -454,12 +503,12 @@ int proc::syscall_fork(regstate* regs) {
                 void* addr = kalloc(PAGESIZE);
                 if (addr == nullptr) {
                     log_printf("fork failure\n");
-                    kfree(this);
+                    kfree(p);
                     return -1;
                 }
                 if (childiter.try_map(addr, parentiter.perm()) == -1) {
                     log_printf("fork failure\n");
-                    kfree(this);
+                    kfree(p);
                     return -1;
                 }
                 memcpy(addr, (const void*) parentiter.va(), PAGESIZE);

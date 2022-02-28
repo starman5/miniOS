@@ -13,14 +13,18 @@ void process_main() {
     // First process never allocates; it alternates between forking children
     // and yielding; sometimes it exits. Each forked child allocates.
     while (true) {
+        //printf("start\n");
         (void) sys_waitpid(0, nullptr, W_NOHANG);
         int x = rand(0, ALLOC_SLOWDOWN);
         if (x == 0) {
             // fork, then either exit or start allocating
+            //printf("before fork\n");
             pid_t p = sys_fork();
             int choice = rand(0, 2);
             if (choice == 0 && p > 0) {
+                //printf("before\n");
                 sys_exit(0);
+                printf("after\n");
             } else if (choice != 2 ? p > 0 : p == 0) {
                 break;
             }

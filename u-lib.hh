@@ -152,6 +152,7 @@ inline pid_t sys_fork() {
 //    Exit this process. Does not return.
 [[noreturn]] inline void sys_exit(int status) {
     make_syscall(SYSCALL_EXIT, status);
+    //printf("stuff\n");
     assert(false);
 }
 

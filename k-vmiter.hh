@@ -272,11 +272,16 @@ inline void vmiter::map(volatile void* kp, int perm) {
     map(kptr2pa(kp), perm);
 }
 inline void vmiter::kfree_page() {
+    //log_printf("in kfree page\n");
     assert((va_ & (PAGESIZE - 1)) == 0);
+    //log_printf("before if\n");
     if (*pep_ & PTE_P) {
+        //log_printf("before entering kfree\n");
         kfree(kptr<void*>());
     }
+    //log_printf("before *pep\n");
     *pep_ = 0;
+    //log_printf("after *pep\n");
 }
 
 inline ptiter::ptiter(const proc* p)
