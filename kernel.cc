@@ -315,6 +315,12 @@ uintptr_t proc::syscall(regstate* regs) {
             log_printf("----- sys_exit on process %i\n", id_);
             spinlock_guard guard(ptable_lock);
             assert(ptable[this->id_] != nullptr);
+            proc* child = this->children.pop_back();
+            while (child) {
+                child->parent_id_ = 1;
+                child = this->children.pop_back();
+            }
+
             ptable[this->id_] = nullptr;
 
             //log_printf("early pagetable: %p\n", early_pagetable);
@@ -548,6 +554,8 @@ int proc::syscall_fork(regstate* regs) {
 
         p->regs_->reg_rax = 0;
         p->parent_id_ = parent_id;
+
+        ptable[parent_id]->children.push_back(p);
 
         ptable[i]->pstate_ = ps_runnable;
         cpus[i % ncpu].enqueue(p);
