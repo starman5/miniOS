@@ -23,65 +23,69 @@ struct elf_program;
 
 // Process descriptor type
 struct __attribute__((aligned(4096))) proc {
-    enum pstate_t {
-        ps_blank = 0, ps_runnable = PROC_RUNNABLE, ps_faulted
-    };
+        enum pstate_t {
+            ps_blank = 0, ps_runnable = PROC_RUNNABLE, ps_faulted
+        };
 
-    // These four members must come first:
-    pid_t id_ = 0;                             // Process ID
-    pid_t parent_id_ = 1;                      // Parent Process ID
-    regstate* regs_ = nullptr;                 // Process's current registers
-    yieldstate* yields_ = nullptr;             // Process's current yield state
-    std::atomic<int> pstate_ = ps_blank;       // Process state
+        // These four members must come first:
+        pid_t id_ = 0;                             // Process ID
+        regstate* regs_ = nullptr;                 // Process's current registers
+        yieldstate* yields_ = nullptr;             // Process's current yield state
+        std::atomic<int> pstate_ = ps_blank;       // Process state
+        pid_t parent_id_ = 1;                      // Process' parent id 
 
-    x86_64_pagetable* pagetable_ = nullptr;    // Process's page table
-    uintptr_t recent_user_rip_ = 0;            // Most recent user-mode %rip
+        x86_64_pagetable* pagetable_ = nullptr;    // Process's page table
+        uintptr_t recent_user_rip_ = 0;            // Most recent user-mode %rip
 
-    int canary_;
-    
-#if HAVE_SANITIZERS
-    int sanitizer_status_ = 0;
-#endif
+        int canary_;
+        
+    #if HAVE_SANITIZERS
+        int sanitizer_status_ = 0;
+    #endif
 
-    list_links runq_links_;
+        list_links runq_links_;
+        list_links child_links_;
+
+        list<proc, &proc::child_links_> children;
 
 
-    proc();
-    NO_COPY_OR_ASSIGN(proc);
+        proc();
+        NO_COPY_OR_ASSIGN(proc);
 
-    inline bool contains(uintptr_t addr) const;
-    inline bool contains(void* ptr) const;
+        inline bool contains(uintptr_t addr) const;
+        inline bool contains(void* ptr) const;
 
-    void init_user(pid_t pid, x86_64_pagetable* pt);
-    void init_kernel(pid_t pid, void (*f)());
+        void init_user(pid_t pid, x86_64_pagetable* pt);
+        void init_kernel(pid_t pid, void (*f)());
 
-    static int load(proc_loader& ld);
+        static int load(proc_loader& ld);
 
-    void exception(regstate* reg);
-    uintptr_t syscall(regstate* reg);
+        void exception(regstate* reg);
+        uintptr_t syscall(regstate* reg);
 
-    void yield();
-    [[noreturn]] void yield_noreturn();
-    [[noreturn]] void resume();
-    [[noreturn]] void panic_nonrunnable();
-    // My note: yield noreturn is means process will be scheduled on another cpu and
-    // It will never be scheduled again.  Useful for exit.  It will never run again.
-    // In practice it means that yield_noreturn doesn't save some state (callee saved registers)
+        void yield();
+        [[noreturn]] void yield_noreturn();
+        [[noreturn]] void resume();
+        [[noreturn]] void panic_nonrunnable();
+        // My note: yield noreturn is means process will be scheduled on another cpu and
+        // It will never be scheduled again.  Useful for exit.  It will never run again.
+        // In practice it means that yield_noreturn doesn't save some state (callee saved registers)
 
-    inline bool resumable() const;
+        inline bool resumable() const;
 
-    int syscall_fork(regstate* regs);
+        int syscall_fork(regstate* regs);
 
-    uintptr_t syscall_read(regstate* reg);
-    uintptr_t syscall_write(regstate* reg);
-    uintptr_t syscall_readdiskfile(regstate* reg);
-    int syscall_nasty_alloc();
+        uintptr_t syscall_read(regstate* reg);
+        uintptr_t syscall_write(regstate* reg);
+        uintptr_t syscall_readdiskfile(regstate* reg);
+        int syscall_nasty_alloc();
 
-    inline irqstate lock_pagetable_read();
-    inline void unlock_pagetable_read(irqstate& irqs);
+        inline irqstate lock_pagetable_read();
+        inline void unlock_pagetable_read(irqstate& irqs);
 
- private:
-    static int load_segment(const elf_program& ph, proc_loader& ld);
+    private:
+        static int load_segment(const elf_program& ph, proc_loader& ld);
+
 };
 
 #define NPROC 16

@@ -311,7 +311,6 @@ uintptr_t proc::syscall(regstate* regs) {
         // Remove the current process from the process table
         // Free all memory associated with the current process
             //ptable must be protected by lock
-            //
         {
             log_printf("----- sys_exit on process %i\n", id_);
             spinlock_guard guard(ptable_lock);
