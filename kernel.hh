@@ -64,6 +64,9 @@ struct __attribute__((aligned(4096))) proc {
     [[noreturn]] void yield_noreturn();
     [[noreturn]] void resume();
     [[noreturn]] void panic_nonrunnable();
+    // My note: yield noreturn is means process will be scheduled on another cpu and
+    // It will never be scheduled again.  Useful for exit.  It will never run again.
+    // In practice it means that yield_noreturn doesn't save some state (callee saved registers)
 
     inline bool resumable() const;
 

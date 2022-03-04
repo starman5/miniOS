@@ -17,6 +17,8 @@ std::atomic<unsigned long> ticks;
 
 static void tick();
 static void boot_process_start(pid_t pid, const char* program_name);
+static void init_first_process();
+static void run_init();
 
 
 // kernel_start(command)
@@ -33,12 +35,36 @@ void kernel_start(const char* command) {
         ptable[i] = nullptr;
     }
 
+    init_first_process();
+
     // start first process
-    boot_process_start(1, CHICKADEE_FIRST_PROCESS);
+    boot_process_start(2, CHICKADEE_FIRST_PROCESS);
 
     // start running processes
     cpus[0].schedule(nullptr);
 }
+
+void init_first_process() {
+    proc* p_init = nullptr;
+
+    p_init = knew<proc>();
+    p_init->init_kernel(1, run_init);
+    {
+        spinlock_guard guard(ptable_lock);
+        ptable[1] = p_init;
+    }
+
+    log_printf("about to schedule init_first_process on cpu 0.  id = %i, parent = %i\n", p_init->id_, p_init->parent_id_);
+    // Smart to enqueue on cpu 0 because that will always be available, even at the very very beginning
+    cpus[0].enqueue(p_init);
+}
+
+void run_init() {
+    while (true) {
+        current()->yield();
+    }
+}
+
 
 
 // boot_process_start(pid, name)
@@ -58,6 +84,7 @@ void boot_process_start(pid_t pid, const char* name) {
     proc* p = knew<proc>();
     p->init_user(pid, ld.pagetable_);
     p->regs_->reg_rip = ld.entry_rip_;
+    log_printf("id: %i, parent_id: %i\n", p->id_, p->parent_id_);
 
     void* stkpg = kalloc(PAGESIZE);
     assert(stkpg);

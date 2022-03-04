@@ -37,7 +37,7 @@ void process_main() {
     sys_msleep(50);
     if (sys_getpid() == original) {
         //printf("succeeded\n");
-        console_printf("ppid tests without exit succeed\n");
+        printf("ppid tests without exit succeed\n");
     } else {
         sys_exit(0);
     }

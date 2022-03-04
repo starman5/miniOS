@@ -124,6 +124,7 @@ void cpustate::schedule(proc* yielding_from) {
 //    `proc` that runs in kernel mode) that just stops the processor
 //    until an interrupt is received. The idle task runs when a CPU
 //    has nothing better to do.
+//    My note: it is convenient to have a CPU run something
 
 void idle() {
     sti();

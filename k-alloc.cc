@@ -49,7 +49,7 @@ page_meta* split(int original_order, page_meta* starting_block, int count) {
     auto irqs = page_lock.lock();
 
     //log_printf("In split function\n");
-    log_printf("starting block: %p\n", starting_block);
+    //log_printf("starting block: %p\n", starting_block);
 
     if (original_order != starting_block->order_) {
         //log_printf("will change order\n");
@@ -169,7 +169,7 @@ void merge(uintptr_t p_addr) {
 //    after `physical_ranges` is initialized.
 
 void init_kalloc() {
-    log_printf(" ---- In init_kalloc() ---");
+    //log_printf(" ---- In init_kalloc() ---");
     auto irqs = page_lock.lock();
 
     for (uintptr_t p_addr = 0; p_addr < MEMSIZE_PHYSICAL; p_addr += PAGESIZE) {
@@ -212,8 +212,8 @@ void init_kalloc() {
 //    of pages.
 
 void* kalloc(size_t sz) {
-    log_printf("In kalloc\n");
-    log_printf("size: %i\n", sz);
+    //log_printf("In kalloc\n");
+    //log_printf("size: %i\n", sz);
 
     if (sz == 0 || sz > (1 << MAX_ORDER)) {
         //log_printf("Not a valid size\n");
@@ -231,7 +231,7 @@ void* kalloc(size_t sz) {
     // and split a block of that order into two new blocks with order - 1
     page_meta* return_block = nullptr;
     if (free_blocks[order - MIN_ORDER].front() == nullptr) {
-        log_printf("there is not a free block of this order\n");
+        //log_printf("there is not a free block of this order\n");
         
         for (int i = order - MIN_ORDER + 1; i <= MAX_ORDER - MIN_ORDER; ++i) {
             //log_printf("in for\n");
@@ -244,7 +244,7 @@ void* kalloc(size_t sz) {
                 return_block = split(order, free_blocks[i].back(), 1);
                 auto irqs = page_lock.lock();
                 if (return_block->addr_) {
-                    log_printf("kernal adress: %p  kernel text: %p  highmem_base: %p\n", return_block->addr_, KTEXT_BASE, HIGHMEM_BASE);
+                    //log_printf("kernal adress: %p  kernel text: %p  highmem_base: %p\n", return_block->addr_, KTEXT_BASE, HIGHMEM_BASE);
                     asan_mark_memory(ka2pa(return_block->addr_), (1 << return_block->order_), false);
                     //memset(return_block->addr_, 0xCC, (1 << return_block->order_));
                 }
@@ -264,12 +264,12 @@ void* kalloc(size_t sz) {
         return_block = free_blocks[order - MIN_ORDER].pop_back();
         return_block->free_ = false;
         if (return_block->addr_) {
-            log_printf("kernal adress: %p  kernel text: %p  highmem_base: %p\n", return_block->addr_, KTEXT_BASE, HIGHMEM_BASE);
+            //log_printf("kernal adress: %p  kernel text: %p  highmem_base: %p\n", return_block->addr_, KTEXT_BASE, HIGHMEM_BASE);
             asan_mark_memory(ka2pa(return_block->addr_), (1 << return_block->order_), false);
             //memset(return_block->addr_, 0xCC, (1 << return_block->order_));
         }
         page_lock.unlock(irqs);
-        log_printf("return_block: %p\n", return_block);
+        //log_printf("return_block: %p\n", return_block);
         return return_block->addr_;
     }
 
@@ -282,7 +282,7 @@ void* kalloc(size_t sz) {
 //    `ptr == nullptr`.
 void kfree(void* ptr) {
     auto irqs = page_lock.lock();
-    log_printf("In kfree.  Freeing virtual address %p associated with physical address %p\n", ptr, ka2pa(ptr));
+    //log_printf("In kfree.  Freeing virtual address %p associated with physical address %p\n", ptr, ka2pa(ptr));
     // check to make sure fields are not nullptr
     /*if (ptr) {
         // tell sanitizers the freed page is inaccessible
@@ -294,7 +294,7 @@ void kfree(void* ptr) {
     if (ptr) {
         int page_index = (uintptr_t) ka2pa(ptr) / PAGESIZE;
         if (all_pages[page_index].free_ == true) {
-            log_printf("the page is already free\n");
+            //log_printf("the page is already free\n");
             page_lock.unlock(irqs);
             return;
         }
@@ -317,7 +317,7 @@ void kfree(void* ptr) {
         memset(ptr, 0xCC, (1 << order));
         //log_printf("afterm marking memset\n");
     }
-    log_printf("end of kfree\n");
+    //log_printf("end of kfree\n");
     page_lock.unlock(irqs);
 }
 
