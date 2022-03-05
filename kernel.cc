@@ -661,9 +661,12 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                             zombies_exist = true;
                             pid = child->id_;
                         }
+                        else {
                         log_printf("restore\n");
                         this->children_.push_back(child);
+                        }
                     }
+                    
 
                     //log_printf("outside loop\n");
                     if (zombies_exist == false) {
