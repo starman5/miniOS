@@ -9,6 +9,7 @@ static void make_children(pid_t* children) {
         pid_t p = sys_fork();
         if (p == 0) {
             sys_msleep(order[i] * 100);
+            //printf("about to exit\n");
             sys_exit(order[i]);
         }
         assert_gt(p, 0);
@@ -17,13 +18,15 @@ static void make_children(pid_t* children) {
 }
 
 void process_main() {
-    console_printf("waitpid(0, W_NOHANG) tests...\n");
+    printf("waitpid(0, W_NOHANG) tests...\n");
     pid_t children[arraysize(order)];
     make_children(children);
+    printf("after make\n");
     for (size_t i = 0; i != arraysize(order); ++i) {
         pid_t ch;
         int status = 0;
         while ((ch = sys_waitpid(0, &status, W_NOHANG)) == E_AGAIN) {
+            printf("egain\n");
             sys_yield();
         }
         assert_gt(ch, 0);
@@ -32,6 +35,7 @@ void process_main() {
         while (idx != arraysize(order) && children[idx] != ch) {
             ++idx;
         }
+        printf("after assertion\n");
         assert(idx < arraysize(order));
         children[idx] = 0;
 
@@ -39,7 +43,7 @@ void process_main() {
         assert_eq(order[idx], status);
     }
     assert_eq(sys_waitpid(0, nullptr, W_NOHANG), E_CHILD);
-    console_printf("waitpid(0, W_NOHANG) tests succeed.\n");
+    printf("waitpid(0, W_NOHANG) tests succeed.\n");
 
 
     console_printf("waitpid(pid, W_NOHANG) tests...\n");

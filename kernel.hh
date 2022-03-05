@@ -24,7 +24,7 @@ struct elf_program;
 // Process descriptor type
 struct __attribute__((aligned(4096))) proc {
         enum pstate_t {
-            ps_blank = 0, ps_runnable = PROC_RUNNABLE, ps_faulted
+            ps_blank = 0, ps_exited = 2, ps_runnable = PROC_RUNNABLE, ps_faulted
         };
 
         // These four members must come first:
@@ -37,6 +37,8 @@ struct __attribute__((aligned(4096))) proc {
         x86_64_pagetable* pagetable_ = nullptr;    // Process's page table
         uintptr_t recent_user_rip_ = 0;            // Most recent user-mode %rip
 
+        int exit_status_ = 1;                      // Process's exit status
+
         int canary_;
         
     #if HAVE_SANITIZERS
@@ -46,7 +48,7 @@ struct __attribute__((aligned(4096))) proc {
         list_links runq_links_;
         list_links child_links_;
 
-        list<proc, &proc::child_links_> children;
+        list<proc, &proc::child_links_> children_;
 
 
         proc();
@@ -74,6 +76,7 @@ struct __attribute__((aligned(4096))) proc {
         inline bool resumable() const;
 
         int syscall_fork(regstate* regs);
+        int syscall_waitpid(pid_t pid, int* status, int options);
 
         uintptr_t syscall_read(regstate* reg);
         uintptr_t syscall_write(regstate* reg);

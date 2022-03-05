@@ -19,6 +19,7 @@ static void tick();
 static void boot_process_start(pid_t pid, const char* program_name);
 static void init_first_process();
 static void run_init();
+static void setup_init_child();
 
 
 // kernel_start(command)
@@ -26,6 +27,7 @@ static void run_init();
 //    string is an optional string passed from the boot loader.
 
 void kernel_start(const char* command) {
+    log_printf("In kernel_start\n");
     init_hardware();
     consoletype = CONSOLE_NORMAL;
     console_clear();
@@ -38,13 +40,24 @@ void kernel_start(const char* command) {
     init_first_process();
 
     // start first process
+    log_printf("booting first chickadee user process\n");
     boot_process_start(2, CHICKADEE_FIRST_PROCESS);
+
+    setup_init_child();
 
     // start running processes
     cpus[0].schedule(nullptr);
 }
 
+void setup_init_child() {
+    {
+        spinlock_guard guard(ptable_lock);
+        ptable[1]->children_.push_back(ptable[2]);
+    }
+}
+
 void init_first_process() {
+    log_printf("in init_first_process\n");
     proc* p_init = nullptr;
 
     p_init = knew<proc>();
@@ -61,7 +74,8 @@ void init_first_process() {
 
 void run_init() {
     while (true) {
-        current()->yield();
+        int* status;
+        current()->syscall_waitpid(0, status, W_NOHANG);
     }
 }
 
@@ -307,21 +321,54 @@ uintptr_t proc::syscall(regstate* regs) {
         }
         return 0;*/
     }
+
+    case SYSCALL_WAITPID: {
+        //log_printf("before waitpid\n");
+
+        pid_t pid = regs->reg_rdi;
+        int* status = (int*) regs->reg_rsi;
+        //log_printf("after status\n");
+        int options = regs->reg_rdx;
+        //log_printf("after options\n");
+
+        return syscall_waitpid(pid, status, options);
+
+    }
+
     case SYSCALL_EXIT: {
         // Remove the current process from the process table
         // Free all memory associated with the current process
             //ptable must be protected by lock
         {
-            log_printf("----- sys_exit on process %i\n", id_);
+            //log_printf("----- sys_exit on process %i\n", id_);
             spinlock_guard guard(ptable_lock);
             assert(ptable[this->id_] != nullptr);
-            proc* child = this->children.pop_back();
-            while (child) {
-                child->parent_id_ = 1;
-                child = this->children.pop_back();
+
+            //log_printf("before first child\n");
+            /*if (this->children_.front()) {
+                proc* first_child = this->children_.pop_front();
+                first_child->parent_id_ = 1;
+                this->children_.push_back(first_child);
+                //log_printf("after first child\n");
+            
+                proc* child = this->children_.pop_front();
+                while (child != first_child) {
+                    child->parent_id_ = 1;
+                    this->children_.push_back(child);
+                    child = this->children_.pop_front();
+                }
+            }*/
+
+            if (this->children_.front()) {
+                proc* child = this->children_.pop_front();
+                while (child) {
+                    child->parent_id_ = 1;
+                    ptable[1]->children_.push_back(child);
+                    child = this->children_.pop_front();
+                }
             }
 
-            ptable[this->id_] = nullptr;
+            //ptable[this->id_] = nullptr;
 
             //log_printf("early pagetable: %p\n", early_pagetable);
             
@@ -350,59 +397,26 @@ uintptr_t proc::syscall(regstate* regs) {
             kfree(pagetable_);
 
             pagetable_ = early_pagetable;
-    
-        //for (ptiter it(pagetable_); !it.done(); it.next()) {
-          //  kfree(it.kptr());
-        //}
-        //kfree(pagetable_);
 
-            /*for (vmiter it(pagetable_, 0); it.va() < MEMSIZE_VIRTUAL; it.next()) {
-                //log_printf("heap top: %p\n", heap_top);
-                //log_printf("stack bottom: %p\n", stack_bottom);
-                //log_printf("va: %p pa: %p\n", it.va(), it.pa());
-                if (it.writable() && it.user() && it.va() != CONSOLE_ADDR) {  //it.va() >= heap_top && it.va() < stack_bottom) {
-                // CHANGE WHEN VARIABLE SIZE IS SUPPORTED
-                //log_printf("calling kfree on %p associated with va %p\n", it.pa(), it.va());
-                    log_printf("base: %p\n", HIGHMEM_BASE);
-                    it.kfree_page();
-                    log_printf("after kfree_page\n");
-                }
-            }*/
-
-           /*for (ptiter it(pagetable_); it.low(); it.next()) {
-                it.kfree_ptp();
-            }*/
-
-            //kfree(pagetable_);
-            // Delete all mappings in the pagetable and free all the pages
-            // I think the problem is I can't yet delete high canonical addresses.  Only low canonical
-            /*for (vmiter it(this, VA_LOWMIN); it.va() < VA_LOWMAX; it.next()) {
-                //log_printf("Virtual address: %p -- physical adress: %p\n", it.va(), it.pa());
-                if (it.pa() != 0) {
-                    it.kfree_page();
-                }
-            }*/
-
-            // This might not be necessary unless kalloc_pagetable() allocates extra space not used for pages
-            //kfree(pagetable_);
-
-            // remove the current process from the process table
-            //this->pagetable_ = nullptr;
         }
-        assert(!ptable[this->id_]);
-        this->pstate_ = ps_blank;
+
+        //assert(!ptable[this->id_]);
+        this->pstate_ = ps_exited;
+        this->exit_status_ = regs->reg_rdi;
         //yield_noreturn();
-        log_printf("outside lock\n");
+        //log_printf("outside lock\n");
         yield_noreturn();
 
     }
 
     case SYSCALL_MSLEEP: {
+        //log_printf("in sleep\n");
         // use ticks atomic variable
         unsigned long wakeup_time = ticks + (regs->reg_rdi + 9) / 10;
         while (long(wakeup_time - ticks) > 0) {
             this->yield();
         }
+        //log_printf("after sleep\n");
 
         return 0;
     }
@@ -555,7 +569,8 @@ int proc::syscall_fork(regstate* regs) {
         p->regs_->reg_rax = 0;
         p->parent_id_ = parent_id;
 
-        ptable[parent_id]->children.push_back(p);
+        log_printf("about to push back child\n");
+        ptable[parent_id]->children_.push_back(p);
 
         ptable[i]->pstate_ = ps_runnable;
         cpus[i % ncpu].enqueue(p);
@@ -570,6 +585,7 @@ int proc::syscall_fork(regstate* regs) {
     }
             
     // return pid to the parent
+    log_printf("end of fork\n");
     return i;
 
 }
@@ -578,6 +594,86 @@ int proc::syscall_fork(regstate* regs) {
 // proc::syscall_read(regs), proc::syscall_write(regs),
 // proc::syscall_readdiskfile(regs)
 //    Handle read and write system calls.
+
+int proc::syscall_waitpid(pid_t pid, int* status, int options) {
+    log_printf(" --- In waitpid.  Current process: %i, Pid argument: %i\n", this->id_, pid);
+    //log_printf("--- in waitpid\n");
+    //assert(ptable[pid]);
+    {
+        spinlock_guard guard(ptable_lock);
+
+        if (options == W_NOHANG) {
+
+            if (pid != 0) {
+                if (ptable[pid] && ptable[pid]->pstate_ == ps_exited) {
+                    log_printf("ptable pid and ps_exited\n");
+                    //log_printf("pid in ptable and it has exited\n");
+                        // struct proc is freed by scheduler, so don't have to worry about it here
+                }
+                else {
+                    if (ptable[pid]) {
+                        log_printf("not ps_exited\n");
+                    }
+                    else {
+                        log_printf("not ptable\n");
+                    }
+                    //log_printf("pid not in ptable or not exited\n");
+                    return E_AGAIN;
+                }
+            }
+            else {
+                // Check all processes in ptable to see if one has exited and needs to be reaped
+                //log_printf("0 pid\n");
+                bool zombies_exist = false;
+                if (this->children_.front()) {
+                    proc* first_child = this->children_.pop_front();
+                    this->children_.push_back(first_child);
+                    proc* child = this->children_.pop_front();
+                    while (child != first_child) {
+                        if (child->pstate_ == ps_exited) {
+                            log_printf("ps_exited\n");
+                            zombies_exist = true;
+                            pid = child->id_;
+                            this->children_.push_back(child);
+                            break;
+                        }
+                        this->children_.push_back(child);
+                        child = this->children_.pop_front();
+                    }
+                    if (child == first_child) {
+                        log_printf("restore\n");
+                        this->children_.push_back(child);
+                    }
+
+                    //log_printf("outside loop\n");
+                    if (zombies_exist == false) {
+                        log_printf("nothing to wait for\n");
+                        return E_AGAIN;
+                    }
+                }
+
+                else {
+                    log_printf("There are no children\n");
+                    return E_AGAIN;
+                }
+            }
+            log_printf("got here\n");
+            // Store the exit status inside *status
+            *status = ptable[pid]->exit_status_;
+
+                            
+            // remove pid from ptable (set to nullptr)
+            //      Check how an available pid is looked for to make sure
+            ptable[pid] = nullptr;
+                            
+            // Put the exit status and the pid in a register
+        }
+    }
+
+    return pid;
+
+
+}
 
 int proc::syscall_nasty_alloc() {
     int evil_array[999];

@@ -175,7 +175,8 @@ inline pid_t sys_getppid() {
 //    waits for any child. If `options == W_NOHANG`, returns immediately.
 inline pid_t sys_waitpid(pid_t pid, int* status = nullptr,
                          int options = 0) {
-    return E_NOSYS;
+    int return_value =  make_syscall(SYSCALL_WAITPID, pid, reinterpret_cast<uintptr_t>(status), options);
+    return return_value;
 }
 
 // sys_read(fd, buf, sz)
