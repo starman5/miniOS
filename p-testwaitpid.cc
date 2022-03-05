@@ -26,7 +26,7 @@ void process_main() {
         pid_t ch;
         int status = 0;
         while ((ch = sys_waitpid(0, &status, W_NOHANG)) == E_AGAIN) {
-            printf("egain\n");
+            //printf("egain\n");
             sys_yield();
         }
         assert_gt(ch, 0);

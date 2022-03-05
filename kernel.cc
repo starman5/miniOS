@@ -598,6 +598,7 @@ int proc::syscall_fork(regstate* regs) {
 int proc::syscall_waitpid(pid_t pid, int* status, int options) {
     log_printf(" --- In waitpid.  Current process: %i, Pid argument: %i\n", this->id_, pid);
     //log_printf("--- in waitpid\n");
+    // The assertion below is stupid because pid could be 0 many many times
     //assert(ptable[pid]);
     {
         spinlock_guard guard(ptable_lock);
@@ -634,7 +635,7 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                             log_printf("ps_exited\n");
                             zombies_exist = true;
                             pid = child->id_;
-                            this->children_.push_back(child);
+                            //this->children_.push_back(child);
                             break;
                         }
                         this->children_.push_back(child);
@@ -658,17 +659,23 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                 }
             }
             log_printf("got here\n");
+            log_printf("pid: %i\n", pid);
+            log_printf("%p\n", ptable[pid]);
             // Store the exit status inside *status
-            *status = ptable[pid]->exit_status_;
+            if (status) {
+                *status = ptable[pid]->exit_status_;
+                log_printf("after exit status set\n");
+            }
 
                             
-            // remove pid from ptable (set to nullptr)
+            // remove pid from ptable (set to nullptr) and from childrej
             //      Check how an available pid is looked for to make sure
             ptable[pid] = nullptr;
                             
             // Put the exit status and the pid in a register
         }
     }
+    log_printf("end of waitpid\n");
 
     return pid;
 
