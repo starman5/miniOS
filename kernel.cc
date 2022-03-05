@@ -518,6 +518,7 @@ int proc::syscall_fork(regstate* regs) {
         for (; i < NPROC; i++) {
             
                 if (ptable[i] == nullptr) {
+                    log_printf("created p %i\n", i);
                     break;
                 }
             }
@@ -623,6 +624,20 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                 }
             }
             else {
+                if (this->children_.front()) {
+                    proc* first_child = this->children_.pop_front();
+                    log_printf("child id: %i\n", first_child->id_);
+                    this->children_.push_back(first_child);
+                    proc* child = this->children_.pop_front();
+                    while (child != first_child) {
+                        log_printf("child id: %i\n", child->id_);
+                        this->children_.push_back(child);
+                        child = this->children_.pop_front();
+                    }
+                    if (child == first_child) {
+                        this->children_.push_back(child);
+                    }
+                }
                 // Check all processes in ptable to see if one has exited and needs to be reaped
                 //log_printf("0 pid\n");
                 bool zombies_exist = false;
@@ -632,7 +647,7 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                     proc* child = this->children_.pop_front();
                     while (child != first_child) {
                         if (child->pstate_ == ps_exited) {
-                            log_printf("ps_exited\n");
+                            log_printf("id %i, ps_exited\n", child->id_);
                             zombies_exist = true;
                             pid = child->id_;
                             //this->children_.push_back(child);
@@ -642,6 +657,10 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                         child = this->children_.pop_front();
                     }
                     if (child == first_child) {
+                        if (child->pstate_ == ps_exited) {
+                            zombies_exist = true;
+                            pid = child->id_;
+                        }
                         log_printf("restore\n");
                         this->children_.push_back(child);
                     }
@@ -660,7 +679,7 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
             }
             log_printf("got here\n");
             log_printf("pid: %i\n", pid);
-            log_printf("%p\n", ptable[pid]);
+            log_printf("pointer: %p\n", ptable[pid]);
             // Store the exit status inside *status
             if (status) {
                 *status = ptable[pid]->exit_status_;

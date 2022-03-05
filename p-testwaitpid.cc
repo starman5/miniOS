@@ -9,7 +9,7 @@ static void make_children(pid_t* children) {
         pid_t p = sys_fork();
         if (p == 0) {
             sys_msleep(order[i] * 100);
-            //printf("about to exit\n");
+            printf("about to exit\n");
             sys_exit(order[i]);
         }
         assert_gt(p, 0);
