@@ -609,15 +609,17 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
             if (pid != 0) {
                 if (ptable[pid] && ptable[pid]->pstate_ == ps_exited) {
                     log_printf("ptable pid and ps_exited\n");
-                    //log_printf("pid in ptable and it has exited\n");
-                        // struct proc is freed by scheduler, so don't have to worry about it here
+                    this->children_.erase(ptable[pid]);
                 }
+
                 else {
                     if (ptable[pid]) {
                         log_printf("not ps_exited\n");
+                        return E_AGAIN;
                     }
                     else {
                         log_printf("not ptable\n");
+                        return E_CHILD;
                     }
                     //log_printf("pid not in ptable or not exited\n");
                     return E_AGAIN;
@@ -638,6 +640,7 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                         this->children_.push_back(child);
                     }
                 }
+                
                 // Check all processes in ptable to see if one has exited and needs to be reaped
                 //log_printf("0 pid\n");
                 bool zombies_exist = false;
@@ -680,6 +683,7 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                     return E_CHILD;
                 }
             }
+            
             log_printf("got here\n");
             log_printf("pid: %i\n", pid);
             log_printf("pointer: %p\n", ptable[pid]);
