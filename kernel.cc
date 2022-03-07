@@ -73,7 +73,17 @@ void init_first_process() {
 }
 
 void run_init() {
+  /*  if (!first) {
+        if (!ptable[1]->children_.front()) {
+            log_printf("halting\n");
+            process_halt();
+        }
+    }*/
     while (true) {
+        if (!ptable[1]->children_.front()) {
+            log_printf("halting\n");
+            process_halt();
+        }
         int* status;
         current()->syscall_waitpid(0, status, W_NOHANG);
     }
@@ -604,8 +614,6 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
     {
         spinlock_guard guard(ptable_lock);
 
-        if (options == W_NOHANG) {
-
             if (pid != 0) {
                 if (ptable[pid] && ptable[pid]->pstate_ == ps_exited) {
                     log_printf("ptable pid and ps_exited\n");
@@ -615,7 +623,16 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                 else {
                     if (ptable[pid]) {
                         log_printf("not ps_exited\n");
-                        return E_AGAIN;
+                        if (options == W_NOHANG) {
+                            return E_AGAIN;
+                        }
+                        else {
+                            // block until its ps_exited, then call proc::syscall_waitpid
+                            while (ptable[pid]->pstate_ != ps_exited) {
+                                this->yield();
+                            }
+                            return syscall_waitpid(pid, status, options);
+                        }
                     }
                     else {
                         log_printf("not ptable\n");
@@ -672,9 +689,16 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                     
 
                     //log_printf("outside loop\n");
+
                     if (zombies_exist == false) {
                         log_printf("nothing to wait for\n");
-                        return E_AGAIN;
+                        if (options == W_NOHANG) {
+                            return E_AGAIN;
+                        }
+                        else {
+                            //goto tryagain;
+                            return E_AGAIN;
+                        }
                     }
                 }
 
@@ -701,7 +725,7 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                             
             // Put the exit status and the pid in a register
         }
-    }
+    
     log_printf("end of waitpid\n");
 
     return pid;
