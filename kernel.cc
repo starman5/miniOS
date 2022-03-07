@@ -677,7 +677,7 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
 
                 else {
                     log_printf("There are no children\n");
-                    return E_AGAIN;
+                    return E_CHILD;
                 }
             }
             log_printf("got here\n");
