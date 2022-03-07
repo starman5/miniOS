@@ -38,6 +38,7 @@ struct __attribute__((aligned(4096))) proc {
         uintptr_t recent_user_rip_ = 0;            // Most recent user-mode %rip
 
         int exit_status_ = 1;                      // Process's exit status
+        bool waited_ = false;
 
         int canary_;
         

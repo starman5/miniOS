@@ -696,6 +696,7 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                             
             // remove pid from ptable (set to nullptr) and from childrej
             //      Check how an available pid is looked for to make sure
+            ptable[pid]->waited_ = true;
             ptable[pid] = nullptr;
                             
             // Put the exit status and the pid in a register
