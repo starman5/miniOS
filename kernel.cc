@@ -790,7 +790,7 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
             log_printf("Block Here\n");
             log_printf("ptable[pid]: %p\n", ptable[pid]);
             if (pid != 0) {
-                while (ptable[pid]->pstate_) {
+                while (ptable[pid]->pstate_ != ps_exited) {
                     this->yield();
                 }
             }
