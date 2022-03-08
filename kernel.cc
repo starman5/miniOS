@@ -555,7 +555,7 @@ int proc::syscall_fork(regstate* regs) {
                     return -1;
                 }
             }
-            
+
             else if (parentiter.user()) {
                 void* addr = kalloc(PAGESIZE);
                 if (addr == nullptr) {
@@ -606,6 +606,42 @@ int proc::syscall_fork(regstate* regs) {
 // proc::syscall_readdiskfile(regs)
 //    Handle read and write system calls.
 
+int* proc::check_exited(pid_t pid) {
+            assert(pid == 0);
+            bool zombies_exist = false;
+            if (this->children_.front()) {
+                proc* first_child = this->children_.pop_front();
+                this->children_.push_back(first_child);
+                proc* child = this->children_.pop_front();
+                while (child != first_child) {
+                    if (child->pstate_ == ps_exited) {
+                        log_printf("id %i, ps_exited\n", child->id_);
+                        zombies_exist = true;
+                        pid = child->id_;
+                        //this->children_.push_back(child);
+                        break;
+                    }
+                    this->children_.push_back(child);
+                    child = this->children_.pop_front();
+                }
+                if (child == first_child) {
+                    if (child->pstate_ == ps_exited) {
+                        zombies_exist = true;
+                        pid = child->id_;
+                    }
+                    else {
+                        log_printf("restore\n");
+                        this->children_.push_back(child);
+                    }
+                }
+            }
+            static int return_value[2];
+            return_value[0] = zombies_exist;
+            return_value[1] = pid;
+            log_printf("zombies_exist: %i, pid: %i\n", zombies_exist, pid);
+            return return_value;
+}
+
 int proc::syscall_waitpid(pid_t pid, int* status, int options) {
     log_printf(" --- In waitpid.  Current process: %i, Pid argument: %i\n", this->id_, pid);
     //log_printf("--- in waitpid\n");
@@ -614,6 +650,7 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
     {
         spinlock_guard guard(ptable_lock);
 
+            // Specifying a pid
             if (pid != 0) {
                 if (ptable[pid] && ptable[pid]->pstate_ == ps_exited) {
                     log_printf("ptable pid and ps_exited\n");
@@ -627,11 +664,9 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                             return E_AGAIN;
                         }
                         else {
+                            log_printf("ptable[pid] before goto: %p\n", ptable[pid]);
                             // block until its ps_exited, then call proc::syscall_waitpid
-                            while (ptable[pid]->pstate_ != ps_exited) {
-                                this->yield();
-                            }
-                            return syscall_waitpid(pid, status, options);
+                            goto block;
                         }
                     }
                     else {
@@ -642,7 +677,12 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                     return E_AGAIN;
                 }
             }
+
+            // Not specifying a pid
             else {
+                log_printf("Not specifying a pid\n");
+
+                // Print out children of the proces that is waiting, for debugging purposes
                 if (this->children_.front()) {
                     proc* first_child = this->children_.pop_front();
                     log_printf("child id: %i\n", first_child->id_);
@@ -657,49 +697,55 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                         this->children_.push_back(child);
                     }
                 }
-                
-                // Check all processes in ptable to see if one has exited and needs to be reaped
-                //log_printf("0 pid\n");
-                bool zombies_exist = false;
                 if (this->children_.front()) {
-                    proc* first_child = this->children_.pop_front();
-                    this->children_.push_back(first_child);
-                    proc* child = this->children_.pop_front();
-                    while (child != first_child) {
-                        if (child->pstate_ == ps_exited) {
-                            log_printf("id %i, ps_exited\n", child->id_);
-                            zombies_exist = true;
-                            pid = child->id_;
-                            //this->children_.push_back(child);
-                            break;
-                        }
-                        this->children_.push_back(child);
-                        child = this->children_.pop_front();
-                    }
-                    if (child == first_child) {
-                        if (child->pstate_ == ps_exited) {
-                            zombies_exist = true;
-                            pid = child->id_;
-                        }
-                        else {
-                        log_printf("restore\n");
-                        this->children_.push_back(child);
-                        }
-                    }
+                    int* zombies_exist = check_exited(pid);
+                    log_printf("zombies_exist addr: %p\n", zombies_exist);
+                    log_printf("zombies_exist: %i\n", zombies_exist[0]);
+                    log_printf("pid: %i\n", zombies_exist[1]);
+                
+                // // Check all processes in ptable to see if one has exited and needs to be reaped
+                // //log_printf("0 pid\n");
+                // bool zombies_exist = false;
+                // if (this->children_.front()) {
+                //     proc* first_child = this->children_.pop_front();
+                //     this->children_.push_back(first_child);
+                //     proc* child = this->children_.pop_front();
+                //     while (child != first_child) {
+                //         if (child->pstate_ == ps_exited) {
+                //             log_printf("id %i, ps_exited\n", child->id_);
+                //             zombies_exist = true;
+                //             pid = child->id_;
+                //             //this->children_.push_back(child);
+                //             break;
+                //         }
+                //         this->children_.push_back(child);
+                //         child = this->children_.pop_front();
+                //     }
+                //     if (child == first_child) {
+                //         if (child->pstate_ == ps_exited) {
+                //             zombies_exist = true;
+                //             pid = child->id_;
+                //         }
+                //         else {
+                //         log_printf("restore\n");
+                //         this->children_.push_back(child);
+                //         }
+                //     }
                     
 
                     //log_printf("outside loop\n");
 
-                    if (zombies_exist == false) {
+                    if (zombies_exist[0] == 0) {
                         log_printf("nothing to wait for\n");
                         if (options == W_NOHANG) {
                             return E_AGAIN;
                         }
                         else {
                             //goto tryagain;
-                            return E_AGAIN;
+                            goto block;
                         }
                     }
+                    pid = zombies_exist[1];
                 }
 
                 else {
@@ -707,6 +753,7 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                     return E_CHILD;
                 }
             }
+            
             
             log_printf("got here\n");
             log_printf("pid: %i\n", pid);
@@ -729,6 +776,27 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
     log_printf("end of waitpid\n");
 
     return pid;
+
+        block:
+        log_printf("ptable after block: %p\n", ptable[pid]);
+        {
+            spinlock_guard guard(ptable_lock);
+            log_printf("Here\n");
+            log_printf("ptable[pid]: %p\n", ptable[pid]);
+            if (pid != 0) {
+                while (ptable[pid]->pstate_) {
+                    this->yield();
+                }
+            }
+            
+            else {
+                while (!check_exited(pid)) {
+                    this->yield();
+                }
+            }
+        }
+        
+        return syscall_waitpid(pid, status, options);
 
 
 }
