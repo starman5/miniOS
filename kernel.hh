@@ -78,7 +78,7 @@ struct __attribute__((aligned(4096))) proc {
 
         int syscall_fork(regstate* regs);
         int syscall_waitpid(pid_t pid, int* status, int options);
-        int* check_exited(pid_t pid);
+        int* check_exited(pid_t pid, bool condition);
 
         uintptr_t syscall_read(regstate* reg);
         uintptr_t syscall_write(regstate* reg);

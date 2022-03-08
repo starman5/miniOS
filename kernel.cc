@@ -606,7 +606,7 @@ int proc::syscall_fork(regstate* regs) {
 // proc::syscall_readdiskfile(regs)
 //    Handle read and write system calls.
 
-int* proc::check_exited(pid_t pid) {
+int* proc::check_exited(pid_t pid, bool condition) {
             assert(pid == 0);
             bool zombies_exist = false;
             if (this->children_.front()) {
@@ -618,7 +618,9 @@ int* proc::check_exited(pid_t pid) {
                         log_printf("id %i, ps_exited\n", child->id_);
                         zombies_exist = true;
                         pid = child->id_;
-                        //this->children_.push_back(child);
+                        if (!condition) {
+                            this->children_.push_back(child);
+                        }
                         break;
                     }
                     this->children_.push_back(child);
@@ -626,8 +628,12 @@ int* proc::check_exited(pid_t pid) {
                 }
                 if (child == first_child) {
                     if (child->pstate_ == ps_exited) {
+                        log_printf("zombies is true\n");
                         zombies_exist = true;
                         pid = child->id_;
+                        if (!condition) {
+                            this->children_.push_back(child);
+                        }
                     }
                     else {
                         log_printf("restore\n");
@@ -698,7 +704,7 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                     }
                 }
                 if (this->children_.front()) {
-                    int* zombies_exist = check_exited(pid);
+                    int* zombies_exist = check_exited(pid, true);
                     log_printf("zombies_exist addr: %p\n", zombies_exist);
                     log_printf("zombies_exist: %i\n", zombies_exist[0]);
                     log_printf("pid: %i\n", zombies_exist[1]);
@@ -779,9 +785,9 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
 
         block:
         log_printf("ptable after block: %p\n", ptable[pid]);
-        {
-            spinlock_guard guard(ptable_lock);
-            log_printf("Here\n");
+        //{
+            //spinlock_guard guard(ptable_lock);
+            log_printf("Block Here\n");
             log_printf("ptable[pid]: %p\n", ptable[pid]);
             if (pid != 0) {
                 while (ptable[pid]->pstate_) {
@@ -790,12 +796,11 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
             }
             
             else {
-                while (!check_exited(pid)) {
+                while (check_exited(pid, false)[0] == false) {
                     this->yield();
                 }
             }
-        }
-        
+        //}
         return syscall_waitpid(pid, status, options);
 
 
