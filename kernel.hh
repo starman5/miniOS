@@ -14,12 +14,27 @@ struct yieldstate;
 struct proc_loader;
 struct elf_program;
 #define PROC_RUNNABLE 1
+#define MAX_FDS       5
 
 
 // kernel.hh
 //
 //    Functions, constants, and definitions for the kernel.
 
+// Function pointers to vnode operations
+struct vnode_ops {
+    int (*vop_open)(struct vnode* file);
+    int (*vop_read)(struct vnode* file, int sz);
+    int (*vop_write)(struct vnode* file, int sz);
+};
+
+// Definition of a vnode
+struct vnode {
+    int vn_refcount_ = 1;
+    int vn_offset_ = 0;
+    void* vn_data_;
+    vnode_ops* vn_ops_;
+};
 
 // Process descriptor type
 struct __attribute__((aligned(4096))) proc {
@@ -39,6 +54,10 @@ struct __attribute__((aligned(4096))) proc {
 
         int exit_status_ = 1;                      // Process's exit status
         bool waited_ = false;
+
+        int open_fds_[MAX_FDS];
+
+
 
         int canary_;
         

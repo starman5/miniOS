@@ -27,7 +27,6 @@ static void setup_init_child();
 //    string is an optional string passed from the boot loader.
 
 void kernel_start(const char* command) {
-    log_printf("In kernel_start\n");
     init_hardware();
     consoletype = CONSOLE_NORMAL;
     console_clear();
@@ -36,6 +35,16 @@ void kernel_start(const char* command) {
     for (pid_t i = 0; i < NPROC; i++) {
         ptable[i] = nullptr;
     }
+
+    // Set up system wide vnode table with stdout, stdin, stderr
+    vnode* system_vn_table[MAX_FDS];
+    vnode* stdout_vnode;
+    vnode* stdin_vnode;
+    vnode* stderr_vnode;
+
+    system_vn_table[0] = stdout_vnode;
+    system_vn_table[1] = stdin_vnode;
+    system_vn_table[2] = stderr_vnode;
 
     init_first_process();
 
@@ -113,12 +122,9 @@ void boot_process_start(pid_t pid, const char* name) {
     void* stkpg = kalloc(PAGESIZE);
     assert(stkpg);
     vmiter(p, MEMSIZE_VIRTUAL - PAGESIZE).map(stkpg, PTE_PWU);
-    //log_printf("before\n");
     uintptr_t console_page = 47104 - (47104 % 4096);
-    //log_printf("CONSOLE PAGE VA %p\n", console_page);
-    //log_printf("CONSOLE PA%p\n", ktext2pa(console));
     vmiter(p, ktext2pa(console)).try_map(ktext2pa(console), PTE_PWU);
-    //log_printf("after\n");
+
     p->regs_->reg_rsp = MEMSIZE_VIRTUAL;
 
     // add to process table (requires lock in case another CPU is already
@@ -127,6 +133,14 @@ void boot_process_start(pid_t pid, const char* name) {
         spinlock_guard guard(ptable_lock);
         assert(!ptable[pid]);
         ptable[pid] = p;
+    }
+
+    // Add file descriptors to the process' open file descriptor array
+    for (int i = 0; i < 3; i++) {
+        p->open_fds_[i] = i;
+    }
+    for (int i = 3; i < MAX_FDS; i++) {
+        p->open_fds_[i] = -1;
     }
 
     // add to run queue
