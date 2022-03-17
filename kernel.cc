@@ -51,6 +51,13 @@ void kernel_start(const char* command) {
     // start first process
     log_printf("booting first chickadee user process\n");
     boot_process_start(2, CHICKADEE_FIRST_PROCESS);
+        // Add file descriptors to the process' open file descriptor array
+    for (int i = 0; i < 3; i++) {
+        ptable[2]->open_fds_[i] = i;
+    }
+    for (int i = 3; i < MAX_FDS; i++) {
+        ptable[2]->open_fds_[i] = -1;
+    }
 
     setup_init_child();
 
@@ -133,14 +140,6 @@ void boot_process_start(pid_t pid, const char* name) {
         spinlock_guard guard(ptable_lock);
         assert(!ptable[pid]);
         ptable[pid] = p;
-    }
-
-    // Add file descriptors to the process' open file descriptor array
-    for (int i = 0; i < 3; i++) {
-        p->open_fds_[i] = i;
-    }
-    for (int i = 3; i < MAX_FDS; i++) {
-        p->open_fds_[i] = -1;
     }
 
     // add to run queue
@@ -522,6 +521,7 @@ int proc::syscall_fork(regstate* regs) {
     log_printf("in fork\n");
     // Find the next available pid by looping through the ones already used
     pid_t parent_id = this->id_;
+    int* fdtable = this->open_fds_;
 
     proc* p = knew<proc>();
     if (p == nullptr) {
@@ -593,6 +593,11 @@ int proc::syscall_fork(regstate* regs) {
 
         p->regs_->reg_rax = 0;
         p->parent_id_ = parent_id;
+        
+        // copy over per process file descriptor table from parent
+        for (int i = 0; i < MAX_FDS; i++) {
+            p->open_fds_[i] = fdtable[i];
+        }
 
         log_printf("about to push back child\n");
         ptable[parent_id]->children_.push_back(p);
