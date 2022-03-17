@@ -26,6 +26,8 @@ static void setup_init_child();
 //    Initialize the hardware and processes and start running. The `command`
 //    string is an optional string passed from the boot loader.
 
+vnode* system_vn_table[MAX_FDS];
+
 void kernel_start(const char* command) {
     init_hardware();
     consoletype = CONSOLE_NORMAL;
@@ -37,7 +39,6 @@ void kernel_start(const char* command) {
     }
 
     // Set up system wide vnode table with stdout, stdin, stderr
-    vnode* system_vn_table[MAX_FDS];
     vnode* stdout_vnode;
     vnode* stdin_vnode;
     vnode* stderr_vnode;
@@ -463,6 +464,9 @@ uintptr_t proc::syscall(regstate* regs) {
         }
         return 0;
     }
+    
+    case SYSCALL_DUP2:
+        return syscall_dup2(regs);
 
     case SYSCALL_FORK:
         return syscall_fork(regs);
@@ -512,6 +516,17 @@ uintptr_t proc::syscall(regstate* regs) {
 }
 
 
+int proc::syscall_dup2(regstate* regs) {
+    int oldfd = regs->reg_rdi;
+    int newfd = regs->reg_rsi;
+    assert(this->open_fds_[newfd] == -1);
+
+    // At the newfd index in the system wide fd table should be the same vnode as that of the oldfd index
+    vnode* old_vnode = system_vn_table[oldfd];
+    system_vn_table[newfd] = old_vnode;
+
+    return newfd;
+}
 
 // proc::syscall_fork(regs)
 //    Handle fork system call.
