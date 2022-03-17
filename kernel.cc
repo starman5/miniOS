@@ -465,6 +465,25 @@ uintptr_t proc::syscall(regstate* regs) {
         return 0;
     }
     
+    case SYSCALL_CLOSE: {
+        int fd = regs->reg_rdi;
+        if (fd == -1) {
+            return -1;
+        }
+        
+        // delete vnode in system wide structure, then set index to -1.
+        // reset the refcount to 1, offset to 0, pointers to nullptr
+        vnode* vn_closing = system_vn_table[fd];
+        vn_closing->vn_refcount_ = 1;
+        vn_closing->vn_offset_ = 0;
+        vn_closing->vn_data_ = nullptr;
+        vn_closing->vn_ops_ = nullptr;
+
+        this->open_fds_[fd] = -1;
+        
+        0;
+    }
+
     case SYSCALL_DUP2:
         return syscall_dup2(regs);
 

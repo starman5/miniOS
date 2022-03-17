@@ -32,8 +32,8 @@ struct vnode_ops {
 struct vnode {
     int vn_refcount_ = 1;
     int vn_offset_ = 0;
-    void* vn_data_;
-    vnode_ops* vn_ops_;
+    void* vn_data_ = nullptr;
+    vnode_ops* vn_ops_ = nullptr;
 };
 
 
