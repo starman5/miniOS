@@ -481,7 +481,7 @@ uintptr_t proc::syscall(regstate* regs) {
 
         this->open_fds_[fd] = -1;
         
-        0;
+        return 0;
     }
 
     case SYSCALL_DUP2:
