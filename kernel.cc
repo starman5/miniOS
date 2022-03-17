@@ -22,11 +22,19 @@ static void run_init();
 static void setup_init_child();
 
 
+vnode* system_vn_table[MAX_FDS];
+
+vnode* stdout_vnode;
+vnode* stdin_vnode;
+vnode* stderr_vnode;
+
+vnode_ops* stdout_vn_ops;
+vnode_ops* stdin_vn_ops;
+vnode_ops* stderr_vn_ops;
+
 // kernel_start(command)
 //    Initialize the hardware and processes and start running. The `command`
 //    string is an optional string passed from the boot loader.
-
-vnode* system_vn_table[MAX_FDS];
 
 void kernel_start(const char* command) {
     init_hardware();
@@ -37,12 +45,16 @@ void kernel_start(const char* command) {
     for (pid_t i = 0; i < NPROC; i++) {
         ptable[i] = nullptr;
     }
+    
+    // Set up the stdout, stdin, stderr vn_ops
+    //stdout_vn_ops->vop_write = &console_printf;
 
-    // Set up system wide vnode table with stdout, stdin, stderr
-    vnode* stdout_vnode;
-    vnode* stdin_vnode;
-    vnode* stderr_vnode;
+    // Set up the stdout, stdin, stderr vnodes
+    stdout_vnode->vn_ops_ = stdout_vn_ops;
+    stdin_vnode->vn_ops_ = stdin_vn_ops;
+    stderr_vnode->vn_ops_ = stderr_vn_ops;
 
+    // Set up system wide vnode table with stdout, stdin, stderr vnodes
     system_vn_table[0] = stdout_vnode;
     system_vn_table[1] = stdin_vnode;
     system_vn_table[2] = stderr_vnode;
@@ -467,7 +479,7 @@ uintptr_t proc::syscall(regstate* regs) {
     
     case SYSCALL_CLOSE: {
         int fd = regs->reg_rdi;
-        if (fd == -1) {
+        if (fd < 0 or fd >= MAX_FDS or this->open_fds_[fd] == -1) {
             return -1;
         }
         
@@ -538,7 +550,9 @@ uintptr_t proc::syscall(regstate* regs) {
 int proc::syscall_dup2(regstate* regs) {
     int oldfd = regs->reg_rdi;
     int newfd = regs->reg_rsi;
-    assert(this->open_fds_[newfd] == -1);
+    if (open_fds_[newfd] != -1 or newfd < 0 or newfd > MAX_FDS) {
+        return -1;
+    }
 
     // At the newfd index in the system wide fd table should be the same vnode as that of the oldfd index
     vnode* old_vnode = system_vn_table[oldfd];
