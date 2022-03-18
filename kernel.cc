@@ -893,12 +893,20 @@ uintptr_t proc::syscall_read(regstate* regs) {
     // This is a slow system call, so allow interrupts by default
     sti();
 
+    int fd = regs->reg_rdi;
     uintptr_t addr = regs->reg_rsi;
     size_t sz = regs->reg_rdx;
 
     // Your code here!
     // * Read from open file `fd` (reg_rdi), rather than `keyboardstate`.
     // * Validate the read buffer.
+    if (this->open_fds_[fd] == -1) {
+        return -1;
+    }
+    vnode* readfile = system_vn_table[fd];
+    // Call the read vn_op
+    auto read_func = readfile->vn_ops_->vop_read;
+
     auto& kbd = keyboardstate::get();
     auto irqs = kbd.lock_.lock();
 
@@ -941,12 +949,20 @@ uintptr_t proc::syscall_write(regstate* regs) {
     // This is a slow system call, so allow interrupts by default
     sti();
 
+    int fd = regs->reg_rdi;
     uintptr_t addr = regs->reg_rsi;
     size_t sz = regs->reg_rdx;
 
     // Your code here!
     // * Write to open file `fd` (reg_rdi), rather than `consolestate`.
     // * Validate the write buffer.
+
+    if (this->open_fds_[fd] == -1) {
+        return -1;
+    }
+    vnode* writefile = system_vn_table[fd];
+    auto write_func = writefile->vn_ops_->vop_write;
+
     auto& csl = consolestate::get();
     spinlock_guard guard(csl.lock_);
     size_t n = 0;
