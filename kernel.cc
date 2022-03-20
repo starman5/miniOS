@@ -24,15 +24,17 @@ static void setup_init_child();
 
 vnode* system_vn_table[MAX_FDS];
 
-vnode* stdout_vnode;
-vnode* stdin_vnode;
-vnode* stderr_vnode;
-
-vnode_ops* stdout_vn_ops;
-vnode_ops* stdin_vn_ops;
-vnode_ops* stderr_vn_ops;
-
 int stdout_write(uintptr_t addr, int sz) {
+    auto& csl = consolestate::get();
+    spinlock_guard guard(csl.lock_);
+    size_t n = 0;
+    while (n < sz) {
+        int ch = *reinterpret_cast<const char*>(addr);
+        ++addr;
+        ++n;
+        console_printf(0x0F00, "%c", ch);
+    }
+    return n;
 
 }
 
@@ -41,6 +43,42 @@ int stderr_write(uintptr_t addr, int sz) {
 }
 
 int stdin_read(uintptr_t addr, int sz) {
+    auto& kbd = keyboardstate::get();
+    auto irqs = kbd.lock_.lock();
+
+    // mark that we are now reading from the keyboard
+    // (so `q` should not power off)
+    if (kbd.state_ == kbd.boot) {
+        kbd.state_ = kbd.input;
+    }
+
+    // yield until a line is available
+    // (special case: do not block if the user wants to read 0 bytes)
+    while (sz != 0 && kbd.eol_ == 0) {
+        kbd.lock_.unlock(irqs);
+        current()->yield();
+        irqs = kbd.lock_.lock();
+    }
+
+    // read that line or lines
+    size_t n = 0;
+    while (kbd.eol_ != 0 && n < sz) {
+        if (kbd.buf_[kbd.pos_] == 0x04) {
+            // Ctrl-D means EOF
+            if (n == 0) {
+                kbd.consume(1);
+            }
+            break;
+        } else {
+            *reinterpret_cast<char*>(addr) = kbd.buf_[kbd.pos_];
+            ++addr;
+            ++n;
+            kbd.consume(1);
+        }
+    }
+
+    kbd.lock_.unlock(irqs);
+    return n;
 
 }
 
@@ -60,18 +98,29 @@ void kernel_start(const char* command) {
     }
     
     // Set up the stdout, stdin, stderr vn_ops
-    stdout_vn_ops->vop_read = nullptr;
-    stdout_vn_ops->vop_write = stdout_write;
+    vnode* vnode_page = (vnode*) kalloc(PAGESIZE);
+
+    vnode* stdin_vnode = &vnode_page[0];
+    vnode* stdout_vnode = &vnode_page[1];
+    vnode* stderr_vnode = &vnode_page[2];
+
+    vnode_ops* vnode_ops_page = (vnode_ops*) kalloc(PAGESIZE);
+    vnode_ops* stdin_vn_ops = &vnode_ops_page[0];
+    vnode_ops* stdout_vn_ops = &vnode_ops_page[1];
+    vnode_ops* stderr_vn_ops = &vnode_ops_page[2];
 
     stdin_vn_ops->vop_read = stdin_read;
     stdin_vn_ops->vop_write = nullptr;
+
+    stdout_vn_ops->vop_read = nullptr;
+    stdout_vn_ops->vop_write = stdout_write;
 
     stderr_vn_ops->vop_read = nullptr;
     stderr_vn_ops->vop_write = stderr_write;
 
     // Set up the stdout, stdin, stderr vnodes
-    stdout_vnode->vn_ops_ = stdout_vn_ops;
     stdin_vnode->vn_ops_ = stdin_vn_ops;
+    stdout_vnode->vn_ops_ = stdout_vn_ops;
     stderr_vnode->vn_ops_ = stderr_vn_ops;
 
     // Set up system wide vnode table with stdout, stdin, stderr vnodes
@@ -497,7 +546,7 @@ uintptr_t proc::syscall(regstate* regs) {
         return 0;
     }
 
-    case SYSCALL_OPEN: {
+    /*case SYSCALL_OPEN: {
         // Find the next available fd
         int fd;
         for (; fd < MAX_FDS; fd++) {
@@ -511,10 +560,10 @@ uintptr_t proc::syscall(regstate* regs) {
         // Update the system wide vnode table.
         // I think what the vnode is should depend on the flags set in syscall open
         // Maybe some kind of switch statement
-        system_vn_table[fd] = 
+        //system_vn_table[fd] = 
 
         return fd;
-    }
+    }*/
     
     case SYSCALL_CLOSE: {
         int fd = regs->reg_rdi;
@@ -755,7 +804,7 @@ int* proc::check_exited(pid_t pid, bool condition) {
 }
 
 int proc::syscall_waitpid(pid_t pid, int* status, int options) {
-    log_printf(" --- In waitpid.  Current process: %i, Pid argument: %i\n", this->id_, pid);
+    //log_printf(" --- In waitpid.  Current process: %i, Pid argument: %i\n", this->id_, pid);
     //log_printf("--- in waitpid\n");
     // The assertion below is stupid because pid could be 0 many many times
     //assert(ptable[pid]);
@@ -765,24 +814,24 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
             // Specifying a pid
             if (pid != 0) {
                 if (ptable[pid] && ptable[pid]->pstate_ == ps_exited) {
-                    log_printf("ptable pid and ps_exited\n");
+                    //log_printf("ptable pid and ps_exited\n");
                     this->children_.erase(ptable[pid]);
                 }
 
                 else {
                     if (ptable[pid]) {
-                        log_printf("not ps_exited\n");
+                        //log_printf("not ps_exited\n");
                         if (options == W_NOHANG) {
                             return E_AGAIN;
                         }
                         else {
-                            log_printf("ptable[pid] before goto: %p\n", ptable[pid]);
+                            //log_printf("ptable[pid] before goto: %p\n", ptable[pid]);
                             // block until its ps_exited, then call proc::syscall_waitpid
                             goto block;
                         }
                     }
                     else {
-                        log_printf("not ptable\n");
+                        //log_printf("not ptable\n");
                         return E_CHILD;
                     }
                     //log_printf("pid not in ptable or not exited\n");
@@ -792,16 +841,16 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
 
             // Not specifying a pid
             else {
-                log_printf("Not specifying a pid\n");
+                //log_printf("Not specifying a pid\n");
 
                 // Print out children of the proces that is waiting, for debugging purposes
                 if (this->children_.front()) {
                     proc* first_child = this->children_.pop_front();
-                    log_printf("child id: %i\n", first_child->id_);
+                    //log_printf("child id: %i\n", first_child->id_);
                     this->children_.push_back(first_child);
                     proc* child = this->children_.pop_front();
                     while (child != first_child) {
-                        log_printf("child id: %i\n", child->id_);
+                        //log_printf("child id: %i\n", child->id_);
                         this->children_.push_back(child);
                         child = this->children_.pop_front();
                     }
@@ -811,9 +860,9 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                 }
                 if (this->children_.front()) {
                     int* zombies_exist = check_exited(pid, true);
-                    log_printf("zombies_exist addr: %p\n", zombies_exist);
-                    log_printf("zombies_exist: %i\n", zombies_exist[0]);
-                    log_printf("pid: %i\n", zombies_exist[1]);
+                    //log_printf("zombies_exist addr: %p\n", zombies_exist);
+                    //log_printf("zombies_exist: %i\n", zombies_exist[0]);
+                    //log_printf("pid: %i\n", zombies_exist[1]);
                 
                 // // Check all processes in ptable to see if one has exited and needs to be reaped
                 // //log_printf("0 pid\n");
@@ -848,7 +897,7 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                     //log_printf("outside loop\n");
 
                     if (zombies_exist[0] == 0) {
-                        log_printf("nothing to wait for\n");
+                        //log_printf("nothing to wait for\n");
                         if (options == W_NOHANG) {
                             return E_AGAIN;
                         }
@@ -861,19 +910,19 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                 }
 
                 else {
-                    log_printf("There are no children\n");
+                    //log_printf("There are no children\n");
                     return E_CHILD;
                 }
             }
             
             
-            log_printf("got here\n");
-            log_printf("pid: %i\n", pid);
-            log_printf("pointer: %p\n", ptable[pid]);
+            //log_printf("got here\n");
+            //log_printf("pid: %i\n", pid);
+            //log_printf("pointer: %p\n", ptable[pid]);
             // Store the exit status inside *status
             if (status) {
                 *status = ptable[pid]->exit_status_;
-                log_printf("after exit status set\n");
+                //log_printf("after exit status set\n");
             }
 
                             
@@ -885,16 +934,16 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
             // Put the exit status and the pid in a register
         }
     
-    log_printf("end of waitpid\n");
+    //log_printf("end of waitpid\n");
 
     return pid;
 
         block:
-        log_printf("ptable after block: %p\n", ptable[pid]);
+        //log_printf("ptable after block: %p\n", ptable[pid]);
         //{
             //spinlock_guard guard(ptable_lock);
-            log_printf("Block Here\n");
-            log_printf("ptable[pid]: %p\n", ptable[pid]);
+            //log_printf("Block Here\n");
+            //log_printf("ptable[pid]: %p\n", ptable[pid]);
             if (pid != 0) {
                 while (ptable[pid]->pstate_ != ps_exited) {
                     this->yield();
@@ -931,20 +980,28 @@ int proc::syscall_nasty_alloc() {
 uintptr_t proc::syscall_read(regstate* regs) {
     // This is a slow system call, so allow interrupts by default
     sti();
+    log_printf("In syscall_read\n");
 
     int fd = regs->reg_rdi;
     uintptr_t addr = regs->reg_rsi;
     size_t sz = regs->reg_rdx;
 
+    log_printf("after accessing registers\n");
+
     // Your code here!
     // * Read from open file `fd` (reg_rdi), rather than `keyboardstate`.
     // * Validate the read buffer.
-    if (this->open_fds_[fd] == -1) {
-        return -1;
+    if (fd < 0 or fd >= MAX_FDS or this->open_fds_[fd] == -1) {
+        return E_BADF;
     }
     vnode* readfile = system_vn_table[fd];
+    log_printf("fd: %i\n", fd);
     // Call the read vn_op
-    auto read_func = readfile->vn_ops_->vop_read;
+    log_printf("readfile: %p\n", readfile);
+    log_printf("readfile->vn_ops_: %p\n", readfile->vn_ops_);
+    log_printf("vopread: %p\n", readfile->vn_ops_->vop_read);
+    int (*read_func)(uintptr_t addr, int sz) = readfile->vn_ops_->vop_read;
+    log_printf("after getting read_func\n");
     return read_func(addr, sz);
 
     /*auto& kbd = keyboardstate::get();
@@ -997,8 +1054,8 @@ uintptr_t proc::syscall_write(regstate* regs) {
     // * Write to open file `fd` (reg_rdi), rather than `consolestate`.
     // * Validate the write buffer.
 
-    if (this->open_fds_[fd] == -1) {
-        return -1;
+    if (this->open_fds_[fd] == -1 or fd < 0 or fd >= MAX_FDS) {
+        return E_BADF;
     }
     vnode* writefile = system_vn_table[fd];
     auto write_func = writefile->vn_ops_->vop_write;
