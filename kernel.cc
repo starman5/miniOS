@@ -110,13 +110,13 @@ void kernel_start(const char* command) {
     vnode_ops* stderr_vn_ops = &vnode_ops_page[2];
 
     stdin_vn_ops->vop_read = stdin_read;
-    stdin_vn_ops->vop_write = nullptr;
+    stdin_vn_ops->vop_write = stdout_write;
 
-    stdout_vn_ops->vop_read = nullptr;
+    stdout_vn_ops->vop_read = stdin_read;
     stdout_vn_ops->vop_write = stdout_write;
 
-    stderr_vn_ops->vop_read = nullptr;
-    stderr_vn_ops->vop_write = stderr_write;
+    stderr_vn_ops->vop_read = stdin_read;
+    stderr_vn_ops->vop_write = stdout_write;
 
     // Set up the stdout, stdin, stderr vnodes
     stdin_vnode->vn_ops_ = stdin_vn_ops;
@@ -567,17 +567,20 @@ uintptr_t proc::syscall(regstate* regs) {
     
     case SYSCALL_CLOSE: {
         int fd = regs->reg_rdi;
+        log_printf("closing fd %i\n", fd);
         if (fd < 0 or fd >= MAX_FDS or this->open_fds_[fd] == -1) {
-            return -1;
+            return E_BADF;
         }
         
         // delete vnode in system wide structure, then set index to -1.
         // reset the refcount to 1, offset to 0, pointers to nullptr
-        vnode* vn_closing = system_vn_table[fd];
-        vn_closing->vn_refcount_ = 1;
-        vn_closing->vn_offset_ = 0;
-        vn_closing->vn_data_ = nullptr;
-        vn_closing->vn_ops_ = nullptr;
+        // vnode* vn_closing = system_vn_table[fd];
+        // vn_closing->vn_refcount_ = 1;
+        // vn_closing->vn_offset_ = 0;
+        // vn_closing->vn_data_ = nullptr;
+        // vn_closing->vn_ops_ = nullptr;
+
+        system_vn_table[fd] = nullptr;
 
         this->open_fds_[fd] = -1;
         
@@ -638,13 +641,20 @@ uintptr_t proc::syscall(regstate* regs) {
 int proc::syscall_dup2(regstate* regs) {
     int oldfd = regs->reg_rdi;
     int newfd = regs->reg_rsi;
-    if (open_fds_[newfd] != -1 or newfd < 0 or newfd > MAX_FDS) {
-        return -1;
+    log_printf("dup2 on oldfd %i, newfd %i\n", oldfd, newfd);
+    if (open_fds_[oldfd] == -1 or newfd < 0 or newfd > MAX_FDS or oldfd < 0 or oldfd > MAX_FDS) {
+        return E_BADF;
     }
+
+    // if (open_fds_[newfd] != -1) {
+    //     system_vn_table[newfd] = nullptr;
+    // }
 
     // At the newfd index in the system wide fd table should be the same vnode as that of the oldfd index
     vnode* old_vnode = system_vn_table[oldfd];
     system_vn_table[newfd] = old_vnode;
+    log_printf("dup2 system_vn_table[newfd]: %p\n", old_vnode);
+    this->open_fds_[newfd] = newfd;
 
     return newfd;
 }
@@ -770,7 +780,7 @@ int* proc::check_exited(pid_t pid, bool condition) {
                 proc* child = this->children_.pop_front();
                 while (child != first_child) {
                     if (child->pstate_ == ps_exited) {
-                        log_printf("id %i, ps_exited\n", child->id_);
+                        //log_printf("id %i, ps_exited\n", child->id_);
                         zombies_exist = true;
                         pid = child->id_;
                         if (!condition) {
@@ -783,7 +793,7 @@ int* proc::check_exited(pid_t pid, bool condition) {
                 }
                 if (child == first_child) {
                     if (child->pstate_ == ps_exited) {
-                        log_printf("zombies is true\n");
+                        //log_printf("zombies is true\n");
                         zombies_exist = true;
                         pid = child->id_;
                         if (!condition) {
@@ -791,7 +801,7 @@ int* proc::check_exited(pid_t pid, bool condition) {
                         }
                     }
                     else {
-                        log_printf("restore\n");
+                        //log_printf("restore\n");
                         this->children_.push_back(child);
                     }
                 }
@@ -799,7 +809,7 @@ int* proc::check_exited(pid_t pid, bool condition) {
             static int return_value[2];
             return_value[0] = zombies_exist;
             return_value[1] = pid;
-            log_printf("zombies_exist: %i, pid: %i\n", zombies_exist, pid);
+            //log_printf("zombies_exist: %i, pid: %i\n", zombies_exist, pid);
             return return_value;
 }
 
@@ -1050,6 +1060,8 @@ uintptr_t proc::syscall_write(regstate* regs) {
     uintptr_t addr = regs->reg_rsi;
     size_t sz = regs->reg_rdx;
 
+    log_printf("In syscall write, fd = %i\n", fd);
+
     // Your code here!
     // * Write to open file `fd` (reg_rdi), rather than `consolestate`.
     // * Validate the write buffer.
@@ -1058,6 +1070,8 @@ uintptr_t proc::syscall_write(regstate* regs) {
         return E_BADF;
     }
     vnode* writefile = system_vn_table[fd];
+    log_printf("syscall_write system_vn_table[fd]: %p\n", writefile);
+    log_printf("%p\n", writefile->vn_ops_);
     auto write_func = writefile->vn_ops_->vop_write;
     return write_func(addr, sz);
 
