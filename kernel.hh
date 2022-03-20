@@ -24,8 +24,8 @@ struct elf_program;
 // Function pointers to vnode operations
 struct vnode_ops {
     int (*vop_open)(struct vnode* file);
-    int (*vop_read)(struct vnode* file, int sz);
-    int (*vop_write)(struct vnode* file, int sz);
+    int (*vop_read)(uintptr_t addr, int sz);
+    int (*vop_write)(uintptr_t addr, int sz);
 };
 
 // Definition of a vnode

@@ -32,6 +32,19 @@ vnode_ops* stdout_vn_ops;
 vnode_ops* stdin_vn_ops;
 vnode_ops* stderr_vn_ops;
 
+int stdout_write(uintptr_t addr, int sz) {
+
+}
+
+int stderr_write(uintptr_t addr, int sz) {
+
+}
+
+int stdin_read(uintptr_t addr, int sz) {
+
+}
+
+
 // kernel_start(command)
 //    Initialize the hardware and processes and start running. The `command`
 //    string is an optional string passed from the boot loader.
@@ -47,7 +60,14 @@ void kernel_start(const char* command) {
     }
     
     // Set up the stdout, stdin, stderr vn_ops
-    //stdout_vn_ops->vop_write = &console_printf;
+    stdout_vn_ops->vop_read = nullptr;
+    stdout_vn_ops->vop_write = stdout_write;
+
+    stdin_vn_ops->vop_read = stdin_read;
+    stdin_vn_ops->vop_write = nullptr;
+
+    stderr_vn_ops->vop_read = nullptr;
+    stderr_vn_ops->vop_write = stderr_write;
 
     // Set up the stdout, stdin, stderr vnodes
     stdout_vnode->vn_ops_ = stdout_vn_ops;
@@ -55,8 +75,8 @@ void kernel_start(const char* command) {
     stderr_vnode->vn_ops_ = stderr_vn_ops;
 
     // Set up system wide vnode table with stdout, stdin, stderr vnodes
-    system_vn_table[0] = stdout_vnode;
-    system_vn_table[1] = stdin_vnode;
+    system_vn_table[0] = stdin_vnode;
+    system_vn_table[1] = stdout_vnode;
     system_vn_table[2] = stderr_vnode;
 
     init_first_process();
@@ -95,7 +115,7 @@ void init_first_process() {
         spinlock_guard guard(ptable_lock);
         ptable[1] = p_init;
     }
-
+  
     log_printf("about to schedule init_first_process on cpu 0.  id = %i, parent = %i\n", p_init->id_, p_init->parent_id_);
     // Smart to enqueue on cpu 0 because that will always be available, even at the very very beginning
     cpus[0].enqueue(p_init);
@@ -475,6 +495,25 @@ uintptr_t proc::syscall(regstate* regs) {
             pause();
         }
         return 0;
+    }
+
+    case SYSCALL_OPEN: {
+        // Find the next available fd
+        int fd;
+        for (; fd < MAX_FDS; fd++) {
+            if (this->open_fds_[fd] != -1) {
+                break;
+            }
+        }
+
+        this->open_fds_[fd] = fd;
+
+        // Update the system wide vnode table.
+        // I think what the vnode is should depend on the flags set in syscall open
+        // Maybe some kind of switch statement
+        system_vn_table[fd] = 
+
+        return fd;
     }
     
     case SYSCALL_CLOSE: {
@@ -906,8 +945,9 @@ uintptr_t proc::syscall_read(regstate* regs) {
     vnode* readfile = system_vn_table[fd];
     // Call the read vn_op
     auto read_func = readfile->vn_ops_->vop_read;
+    return read_func(addr, sz);
 
-    auto& kbd = keyboardstate::get();
+    /*auto& kbd = keyboardstate::get();
     auto irqs = kbd.lock_.lock();
 
     // mark that we are now reading from the keyboard
@@ -942,7 +982,7 @@ uintptr_t proc::syscall_read(regstate* regs) {
     }
 
     kbd.lock_.unlock(irqs);
-    return n;
+    return n;*/
 }
 
 uintptr_t proc::syscall_write(regstate* regs) {
@@ -962,8 +1002,9 @@ uintptr_t proc::syscall_write(regstate* regs) {
     }
     vnode* writefile = system_vn_table[fd];
     auto write_func = writefile->vn_ops_->vop_write;
+    return write_func(addr, sz);
 
-    auto& csl = consolestate::get();
+    /*auto& csl = consolestate::get();
     spinlock_guard guard(csl.lock_);
     size_t n = 0;
     while (n < sz) {
@@ -972,7 +1013,7 @@ uintptr_t proc::syscall_write(regstate* regs) {
         ++n;
         console_printf(0x0F00, "%c", ch);
     }
-    return n;
+    return n;*/
 }
 
 uintptr_t proc::syscall_readdiskfile(regstate* regs) {
