@@ -26,6 +26,18 @@ vnode* system_vn_table[MAX_FDS];
 vnode* vnode_page;
 vnode_ops* vnode_ops_page;
 
+vnode* stdin_vnode;
+vnode* stdout_vnode;
+vnode* stderr_vnode;
+vnode* readpipe_vnode;
+vnode* writepipe_vnode;
+
+vnode_ops* stdin_vn_ops;
+vnode_ops* stdout_vn_ops;
+vnode_ops* stderr_vn_ops;
+vnode_ops* readpipe_vn_ops;
+vnode_ops* writepipe_vn_ops;
+
 
 int stdout_write(uintptr_t addr, int sz) {
     auto& csl = consolestate::get();
@@ -112,17 +124,17 @@ void kernel_start(const char* command) {
     vnode_ops_page = (vnode_ops*) kalloc(PAGESIZE);
     
     // Set up the vn_ops
-    vnode* stdin_vnode = &vnode_page[0];
-    vnode* stdout_vnode = &vnode_page[1];
-    vnode* stderr_vnode = &vnode_page[2];
-    vnode* readpipe_vnode = &vnode_page[3];
-    vnode* writepipe_vnode = &vnode_page[4];
+    stdin_vnode = &vnode_page[0];
+    stdout_vnode = &vnode_page[1];
+    stderr_vnode = &vnode_page[2];
+    readpipe_vnode = &vnode_page[3];
+    writepipe_vnode = &vnode_page[4];
 
-    vnode_ops* stdin_vn_ops = &vnode_ops_page[0];
-    vnode_ops* stdout_vn_ops = &vnode_ops_page[1];
-    vnode_ops* stderr_vn_ops = &vnode_ops_page[2];
-    vnode_ops* readpipe_vn_ops = &vnode_ops_page[3];
-    vnode_ops* writepipe_vn_ops = &vnode_ops_page[4];
+    stdin_vn_ops = &vnode_ops_page[0];
+    stdout_vn_ops = &vnode_ops_page[1];
+    stderr_vn_ops = &vnode_ops_page[2];
+    readpipe_vn_ops = &vnode_ops_page[3];
+    writepipe_vn_ops = &vnode_ops_page[4];
 
     stdin_vn_ops->vop_read = stdin_read;
     stdin_vn_ops->vop_write = stdout_write;
@@ -653,9 +665,26 @@ uintptr_t proc::syscall(regstate* regs) {
     assert(0 == 1);
 }
 
-int proc::syscall_pipe(regstate* regs) {
-    //int* pipefds = regs->reg_rdi;
-    return 0;
+uintptr_t proc::syscall_pipe(regstate* regs) {
+    int readfd = 0;
+    for (; readfd < MAX_FDS; readfd++) {
+        if (this->open_fds_[readfd] == -1) {
+            break;
+        }
+    }
+
+    int writefd = 0;
+    for (; writefd < MAX_FDS; writefd++) {
+        if (this->open_fds_[writefd] == -1) {
+            break;
+        }
+    }
+
+    system_vn_table[readfd] = readpipe_vnode;
+    system_vn_table[writefd] = writepipe_vnode;
+
+    // Return the two fds concatenated
+    return readfd + (writefd >> 32);
 }
 
 int proc::syscall_dup2(regstate* regs) {

@@ -98,7 +98,7 @@ struct __attribute__((aligned(4096))) proc {
         inline bool resumable() const;
 
         int syscall_dup2(regstate* regs);
-        int syscall_pipe(regstate* regs);
+        uintptr_t syscall_pipe(regstate* regs);
         int syscall_fork(regstate* regs);
         int syscall_waitpid(pid_t pid, int* status, int options);
         int* check_exited(pid_t pid, bool condition);
