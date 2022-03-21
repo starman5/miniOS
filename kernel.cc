@@ -22,9 +22,20 @@ static void run_init();
 static void setup_init_child();
 
 
+bbuffer* pipe_buffer;
+
+int bbuffer::bbuf_read(char* buf, int sz) {
+    return 0;
+}
+
+int bbuffer::bbuf_write(char* buf, int sz) {
+    return 0;
+}
+
 vnode* system_vn_table[MAX_FDS];
 vnode* vnode_page;
 vnode_ops* vnode_ops_page;
+
 
 vnode* stdin_vnode;
 vnode* stdout_vnode;
@@ -97,11 +108,13 @@ int stdin_read(uintptr_t addr, int sz) {
 
 }
 
-int readpipe() {
+int readpipe(char* buf, int sz) {
+    return pipe_buffer->bbuf_read(buf, sz);
 
 }
 
-int writepipe() {
+int writepipe(char* buf, int sz) {
+    return pipe_buffer->bbuf_write(buf, sz);
 
 }
 
@@ -119,6 +132,8 @@ void kernel_start(const char* command) {
     for (pid_t i = 0; i < NPROC; i++) {
         ptable[i] = nullptr;
     }
+
+    pipe_buffer = (bbuffer*) kalloc(PAGESIZE);
 
     vnode_page = (vnode*) kalloc(PAGESIZE);
     vnode_ops_page = (vnode_ops*) kalloc(PAGESIZE);
@@ -666,25 +681,50 @@ uintptr_t proc::syscall(regstate* regs) {
 }
 
 uintptr_t proc::syscall_pipe(regstate* regs) {
-    int readfd = 0;
-    for (; readfd < MAX_FDS; readfd++) {
-        if (this->open_fds_[readfd] == -1) {
+    assert(this->open_fds_[0] != -1);
+    assert(this->open_fds_[1] != -1);
+    assert(this->open_fds_[2] != -1);
+    int readfd;
+    bool existsreadfd = false;
+    for (int i = 0; i < MAX_FDS; i++) {
+        if (this->open_fds_[i] == -1) {
+            readfd = i;
+            this->open_fds_[i] = i;
+            existsreadfd = true;
             break;
         }
     }
+    if (!existsreadfd) {
+        return E_MFILE;
+    }
+    log_printf("readfd: %i\n", readfd);
 
-    int writefd = 0;
-    for (; writefd < MAX_FDS; writefd++) {
-        if (this->open_fds_[writefd] == -1) {
+    assert(this->open_fds_[0] != -1);
+    assert(this->open_fds_[1] != -1);
+    assert(this->open_fds_[2] != -1);
+    int writefd;
+    int existswritefd = false;
+    for (int j = 0; j < MAX_FDS; j++) {
+        if (this->open_fds_[j] == -1) {
+            writefd = j;
+            this->open_fds_[j] = j;
+            existswritefd = true;
             break;
         }
     }
+    if (!existswritefd) {
+        return E_MFILE;
+    }
+    log_printf("writefd: %i\n", writefd);
 
     system_vn_table[readfd] = readpipe_vnode;
     system_vn_table[writefd] = writepipe_vnode;
 
-    // Return the two fds concatenated
-    return readfd + (writefd >> 32);
+    // Return the two fds concatenated.  Write end comes before read end
+    uintptr_t returnValue = ((uintptr_t)(writefd) << 32) + (uintptr_t) readfd;
+    log_printf("%i\n", returnValue);
+    log_printf("%i\n", returnValue >> 32);
+    return returnValue;
 }
 
 int proc::syscall_dup2(regstate* regs) {
@@ -1060,6 +1100,9 @@ uintptr_t proc::syscall_read(regstate* regs) {
     log_printf("readfile->vn_ops_: %p\n", readfile->vn_ops_);
     log_printf("vopread: %p\n", readfile->vn_ops_->vop_read);
     int (*read_func)(uintptr_t addr, int sz) = readfile->vn_ops_->vop_read;
+    if (!read_func) {
+        return E_BADF;
+    }
     log_printf("after getting read_func\n");
     return read_func(addr, sz);
 
@@ -1122,6 +1165,9 @@ uintptr_t proc::syscall_write(regstate* regs) {
     log_printf("syscall_write system_vn_table[fd]: %p\n", writefile);
     log_printf("%p\n", writefile->vn_ops_);
     auto write_func = writefile->vn_ops_->vop_write;
+    if (!write_func) {
+        return E_BADF;
+    }
     return write_func(addr, sz);
 
     /*auto& csl = consolestate::get();

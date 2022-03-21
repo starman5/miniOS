@@ -14,7 +14,7 @@ struct yieldstate;
 struct proc_loader;
 struct elf_program;
 #define PROC_RUNNABLE 1
-#define MAX_FDS       5
+#define MAX_FDS       16
 
 
 // kernel.hh
@@ -35,6 +35,20 @@ struct vnode {
     void* vn_data_ = nullptr;
     vnode_ops* vn_ops_ = nullptr;
 };
+
+// Bounded buffer for pipe
+struct bbuffer {
+    spinlock bbuffer_lock;
+    static constexpr int bcapacity = 128;
+    char bbuf_[bcapacity];
+    int bpos_ = 0;
+    int blen_ = 0;
+    bool write_closed_ = false;
+
+    int bbuf_read(char* buf, int sz);
+    int bbuf_write(char* buf, int sz);
+};
+
 
 
 
