@@ -25,6 +25,9 @@ bbuffer* pipe_buffers;
 
 int bbuffer::bbuf_read(char* buf, int sz) {
     auto lockthing = this->bbuffer_lock.lock();
+    if (this->write_closed_) {
+        return 0;
+    }
     int pos = 0;
     while (pos < sz && this->blen_ > 0) {
         int bspace;
@@ -51,7 +54,7 @@ int bbuffer::bbuf_read(char* buf, int sz) {
     }
     this->bbuffer_lock.unlock(lockthing);
     if (pos == 0 && sz > 0 && !this->write_closed_) {
-        return -1;
+        return E_BADF;
     }
     log_printf("pos: %i\n", pos);
     return pos;
@@ -86,7 +89,7 @@ int bbuffer::bbuf_write(char* buf, int sz) {
     }
     this->bbuffer_lock.unlock(irqs);
     if (pos == 0 && sz > 0) {
-        return -1;
+        return E_BADF;
     }
     else {
         return pos;
