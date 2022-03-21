@@ -15,6 +15,7 @@ struct proc_loader;
 struct elf_program;
 #define PROC_RUNNABLE 1
 #define MAX_FDS       16
+#define NPIPE_BUFS    MAX_FDS / 2
 
 
 // kernel.hh
@@ -23,9 +24,9 @@ struct elf_program;
 
 // Function pointers to vnode operations
 struct vnode_ops {
-    int (*vop_open)(struct vnode* file);
-    int (*vop_read)(uintptr_t addr, int sz);
-    int (*vop_write)(uintptr_t addr, int sz);
+    int (*vop_open)(struct vnode* vn);
+    int (*vop_read)(struct vnode* vn, uintptr_t addr, int sz);
+    int (*vop_write)(struct vnode* vn, uintptr_t addr, int sz);
 };
 
 // Definition of a vnode

@@ -21,8 +21,7 @@ static void init_first_process();
 static void run_init();
 static void setup_init_child();
 
-
-bbuffer* pipe_buffer;
+bbuffer* pipe_buffers;
 
 int bbuffer::bbuf_read(char* buf, int sz) {
     int pos = 0;
@@ -98,17 +97,14 @@ vnode_ops* vnode_ops_page;
 vnode* stdin_vnode;
 vnode* stdout_vnode;
 vnode* stderr_vnode;
-//vnode* readpipe_vnode;
-//vnode* writepipe_vnode;
 
 vnode_ops* stdin_vn_ops;
 vnode_ops* stdout_vn_ops;
 vnode_ops* stderr_vn_ops;
-vnode_ops* readpipe_vn_ops;
-vnode_ops* writepipe_vn_ops;
+vnode_ops* pipe_vn_ops;
 
 
-int stdout_write(uintptr_t addr, int sz) {
+int stdout_write(vnode* vn, uintptr_t addr, int sz) {
     auto& csl = consolestate::get();
     spinlock_guard guard(csl.lock_);
     size_t n = 0;
@@ -122,11 +118,11 @@ int stdout_write(uintptr_t addr, int sz) {
 
 }
 
-int stderr_write(uintptr_t addr, int sz) {
+int stderr_write(vnode* vn, uintptr_t addr, int sz) {
 
 }
 
-int stdin_read(uintptr_t addr, int sz) {
+int stdin_read(vnode* vn, uintptr_t addr, int sz) {
     auto& kbd = keyboardstate::get();
     auto irqs = kbd.lock_.lock();
 
@@ -166,12 +162,14 @@ int stdin_read(uintptr_t addr, int sz) {
 
 }
 
-int pipe_read(uintptr_t buf, int sz) {
+int pipe_read(vnode* vn, uintptr_t buf, int sz) {
+    bbuffer* pipe_buffer = (bbuffer*) vn->vn_data_;
     return pipe_buffer->bbuf_read((char*) buf, sz);
 
 }
 
-int pipe_write(uintptr_t buf, int sz) {
+int pipe_write(vnode* vn, uintptr_t buf, int sz) {
+    bbuffer* pipe_buffer = (bbuffer*) vn->vn_data_;
     return pipe_buffer->bbuf_write((char*) buf, sz);
 
 }
@@ -191,7 +189,7 @@ void kernel_start(const char* command) {
         ptable[i] = nullptr;
     }
 
-    pipe_buffer = (bbuffer*) kalloc(PAGESIZE);
+    pipe_buffers = (bbuffer*) kalloc(PAGESIZE * 4);
 
     vnode_page = (vnode*) kalloc(PAGESIZE);
     vnode_ops_page = (vnode_ops*) kalloc(PAGESIZE);
@@ -200,14 +198,11 @@ void kernel_start(const char* command) {
     stdin_vnode = &vnode_page[0];
     stdout_vnode = &vnode_page[1];
     stderr_vnode = &vnode_page[2];
-    //readpipe_vnode = &vnode_page[3];
-    //writepipe_vnode = &vnode_page[4];
 
     stdin_vn_ops = &vnode_ops_page[0];
     stdout_vn_ops = &vnode_ops_page[1];
     stderr_vn_ops = &vnode_ops_page[2];
-    readpipe_vn_ops = &vnode_ops_page[3];
-    writepipe_vn_ops = &vnode_ops_page[4];
+    pipe_vn_ops = &vnode_ops_page[3];
 
     stdin_vn_ops->vop_read = stdin_read;
     stdin_vn_ops->vop_write = stdout_write;
@@ -215,10 +210,8 @@ void kernel_start(const char* command) {
     stdout_vn_ops->vop_write = stdout_write;
     stderr_vn_ops->vop_read = stdin_read;
     stderr_vn_ops->vop_write = stdout_write;
-    readpipe_vn_ops->vop_read = pipe_read;
-    readpipe_vn_ops->vop_write = nullptr;
-    writepipe_vn_ops->vop_read = nullptr;
-    writepipe_vn_ops->vop_write = pipe_write;
+    pipe_vn_ops->vop_read = pipe_read;
+    pipe_vn_ops->vop_write = pipe_write;
 
     // Set up the vnodes
     stdin_vnode->vn_ops_ = stdin_vn_ops;
@@ -784,18 +777,9 @@ uintptr_t proc::syscall_pipe(regstate* regs) {
     // Look through vnode_page to find first empty entry
     for (int k = 0; k < (PAGESIZE / sizeof(vnode)); k++) {
         if (!vnode_page[k].vn_ops_) {
-            vnode_page[k].vn_ops_ = readpipe_vn_ops;
+            vnode_page[k].vn_ops_ = pipe_vn_ops;
             system_vn_table[readfd] = &vnode_page[k];
             log_printf("pipe system_vn_table[readfd]: %p\n", &vnode_page[k]);
-            break;
-        }
-    }
-
-    for (int l = 0; l < (PAGESIZE / sizeof(vnode)); l++) {
-        if (!vnode_page[l].vn_ops_) {
-            vnode_page[l].vn_ops_ = writepipe_vn_ops;
-            system_vn_table[writefd] = &vnode_page[l];
-            log_printf("pipe system_vn_table[writefd]: %p\n", &vnode_page[l]);
             break;
         }
     }
@@ -1179,12 +1163,12 @@ uintptr_t proc::syscall_read(regstate* regs) {
     log_printf("readfile: %p\n", readfile);
     log_printf("readfile->vn_ops_: %p\n", readfile->vn_ops_);
     log_printf("vopread: %p\n", readfile->vn_ops_->vop_read);
-    int (*read_func)(uintptr_t addr, int sz) = readfile->vn_ops_->vop_read;
+    int (*read_func)(vnode* vn, uintptr_t addr, int sz) = readfile->vn_ops_->vop_read;
     if (!read_func) {
         return E_BADF;
     }
     log_printf("after getting read_func\n");
-    return read_func(addr, sz);
+    return read_func(readfile, addr, sz);
 
     /*auto& kbd = keyboardstate::get();
     auto irqs = kbd.lock_.lock();
@@ -1248,7 +1232,7 @@ uintptr_t proc::syscall_write(regstate* regs) {
     if (!write_func) {
         return E_BADF;
     }
-    return write_func(addr, sz);
+    return write_func(writefile, addr, sz);
 
     /*auto& csl = consolestate::get();
     spinlock_guard guard(csl.lock_);
