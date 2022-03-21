@@ -25,11 +25,59 @@ static void setup_init_child();
 bbuffer* pipe_buffer;
 
 int bbuffer::bbuf_read(char* buf, int sz) {
-    return 0;
+    int pos = 0;
+    while (pos < sz && this->blen_ > 0) {
+        int bspace;
+        int spacecompare = bcapacity - this->bpos_;
+        if (spacecompare < this->blen_) {
+            bspace = spacecompare;
+        }
+        else {
+            bspace = this->blen_;
+        }
+
+        int n;
+        if (sz - pos < bspace) {
+            n = sz - pos;
+        }
+        else {
+            n = bspace;
+        }
+
+        memcpy(&buf[pos], &this->bbuf_[this->bpos_], n);
+        this->bpos_ = (this->bpos_ + n) % bcapacity;
+        this->blen_ -= n;
+        pos += n;
+    }
+    return pos;
 }
 
 int bbuffer::bbuf_write(char* buf, int sz) {
-    return 0;
+    int pos = 0;
+    while (pos < sz && this->blen_ < bcapacity) {
+        int bindex = (this->bpos_ + this->blen_) % bcapacity;
+        
+        int bspace;
+        if (bcapacity - bindex < bcapacity - this->blen_) {
+            bspace = bcapacity - bindex;
+        }
+        else {
+            bspace = bcapacity - this->blen_;
+        }
+
+        int n;
+        if (sz - pos < bspace) {
+            n = sz - pos;
+        }
+        else {
+            n = bspace;
+        }
+
+        memcpy(&this->bbuf_[bindex], &buf[pos], n);
+        this->blen_ += n;
+        pos += n;   
+    }
+    return pos;
 }
 
 vnode* system_vn_table[MAX_FDS];
@@ -40,8 +88,8 @@ vnode_ops* vnode_ops_page;
 vnode* stdin_vnode;
 vnode* stdout_vnode;
 vnode* stderr_vnode;
-vnode* readpipe_vnode;
-vnode* writepipe_vnode;
+//vnode* readpipe_vnode;
+//vnode* writepipe_vnode;
 
 vnode_ops* stdin_vn_ops;
 vnode_ops* stdout_vn_ops;
@@ -108,13 +156,13 @@ int stdin_read(uintptr_t addr, int sz) {
 
 }
 
-int readpipe(char* buf, int sz) {
-    return pipe_buffer->bbuf_read(buf, sz);
+int pipe_read(uintptr_t buf, int sz) {
+    return pipe_buffer->bbuf_read((char*) buf, sz);
 
 }
 
-int writepipe(char* buf, int sz) {
-    return pipe_buffer->bbuf_write(buf, sz);
+int pipe_write(uintptr_t buf, int sz) {
+    return pipe_buffer->bbuf_write((char*) buf, sz);
 
 }
 
@@ -142,8 +190,8 @@ void kernel_start(const char* command) {
     stdin_vnode = &vnode_page[0];
     stdout_vnode = &vnode_page[1];
     stderr_vnode = &vnode_page[2];
-    readpipe_vnode = &vnode_page[3];
-    writepipe_vnode = &vnode_page[4];
+    //readpipe_vnode = &vnode_page[3];
+    //writepipe_vnode = &vnode_page[4];
 
     stdin_vn_ops = &vnode_ops_page[0];
     stdout_vn_ops = &vnode_ops_page[1];
@@ -157,13 +205,17 @@ void kernel_start(const char* command) {
     stdout_vn_ops->vop_write = stdout_write;
     stderr_vn_ops->vop_read = stdin_read;
     stderr_vn_ops->vop_write = stdout_write;
+    readpipe_vn_ops->vop_read = pipe_read;
+    readpipe_vn_ops->vop_write = nullptr;
+    writepipe_vn_ops->vop_read = nullptr;
+    writepipe_vn_ops->vop_write = pipe_write;
 
     // Set up the vnodes
     stdin_vnode->vn_ops_ = stdin_vn_ops;
     stdout_vnode->vn_ops_ = stdout_vn_ops;
     stderr_vnode->vn_ops_ = stderr_vn_ops;
-    readpipe_vnode->vn_ops_ = readpipe_vn_ops;
-    writepipe_vnode->vn_ops_ = writepipe_vn_ops;
+    //readpipe_vnode->vn_ops_ = readpipe_vn_ops;
+    //writepipe_vnode->vn_ops_ = writepipe_vn_ops;
 
     // Set up system wide vnode table with stdout, stdin, stderr vnodes
     system_vn_table[0] = stdin_vnode;
@@ -681,6 +733,7 @@ uintptr_t proc::syscall(regstate* regs) {
 }
 
 uintptr_t proc::syscall_pipe(regstate* regs) {
+    log_printf("in syscall pipe\n");
     assert(this->open_fds_[0] != -1);
     assert(this->open_fds_[1] != -1);
     assert(this->open_fds_[2] != -1);
@@ -717,8 +770,25 @@ uintptr_t proc::syscall_pipe(regstate* regs) {
     }
     log_printf("writefd: %i\n", writefd);
 
-    system_vn_table[readfd] = readpipe_vnode;
-    system_vn_table[writefd] = writepipe_vnode;
+    // Create a new vnode and set vnode_ops to readpipe_vn_ops
+    // Look through vnode_page to find first empty entry
+    for (int k = 0; k < (PAGESIZE / sizeof(vnode)); k++) {
+        if (!vnode_page[k].vn_ops_) {
+            vnode_page[k].vn_ops_ = readpipe_vn_ops;
+            system_vn_table[readfd] = &vnode_page[k];
+            log_printf("pipe system_vn_table[readfd]: %p\n", &vnode_page[k]);
+            break;
+        }
+    }
+
+    for (int l = 0; l < (PAGESIZE / sizeof(vnode)); l++) {
+        if (!vnode_page[l].vn_ops_) {
+            vnode_page[l].vn_ops_ = writepipe_vn_ops;
+            system_vn_table[writefd] = &vnode_page[l];
+            log_printf("pipe system_vn_table[writefd]: %p\n", &vnode_page[l]);
+            break;
+        }
+    }
 
     // Return the two fds concatenated.  Write end comes before read end
     uintptr_t returnValue = ((uintptr_t)(writefd) << 32) + (uintptr_t) readfd;
