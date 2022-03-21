@@ -49,6 +49,10 @@ int bbuffer::bbuf_read(char* buf, int sz) {
         this->blen_ -= n;
         pos += n;
     }
+    if (pos == 0 && sz > 0 && !this->write_closed_) {
+        return -1;
+    }
+    log_printf("pos: %i\n", pos);
     return pos;
 }
 
@@ -75,9 +79,15 @@ int bbuffer::bbuf_write(char* buf, int sz) {
 
         memcpy(&this->bbuf_[bindex], &buf[pos], n);
         this->blen_ += n;
-        pos += n;   
+        pos += n;
+        log_printf("pos: %i\n", pos);   
     }
-    return pos;
+    if (pos == 0 && sz > 0) {
+        return -1;
+    }
+    else {
+        return pos;
+    }
 }
 
 vnode* system_vn_table[MAX_FDS];
@@ -1164,7 +1174,7 @@ uintptr_t proc::syscall_read(regstate* regs) {
         return E_BADF;
     }
     vnode* readfile = system_vn_table[fd];
-    log_printf("fd: %i\n", fd);
+    log_printf("fd: %i, sz: %i\n", fd, sz);
     // Call the read vn_op
     log_printf("readfile: %p\n", readfile);
     log_printf("readfile->vn_ops_: %p\n", readfile->vn_ops_);
@@ -1222,7 +1232,7 @@ uintptr_t proc::syscall_write(regstate* regs) {
     uintptr_t addr = regs->reg_rsi;
     size_t sz = regs->reg_rdx;
 
-    log_printf("In syscall write, fd = %i\n", fd);
+    log_printf("In syscall write, fd = %i, sz = %i\n", fd, sz);
 
     // Your code here!
     // * Write to open file `fd` (reg_rdi), rather than `consolestate`.
