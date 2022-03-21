@@ -105,7 +105,8 @@ vnode* stderr_vnode;
 vnode_ops* stdin_vn_ops;
 vnode_ops* stdout_vn_ops;
 vnode_ops* stderr_vn_ops;
-vnode_ops* pipe_vn_ops;
+vnode_ops* readend_pipe_vn_ops;
+vnode_ops* writeend_pipe_vn_ops;
 
 
 int stdout_write(vnode* vn, uintptr_t addr, int sz) {
@@ -209,7 +210,8 @@ void kernel_start(const char* command) {
     stdin_vn_ops = &vnode_ops_page[0];
     stdout_vn_ops = &vnode_ops_page[1];
     stderr_vn_ops = &vnode_ops_page[2];
-    pipe_vn_ops = &vnode_ops_page[3];
+    readend_pipe_vn_ops = &vnode_ops_page[3];
+    writeend_pipe_vn_ops = &vnode_ops_page[4];
 
     stdin_vn_ops->vop_read = stdin_read;
     stdin_vn_ops->vop_write = stdout_write;
@@ -217,8 +219,10 @@ void kernel_start(const char* command) {
     stdout_vn_ops->vop_write = stdout_write;
     stderr_vn_ops->vop_read = stdin_read;
     stderr_vn_ops->vop_write = stdout_write;
-    pipe_vn_ops->vop_read = pipe_read;
-    pipe_vn_ops->vop_write = pipe_write;
+    readend_pipe_vn_ops->vop_read = pipe_read;
+    readend_pipe_vn_ops->vop_write = nullptr;
+    writeend_pipe_vn_ops->vop_read = nullptr;
+    writeend_pipe_vn_ops->vop_write = pipe_write;
 
     // Set up the vnodes
     stdin_vnode->vn_ops_ = stdin_vn_ops;
@@ -800,10 +804,18 @@ uintptr_t proc::syscall_pipe(regstate* regs) {
     for (int k = 0; k < (PAGESIZE / sizeof(vnode)); k++) {
         if (!vnode_page[k].vn_ops_) {
             vnode_page[k].vn_data_ = (bbuffer*) &pipe_buffers[bufferindex];
-            vnode_page[k].vn_ops_ = pipe_vn_ops;
+            vnode_page[k].vn_ops_ = readend_pipe_vn_ops;
             system_vn_table[readfd] = &vnode_page[k];
-            system_vn_table[writefd] = &vnode_page[k];
             log_printf("pipe system_vn_table[readfd]: %p\n", &vnode_page[k]);
+            break;
+        }
+    }
+
+    for (int l = 0; l < (PAGESIZE / sizeof(vnode)); l++) {
+        if (!vnode_page[l].vn_ops_) {
+            vnode_page[l].vn_data_ = (bbuffer*) &pipe_buffers[bufferindex];
+            vnode_page[l].vn_ops_ = writeend_pipe_vn_ops;
+            system_vn_table[writefd] = &vnode_page[l];
             break;
         }
     }
