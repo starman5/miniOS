@@ -24,6 +24,7 @@ static void setup_init_child();
 bbuffer* pipe_buffers;
 
 int bbuffer::bbuf_read(char* buf, int sz) {
+    auto lockthing = this->bbuffer_lock.lock();
     int pos = 0;
     while (pos < sz && this->blen_ > 0) {
         int bspace;
@@ -48,6 +49,7 @@ int bbuffer::bbuf_read(char* buf, int sz) {
         this->blen_ -= n;
         pos += n;
     }
+    this->bbuffer_lock.unlock(lockthing);
     if (pos == 0 && sz > 0 && !this->write_closed_) {
         return -1;
     }
@@ -56,6 +58,7 @@ int bbuffer::bbuf_read(char* buf, int sz) {
 }
 
 int bbuffer::bbuf_write(char* buf, int sz) {
+    auto irqs = this->bbuffer_lock.lock();
     int pos = 0;
     while (pos < sz && this->blen_ < bcapacity) {
         int bindex = (this->bpos_ + this->blen_) % bcapacity;
@@ -81,6 +84,7 @@ int bbuffer::bbuf_write(char* buf, int sz) {
         pos += n;
         log_printf("pos: %i\n", pos);   
     }
+    this->bbuffer_lock.unlock(irqs);
     if (pos == 0 && sz > 0) {
         return -1;
     }
