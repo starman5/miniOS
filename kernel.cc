@@ -190,6 +190,9 @@ void kernel_start(const char* command) {
     }
 
     pipe_buffers = (bbuffer*) kalloc(PAGESIZE * 4);
+    for (int ind = 0; ind < sizeof(pipe_buffers); ind++) {
+        pipe_buffers[ind].available_ = true;
+    }
 
     vnode_page = (vnode*) kalloc(PAGESIZE);
     vnode_ops_page = (vnode_ops*) kalloc(PAGESIZE);
@@ -773,12 +776,29 @@ uintptr_t proc::syscall_pipe(regstate* regs) {
     }
     log_printf("writefd: %i\n", writefd);
 
+    // Look for an available empty buffer
+    int bufferindex;
+    log_printf("size of bbuf: %i\n", sizeof(bbuffer));
+    log_printf("size of pipe_buffers: %i\n", sizeof(pipe_buffers));
+    log_printf("size division: %i\n", sizeof(pipe_buffers) / sizeof(bbuffer));
+    for (int bufnum = 0; bufnum < sizeof(pipe_buffers); bufnum++) {
+        log_printf("available: %i\n", pipe_buffers[bufnum].available_);
+        if (pipe_buffers[bufnum].available_ == true) {
+            bufferindex = bufnum;
+            pipe_buffers[bufnum].available_ = false;
+            break;
+        }
+    }
+    log_printf("bufferindex: %i\n", bufferindex);
+
     // Create a new vnode and set vnode_ops to readpipe_vn_ops
     // Look through vnode_page to find first empty entry
     for (int k = 0; k < (PAGESIZE / sizeof(vnode)); k++) {
         if (!vnode_page[k].vn_ops_) {
+            vnode_page[k].vn_data_ = (bbuffer*) &pipe_buffers[bufferindex];
             vnode_page[k].vn_ops_ = pipe_vn_ops;
             system_vn_table[readfd] = &vnode_page[k];
+            system_vn_table[writefd] = &vnode_page[k];
             log_printf("pipe system_vn_table[readfd]: %p\n", &vnode_page[k]);
             break;
         }

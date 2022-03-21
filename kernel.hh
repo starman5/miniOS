@@ -45,6 +45,7 @@ struct bbuffer {
     int bpos_ = 0;
     int blen_ = 0;
     bool write_closed_ = false;
+    bool available_ = true;
 
     int bbuf_read(char* buf, int sz);
     int bbuf_write(char* buf, int sz);
