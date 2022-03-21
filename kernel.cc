@@ -23,6 +23,9 @@ static void setup_init_child();
 
 
 vnode* system_vn_table[MAX_FDS];
+vnode* vnode_page;
+vnode_ops* vnode_ops_page;
+
 
 int stdout_write(uintptr_t addr, int sz) {
     auto& csl = consolestate::get();
@@ -82,6 +85,14 @@ int stdin_read(uintptr_t addr, int sz) {
 
 }
 
+int readpipe() {
+
+}
+
+int writepipe() {
+
+}
+
 
 // kernel_start(command)
 //    Initialize the hardware and processes and start running. The `command`
@@ -96,32 +107,36 @@ void kernel_start(const char* command) {
     for (pid_t i = 0; i < NPROC; i++) {
         ptable[i] = nullptr;
     }
-    
-    // Set up the stdout, stdin, stderr vn_ops
-    vnode* vnode_page = (vnode*) kalloc(PAGESIZE);
 
+    vnode_page = (vnode*) kalloc(PAGESIZE);
+    vnode_ops_page = (vnode_ops*) kalloc(PAGESIZE);
+    
+    // Set up the vn_ops
     vnode* stdin_vnode = &vnode_page[0];
     vnode* stdout_vnode = &vnode_page[1];
     vnode* stderr_vnode = &vnode_page[2];
+    vnode* readpipe_vnode = &vnode_page[3];
+    vnode* writepipe_vnode = &vnode_page[4];
 
-    vnode_ops* vnode_ops_page = (vnode_ops*) kalloc(PAGESIZE);
     vnode_ops* stdin_vn_ops = &vnode_ops_page[0];
     vnode_ops* stdout_vn_ops = &vnode_ops_page[1];
     vnode_ops* stderr_vn_ops = &vnode_ops_page[2];
+    vnode_ops* readpipe_vn_ops = &vnode_ops_page[3];
+    vnode_ops* writepipe_vn_ops = &vnode_ops_page[4];
 
     stdin_vn_ops->vop_read = stdin_read;
     stdin_vn_ops->vop_write = stdout_write;
-
     stdout_vn_ops->vop_read = stdin_read;
     stdout_vn_ops->vop_write = stdout_write;
-
     stderr_vn_ops->vop_read = stdin_read;
     stderr_vn_ops->vop_write = stdout_write;
 
-    // Set up the stdout, stdin, stderr vnodes
+    // Set up the vnodes
     stdin_vnode->vn_ops_ = stdin_vn_ops;
     stdout_vnode->vn_ops_ = stdout_vn_ops;
     stderr_vnode->vn_ops_ = stderr_vn_ops;
+    readpipe_vnode->vn_ops_ = readpipe_vn_ops;
+    writepipe_vnode->vn_ops_ = writepipe_vn_ops;
 
     // Set up system wide vnode table with stdout, stdin, stderr vnodes
     system_vn_table[0] = stdin_vnode;
@@ -622,7 +637,8 @@ uintptr_t proc::syscall(regstate* regs) {
         return 0;
     }
 
-        
+    case SYSCALL_PIPE:
+        return syscall_pipe(regs);
 
     default:
         // no such system call
@@ -637,6 +653,10 @@ uintptr_t proc::syscall(regstate* regs) {
     assert(0 == 1);
 }
 
+int proc::syscall_pipe(regstate* regs) {
+    //int* pipefds = regs->reg_rdi;
+    return 0;
+}
 
 int proc::syscall_dup2(regstate* regs) {
     int oldfd = regs->reg_rdi;
