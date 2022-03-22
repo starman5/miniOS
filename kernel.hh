@@ -41,7 +41,7 @@ struct vnode {
 // Bounded buffer for pipe
 struct bbuffer {
     spinlock bbuffer_lock;
-    static constexpr int bcapacity = 128;
+    static constexpr int bcapacity = 256;
     char bbuf_[bcapacity];
     int bpos_ = 0;
     int blen_ = 0;

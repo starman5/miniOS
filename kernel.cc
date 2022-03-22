@@ -54,11 +54,11 @@ int bbuffer::bbuf_read(char* buf, int sz) {
         this->blen_ -= n;
         pos += n;
     }
-    this->bbuffer_lock.unlock(lockthing);
     if (pos == 0 && sz > 0 && !this->write_closed_) {
-        return E_BADF;
+        log_printf("pos == 0 and sz > 0 and thiswrite\n");
+        pos = -1;
     }
-    log_printf("pos: %i\n", pos);
+    this->bbuffer_lock.unlock(lockthing);
     return pos;
 }
 
@@ -91,7 +91,8 @@ int bbuffer::bbuf_write(char* buf, int sz) {
     }
     this->bbuffer_lock.unlock(irqs);
     if (pos == 0 && sz > 0) {
-        return E_BADF;
+        log_printf("po is zero, sz > 0");
+        return -1;
     }
     else {
         return pos;
@@ -172,13 +173,21 @@ int stdin_read(vnode* vn, uintptr_t addr, int sz) {
 }
 
 int pipe_read(vnode* vn, uintptr_t buf, int sz) {
+    log_printf("in pipe read\n");
     bbuffer* pipe_buffer = (bbuffer*) vn->vn_data_;
-    return pipe_buffer->bbuf_read((char*) buf, sz);
+    log_printf("addr of buf: %p len: %i\n", pipe_buffer, pipe_buffer->blen_);
+    int retVal = pipe_buffer->bbuf_read((char*) buf, sz);
+    //while (retVal == -1) {
+    //    current()->yield();
+    //}
+    return retVal;
 
 }
 
 int pipe_write(vnode* vn, uintptr_t buf, int sz) {
+    log_printf("in pipe write\n");
     bbuffer* pipe_buffer = (bbuffer*) vn->vn_data_;
+    log_printf("addr of buf: %p len: %i\n", pipe_buffer, pipe_buffer->blen_);
     return pipe_buffer->bbuf_write((char*) buf, sz);
 
 }
@@ -204,7 +213,18 @@ void kernel_start(const char* command) {
     }
 
     vnode_page = (vnode*) kalloc(PAGESIZE);
+    for (int v = 0; v < (PAGESIZE / sizeof(vnode)); v++) {
+        vnode_page[v].vn_ops_ = nullptr;
+        vnode_page[v].vn_data_ = nullptr;
+        vnode_page[v].vn_refcount_ = 0;
+        vnode_page[v].vn_offset_ = 0;
+    }
     vnode_ops_page = (vnode_ops*) kalloc(PAGESIZE);
+    for (int op = 0; op < (PAGESIZE / sizeof(vnode_ops)); op++) {
+        vnode_ops_page[op].vop_open = nullptr;
+        vnode_ops_page[op].vop_read = nullptr;
+        vnode_ops_page[op].vop_write = nullptr;
+    }
     
     // Set up the vn_ops
     stdin_vnode = &vnode_page[0];
@@ -247,6 +267,7 @@ void kernel_start(const char* command) {
     ptable[2]->fdtable_[2] = 2;   
     for (int i = 3; i < MAX_FDS; i++) {
         ptable[2]->fdtable_[i] = -1;
+        ptable[2]->vntable_[i] = nullptr;
     }
 
     // Add stdin, stdout, stderr to process' vnode table
@@ -662,14 +683,16 @@ uintptr_t proc::syscall(regstate* regs) {
         int fd = regs->reg_rdi;
         log_printf("proc %i closing fd %i\n", this->id_, fd);
         if (fd < 0 or fd >= MAX_FDS or this->fdtable_[fd] == -1) {
+            log_printf("bad close\n");
             open_fds_lock.unlock(irqs);
             return E_BADF;
         }
 
-        this->fdtable_[fd] = -1;
         this->vntable_[fd]->vn_refcount_ -= 1;
-        log_printf("%i\n", this->fdtable_[fd]);
-        log_printf("%p, %p\n", fd, this->vntable_[fd], this->vntable_[-1]);
+        this->vntable_[fd] = nullptr;
+        this->fdtable_[fd] = -1;
+        //log_printf("%i\n", this->fdtable_[fd]);
+        //log_printf("%p, %p\n", fd, this->vntable_[fd], this->vntable_[-1]);
         open_fds_lock.unlock(irqs);
         
         return 0;
@@ -788,6 +811,7 @@ uintptr_t proc::syscall_pipe(regstate* regs) {
         if (!vnode_page[k].vn_ops_) {
             vnode_page[k].vn_data_ = (bbuffer*) &pipe_buffers[bufferindex];
             vnode_page[k].vn_ops_ = readend_pipe_vn_ops;
+            assert(this->fdtable_[readfd] == readfd);
             this->vntable_[readfd] = &vnode_page[k];
             log_printf("pipe system_vn_table[readfd]: %p\n", &vnode_page[k]);
             break;
@@ -798,6 +822,7 @@ uintptr_t proc::syscall_pipe(regstate* regs) {
         if (!vnode_page[l].vn_ops_) {
             vnode_page[l].vn_data_ = (bbuffer*) &pipe_buffers[bufferindex];
             vnode_page[l].vn_ops_ = writeend_pipe_vn_ops;
+            assert(this->fdtable_[readfd] == readfd);
             this->vntable_[writefd] = &vnode_page[l];
             break;
         }
@@ -932,8 +957,8 @@ int proc::syscall_fork(regstate* regs) {
             p->fdtable_[i] = fdtable[i];
             if (vntable[i]) {
                 vntable[i]->vn_refcount_ += 1;
-                p->vntable_[i] = vntable[i];
             }
+            p->vntable_[i] = vntable[i];
         }
 
         log_printf("about to push back child\n");
@@ -1181,13 +1206,13 @@ int proc::syscall_nasty_alloc() {
 uintptr_t proc::syscall_read(regstate* regs) {
     // This is a slow system call, so allow interrupts by default
     sti();
-    log_printf("In syscall_read\n");
+    //log_printf("In syscall_read\n");
 
     int fd = regs->reg_rdi;
     uintptr_t addr = regs->reg_rsi;
     size_t sz = regs->reg_rdx;
 
-    log_printf("after accessing registers\n");
+    //log_printf("after accessing registers\n");
 
     // Your code here!
     // * Read from open file `fd` (reg_rdi), rather than `keyboardstate`.
@@ -1199,18 +1224,19 @@ uintptr_t proc::syscall_read(regstate* regs) {
         return E_BADF;
     }
     vnode* readfile = this->vntable_[fd];
-    log_printf("readfile: %p\n", readfile);
-    log_printf("id %i, fd: %i, sz: %i\n", this->id_, fd, sz);
+    //log_printf("readfile: %p\n", readfile);
+    log_printf("Read: id %i, fd: %i, sz: %i\n", this->id_, fd, sz);
     // Call the read vn_op
-    log_printf("readfile: %p\n", readfile);
-    log_printf("readfile->vn_ops_: %p\n", readfile->vn_ops_);
-    log_printf("vopread: %p\n", readfile->vn_ops_->vop_read);
+    //log_printf("readfile: %p\n", readfile);
+    //log_printf("readfile->vn_ops_: %p\n", readfile->vn_ops_);
+    //log_printf("vopread: %p\n", readfile->vn_ops_->vop_read);
     int (*read_func)(vnode* vn, uintptr_t addr, int sz) = readfile->vn_ops_->vop_read;
     if (!read_func) {
+        log_printf("!read_func\n");
         open_fds_lock.unlock(irqs);
         return E_BADF;
     }
-    log_printf("after getting read_func\n");
+    //log_printf("after getting read_func\n");
     open_fds_lock.unlock(irqs);
     return read_func(readfile, addr, sz);
 
@@ -1260,7 +1286,7 @@ uintptr_t proc::syscall_write(regstate* regs) {
     uintptr_t addr = regs->reg_rsi;
     size_t sz = regs->reg_rdx;
 
-    log_printf("In syscall write, id: %i, fd = %i, sz = %i\n", this->id_, fd, sz);
+    log_printf("Write, id: %i, fd = %i, sz = %i\n", this->id_, fd, sz);
 
     // Your code here!
     // * Write to open file `fd` (reg_rdi), rather than `consolestate`.
@@ -1272,10 +1298,11 @@ uintptr_t proc::syscall_write(regstate* regs) {
         return E_BADF;
     }
     vnode* writefile = this->vntable_[fd];
-    log_printf("syscall_write system_vn_table[fd]: %p\n", writefile);
-    log_printf("%p\n", writefile->vn_ops_);
+    //log_printf("syscall_write system_vn_table[fd]: %p\n", writefile);
+    //log_printf("%p\n", writefile->vn_ops_);
     auto write_func = writefile->vn_ops_->vop_write;
     if (!write_func) {
+        log_printf("!write_func\n");
         open_fds_lock.unlock(irqs);
         return E_BADF;
     }
