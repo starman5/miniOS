@@ -21,6 +21,8 @@ static void init_first_process();
 static void run_init();
 static void setup_init_child();
 
+spinlock open_fds_lock;
+
 bbuffer* pipe_buffers;
 
 int bbuffer::bbuf_read(char* buf, int sz) {
@@ -677,9 +679,11 @@ uintptr_t proc::syscall(regstate* regs) {
     }*/
     
     case SYSCALL_CLOSE: {
+        auto irqs = open_fds_lock.lock(); 
         int fd = regs->reg_rdi;
-        log_printf("closing fd %i\n", fd);
+        log_printf("proc %i closing fd %i\n", this->id_, fd);
         if (fd < 0 or fd >= MAX_FDS or this->open_fds_[fd] == -1) {
+            open_fds_lock.unlock(irqs);
             return E_BADF;
         }
         
@@ -691,9 +695,11 @@ uintptr_t proc::syscall(regstate* regs) {
         // vn_closing->vn_data_ = nullptr;
         // vn_closing->vn_ops_ = nullptr;
 
-        system_vn_table[fd] = nullptr;
-
         this->open_fds_[fd] = -1;
+        system_vn_table[fd]->vn_refcount_ -= 1;
+        log_printf("%i\n", this->open_fds_[fd]);
+        log_printf("%p, %p\n", fd, system_vn_table[fd], system_vn_table[-1]);
+        open_fds_lock.unlock(irqs);
         
         return 0;
     }
@@ -751,6 +757,7 @@ uintptr_t proc::syscall(regstate* regs) {
 
 uintptr_t proc::syscall_pipe(regstate* regs) {
     log_printf("in syscall pipe\n");
+    auto irqs = open_fds_lock.lock();
     assert(this->open_fds_[0] != -1);
     assert(this->open_fds_[1] != -1);
     assert(this->open_fds_[2] != -1);
@@ -764,7 +771,8 @@ uintptr_t proc::syscall_pipe(regstate* regs) {
             break;
         }
     }
-    if (!existsreadfd) {
+    if (!existsreadfd) { 
+        open_fds_lock.unlock(irqs);
         return E_MFILE;
     }
     log_printf("readfd: %i\n", readfd);
@@ -783,6 +791,7 @@ uintptr_t proc::syscall_pipe(regstate* regs) {
         }
     }
     if (!existswritefd) {
+        open_fds_lock.unlock(irqs);
         return E_MFILE;
     }
     log_printf("writefd: %i\n", writefd);
@@ -827,14 +836,17 @@ uintptr_t proc::syscall_pipe(regstate* regs) {
     uintptr_t returnValue = ((uintptr_t)(writefd) << 32) + (uintptr_t) readfd;
     log_printf("%i\n", returnValue);
     log_printf("%i\n", returnValue >> 32);
+    open_fds_lock.unlock(irqs);
     return returnValue;
 }
 
 int proc::syscall_dup2(regstate* regs) {
+    auto irqs = open_fds_lock.lock();
     int oldfd = regs->reg_rdi;
     int newfd = regs->reg_rsi;
     log_printf("dup2 on oldfd %i, newfd %i\n", oldfd, newfd);
     if (open_fds_[oldfd] == -1 or newfd < 0 or newfd > MAX_FDS or oldfd < 0 or oldfd > MAX_FDS) {
+        open_fds_lock.unlock(irqs);
         return E_BADF;
     }
 
@@ -847,6 +859,7 @@ int proc::syscall_dup2(regstate* regs) {
     system_vn_table[newfd] = old_vnode;
     log_printf("dup2 system_vn_table[newfd]: %p\n", old_vnode);
     this->open_fds_[newfd] = newfd;
+    open_fds_lock.unlock(irqs);
 
     return newfd;
 }
@@ -859,7 +872,9 @@ int proc::syscall_fork(regstate* regs) {
     log_printf("in fork\n");
     // Find the next available pid by looping through the ones already used
     pid_t parent_id = this->id_;
+    auto irqs = open_fds_lock.lock();
     int* fdtable = this->open_fds_;
+    open_fds_lock.unlock(irqs);
 
     proc* p = knew<proc>();
     if (p == nullptr) {
@@ -926,6 +941,7 @@ int proc::syscall_fork(regstate* regs) {
         }
     
         memcpy(p->regs_, regs, sizeof(regstate));
+        log_printf("after memcpy\n");
 
         ptable[i] = p;
 
@@ -933,8 +949,18 @@ int proc::syscall_fork(regstate* regs) {
         p->parent_id_ = parent_id;
         
         // copy over per process file descriptor table from parent
+        // Here is a try at rectifying this disaster.
+        // for each file descriptor in the parents open_fds_
+        //  Take the vnode in the system wide vnode table at that descriptor
+        //  Then memcpy to the next available index in system wide vnode table
+        //  But then the open_fds_[i] should point to some j, rather than i
+        //  Which is what Linux does, by the way.  There is that layer of indirection.
+        //  I think this is still salvageable
         for (int i = 0; i < MAX_FDS; i++) {
             p->open_fds_[i] = fdtable[i];
+            if (system_vn_table[i] and fdtable[i] != -1) {
+                system_vn_table[i]->vn_refcount_ += 1;
+            }
         }
 
         log_printf("about to push back child\n");
@@ -1193,20 +1219,26 @@ uintptr_t proc::syscall_read(regstate* regs) {
     // Your code here!
     // * Read from open file `fd` (reg_rdi), rather than `keyboardstate`.
     // * Validate the read buffer.
+    auto irqs = open_fds_lock.lock();
     if (fd < 0 or fd >= MAX_FDS or this->open_fds_[fd] == -1) {
+        log_printf("bad read!!!\n");
+        open_fds_lock.unlock(irqs);
         return E_BADF;
     }
     vnode* readfile = system_vn_table[fd];
-    log_printf("fd: %i, sz: %i\n", fd, sz);
+    log_printf("readfile: %p\n", readfile);
+    log_printf("id %i, fd: %i, sz: %i\n", this->id_, fd, sz);
     // Call the read vn_op
     log_printf("readfile: %p\n", readfile);
     log_printf("readfile->vn_ops_: %p\n", readfile->vn_ops_);
     log_printf("vopread: %p\n", readfile->vn_ops_->vop_read);
     int (*read_func)(vnode* vn, uintptr_t addr, int sz) = readfile->vn_ops_->vop_read;
     if (!read_func) {
+        open_fds_lock.unlock(irqs);
         return E_BADF;
     }
     log_printf("after getting read_func\n");
+    open_fds_lock.unlock(irqs);
     return read_func(readfile, addr, sz);
 
     /*auto& kbd = keyboardstate::get();
@@ -1255,13 +1287,15 @@ uintptr_t proc::syscall_write(regstate* regs) {
     uintptr_t addr = regs->reg_rsi;
     size_t sz = regs->reg_rdx;
 
-    log_printf("In syscall write, fd = %i, sz = %i\n", fd, sz);
+    log_printf("In syscall write, id: %i, fd = %i, sz = %i\n", this->id_, fd, sz);
 
     // Your code here!
     // * Write to open file `fd` (reg_rdi), rather than `consolestate`.
     // * Validate the write buffer.
-
+    auto irqs = open_fds_lock.lock();
     if (this->open_fds_[fd] == -1 or fd < 0 or fd >= MAX_FDS) {
+        log_printf("bad write!!!\n");
+        open_fds_lock.unlock(irqs);
         return E_BADF;
     }
     vnode* writefile = system_vn_table[fd];
@@ -1269,8 +1303,10 @@ uintptr_t proc::syscall_write(regstate* regs) {
     log_printf("%p\n", writefile->vn_ops_);
     auto write_func = writefile->vn_ops_->vop_write;
     if (!write_func) {
+        open_fds_lock.unlock(irqs);
         return E_BADF;
     }
+    open_fds_lock.unlock(irqs);
     return write_func(writefile, addr, sz);
 
     /*auto& csl = consolestate::get();
