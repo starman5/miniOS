@@ -16,6 +16,7 @@ struct elf_program;
 #define PROC_RUNNABLE 1
 #define MAX_FDS       16
 #define NPIPE_BUFS    MAX_FDS / 2
+#define SZ_VN_TABLE    8*16
 
 
 // kernel.hh
@@ -73,7 +74,8 @@ struct __attribute__((aligned(4096))) proc {
         int exit_status_ = 1;                      // Process's exit status
         bool waited_ = false;
 
-        int open_fds_[MAX_FDS];
+        int fdtable_[MAX_FDS];
+        vnode* vntable_[SZ_VN_TABLE];
 
 
 
