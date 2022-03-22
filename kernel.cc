@@ -176,11 +176,13 @@ int pipe_read(vnode* vn, uintptr_t buf, int sz) {
     log_printf("in pipe read\n");
     bbuffer* pipe_buffer = (bbuffer*) vn->vn_data_;
     log_printf("addr of buf: %p len: %i\n", pipe_buffer, pipe_buffer->blen_);
-    int retVal = pipe_buffer->bbuf_read((char*) buf, sz);
-    //while (retVal == -1) {
-    //    current()->yield();
-    //}
-    return retVal;
+    int ret = pipe_buffer->bbuf_read((char*) buf, sz);
+    while (ret == -1) {
+        log_printf("buffer empty\n");
+        current()->yield();
+        ret = pipe_buffer->bbuf_read((char*) buf, sz);
+    }
+    return ret;
 
 }
 
@@ -188,8 +190,13 @@ int pipe_write(vnode* vn, uintptr_t buf, int sz) {
     log_printf("in pipe write\n");
     bbuffer* pipe_buffer = (bbuffer*) vn->vn_data_;
     log_printf("addr of buf: %p len: %i\n", pipe_buffer, pipe_buffer->blen_);
-    return pipe_buffer->bbuf_write((char*) buf, sz);
-
+    int writeret = pipe_buffer->bbuf_write((char*) buf, sz);
+    while (writeret == -1) {
+        log_printf("buffer full\n");
+        current()->yield();
+        writeret = pipe_buffer->bbuf_write((char*) buf, sz);
+    }
+    return writeret;
 }
 
 
