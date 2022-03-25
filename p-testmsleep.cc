@@ -13,23 +13,23 @@ void process_main() {
         assert_ge(f, 0);
         my_idx = (my_idx * 2) + (f == 0);
     }
-    printf("done with creating 8 processes\n");
+    //printf("done with creating 8 processes\n");
 
     // each process sleeps for `100 * order[my_idx]` milliseconds
     int r = sys_msleep(100 * order[my_idx]);
     assert_eq(r, 0);
-    printf("done with sys_msleep\n");
+    //printf("done with sys_msleep\n");
 
     // then prints its position
     printf("%d [pid %d]\n", order[my_idx], sys_getpid());
 
     if (my_idx == 0) {
-        printf("in if statement\n");
+        //printf("in if statement\n");
         sys_msleep(800);
         console_printf("You should see 8 lines in sequential order.\n");
         console_printf("If you do, then testmsleep succeeded.\n");
     } else {
-        printf("in else statement");
+        //printf("in else statement");
         sys_msleep(1000);
     }
     sys_exit(0);

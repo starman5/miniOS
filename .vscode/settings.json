@@ -14,5 +14,9 @@
         "__bit_reference": "cpp",
         "__string": "cpp",
         "cstring": "cpp"
+        //"atomic": "cpp",
+        //"__hash_table": "cpp",
+        //"ios": "cpp",
+        //"system_error": "cpp"
     }
 }

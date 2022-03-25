@@ -58,7 +58,7 @@ struct bbuffer {
 // Process descriptor type
 struct __attribute__((aligned(4096))) proc {
         enum pstate_t {
-            ps_blank = 0, ps_exited = 2, ps_runnable = PROC_RUNNABLE, ps_faulted
+            ps_blank = 0, ps_exited = 2, ps_blocked = 3, ps_runnable = PROC_RUNNABLE, ps_faulted
         };
 
         // These four members must come first:
@@ -76,6 +76,8 @@ struct __attribute__((aligned(4096))) proc {
 
         int fdtable_[MAX_FDS];
         vnode* vntable_[SZ_VN_TABLE];
+
+        int cpu_index_;
 
 
 
@@ -128,6 +130,8 @@ struct __attribute__((aligned(4096))) proc {
 
         inline irqstate lock_pagetable_read();
         inline void unlock_pagetable_read(irqstate& irqs);
+
+        inline void wake();
 
     private:
         static int load_segment(const elf_program& ph, proc_loader& ld);
@@ -544,6 +548,15 @@ inline irqstate proc::lock_pagetable_read() {
     return irqstate();
 }
 inline void proc::unlock_pagetable_read(irqstate&) {
+}
+
+inline void proc::wake() {
+    log_printf("in wake\n");
+    int s = ps_blocked;
+    if (pstate_.compare_exchange_strong(s, ps_runnable)) {
+        log_printf("enqueueing on cpu\n");
+        cpus[cpu_index_].enqueue(this);
+    }
 }
 
 #endif

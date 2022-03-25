@@ -14,6 +14,7 @@
 
 // # timer interrupts so far on CPU 0
 std::atomic<unsigned long> ticks;
+wait_queue sleep_wq;
 
 static void tick();
 static void boot_process_start(pid_t pid, const char* program_name);
@@ -115,20 +116,23 @@ vnode_ops* writeend_pipe_vn_ops;
 
 
 int stdout_write(vnode* vn, uintptr_t addr, int sz) {
+    log_printf("in stdout write\n");
     auto& csl = consolestate::get();
     spinlock_guard guard(csl.lock_);
-    size_t n = 0;
+    int n = 0;
     while (n < sz) {
         int ch = *reinterpret_cast<const char*>(addr);
         ++addr;
         ++n;
         console_printf(0x0F00, "%c", ch);
     }
+
     return n;
 
 }
 
 int stderr_write(vnode* vn, uintptr_t addr, int sz) {
+    return 0;
 
 }
 
@@ -144,14 +148,21 @@ int stdin_read(vnode* vn, uintptr_t addr, int sz) {
 
     // yield until a line is available
     // (special case: do not block if the user wants to read 0 bytes)
-    while (sz != 0 && kbd.eol_ == 0) {
+    // block until sz == 0 and kbd.eol != 0
+    // currently have the lock
+    /*waiter().block_until(kbd.keyboardstate_wq_, [&] () {
+        return (sz == 0 || kbd.eol_ != 0);
+    }, kbd.lock_, irqs);
+    log_printf("after blocking\n");*/
+
+    /*while (sz != 0 && kbd.eol_ == 0) {
         kbd.lock_.unlock(irqs);
         current()->yield();
         irqs = kbd.lock_.lock();
-    }
+    }*/
 
     // read that line or lines
-    size_t n = 0;
+    int n = 0;
     while (kbd.eol_ != 0 && n < sz) {
         if (kbd.buf_[kbd.pos_] == 0x04) {
             // Ctrl-D means EOF
@@ -215,19 +226,19 @@ void kernel_start(const char* command) {
     }
 
     pipe_buffers = (bbuffer*) kalloc(PAGESIZE * 4);
-    for (int ind = 0; ind < sizeof(pipe_buffers); ind++) {
+    for (long unsigned int ind = 0; ind < sizeof(pipe_buffers); ind++) {
         pipe_buffers[ind].available_ = true;
     }
 
     vnode_page = (vnode*) kalloc(PAGESIZE);
-    for (int v = 0; v < (PAGESIZE / sizeof(vnode)); v++) {
+    for (long unsigned int v = 0; v < (PAGESIZE / (int)sizeof(vnode)); v++) {
         vnode_page[v].vn_ops_ = nullptr;
         vnode_page[v].vn_data_ = nullptr;
         vnode_page[v].vn_refcount_ = 0;
         vnode_page[v].vn_offset_ = 0;
     }
     vnode_ops_page = (vnode_ops*) kalloc(PAGESIZE);
-    for (int op = 0; op < (PAGESIZE / sizeof(vnode_ops)); op++) {
+    for (long unsigned int op = 0; op < (PAGESIZE / sizeof(vnode_ops)); op++) {
         vnode_ops_page[op].vop_open = nullptr;
         vnode_ops_page[op].vop_read = nullptr;
         vnode_ops_page[op].vop_write = nullptr;
@@ -350,7 +361,7 @@ void boot_process_start(pid_t pid, const char* name) {
     void* stkpg = kalloc(PAGESIZE);
     assert(stkpg);
     vmiter(p, MEMSIZE_VIRTUAL - PAGESIZE).map(stkpg, PTE_PWU);
-    uintptr_t console_page = 47104 - (47104 % 4096);
+    //uintptr_t console_page = 47104 - (47104 % 4096);
     vmiter(p, ktext2pa(console)).try_map(ktext2pa(console), PTE_PWU);
 
     p->regs_->reg_rsp = MEMSIZE_VIRTUAL;
@@ -364,7 +375,8 @@ void boot_process_start(pid_t pid, const char* name) {
     }
 
     // add to run queue
-    cpus[pid % ncpu].enqueue(p);
+    p->cpu_index_ = pid % ncpu;
+    cpus[p->cpu_index_].enqueue(p);
 }
 
 
@@ -452,7 +464,7 @@ void proc::exception(regstate* regs) {
 //    process in `%rax`.
 
 uintptr_t proc::syscall(regstate* regs) {
-    //log_printf("proc %d: syscall %ld @%p\n", id_, regs->reg_rax, regs->reg_rip);
+    log_printf("proc %d: syscall %ld @%p\n", id_, regs->reg_rax, regs->reg_rip);
 
     // Record most recent user-mode %rip.
     recent_user_rip_ = regs->reg_rip;
@@ -657,9 +669,12 @@ uintptr_t proc::syscall(regstate* regs) {
         //log_printf("in sleep\n");
         // use ticks atomic variable
         unsigned long wakeup_time = ticks + (regs->reg_rdi + 9) / 10;
-        while (long(wakeup_time - ticks) > 0) {
+        /*while (long(wakeup_time - ticks) > 0) {
             this->yield();
-        }
+        }*/
+        waiter().block_until(sleep_wq, [&] {
+            return (long(wakeup_time - ticks) < 0);
+        });
         //log_printf("after sleep\n");
 
         return 0;
@@ -732,7 +747,7 @@ uintptr_t proc::syscall(regstate* regs) {
     }
 
     case SYSCALL_NASTY: {
-        int start_canary = canary_;
+        //int start_canary = canary_;
         // log_printf("start: %i\n", *(canary_ptr - 1));
         int nasty = syscall_nasty_alloc();
         assert(canary_ == start_canary);
@@ -801,8 +816,8 @@ uintptr_t proc::syscall_pipe(regstate* regs) {
     int bufferindex;
     log_printf("size of bbuf: %i\n", sizeof(bbuffer));
     log_printf("size of pipe_buffers: %i\n", sizeof(pipe_buffers));
-    log_printf("size division: %i\n", sizeof(pipe_buffers) / sizeof(bbuffer));
-    for (int bufnum = 0; bufnum < sizeof(pipe_buffers); bufnum++) {
+    //log_printf("size division: %i\n", sizeof(pipe_buffers) / sizeof(bbuffer));
+    for (long unsigned int bufnum = 0; bufnum < sizeof(pipe_buffers); bufnum++) {
         log_printf("available: %i\n", pipe_buffers[bufnum].available_);
         if (pipe_buffers[bufnum].available_ == true) {
             bufferindex = bufnum;
@@ -814,7 +829,7 @@ uintptr_t proc::syscall_pipe(regstate* regs) {
 
     // Create a new vnode and set vnode_ops to readpipe_vn_ops
     // Look through vnode_page to find first empty entry
-    for (int k = 0; k < (PAGESIZE / sizeof(vnode)); k++) {
+    for (long unsigned int k = 0; k < (PAGESIZE / sizeof(vnode)); k++) {
         if (!vnode_page[k].vn_ops_) {
             vnode_page[k].vn_data_ = (bbuffer*) &pipe_buffers[bufferindex];
             vnode_page[k].vn_ops_ = readend_pipe_vn_ops;
@@ -825,7 +840,7 @@ uintptr_t proc::syscall_pipe(regstate* regs) {
         }
     }
 
-    for (int l = 0; l < (PAGESIZE / sizeof(vnode)); l++) {
+    for (long unsigned int l = 0; l < (PAGESIZE / sizeof(vnode)); l++) {
         if (!vnode_page[l].vn_ops_) {
             vnode_page[l].vn_data_ = (bbuffer*) &pipe_buffers[bufferindex];
             vnode_page[l].vn_ops_ = writeend_pipe_vn_ops;
@@ -879,12 +894,14 @@ int proc::syscall_fork(regstate* regs) {
     int* fdtable = this->fdtable_;
     vnode** vntable = this->vntable_;
     open_fds_lock.unlock(irqs);
+    log_printf("section 1\n");
 
     proc* p = knew<proc>();
     if (p == nullptr) {
         log_printf("fork failure\n");
         return -1;
     }
+    log_printf("a\n");
     
     x86_64_pagetable* child_pagetable = kalloc_pagetable();
     if (child_pagetable == nullptr) {
@@ -892,6 +909,7 @@ int proc::syscall_fork(regstate* regs) {
         kfree(p);
         return -1;
     }
+    log_printf("b\n");
 
     int i = 1;
     {
@@ -909,10 +927,10 @@ int proc::syscall_fork(regstate* regs) {
             kfree(p);
             return -1;
         }
-        
+        log_printf("c\n");
         p->init_user((pid_t) i, child_pagetable);
     
-
+        log_printf("sectino 2\n");
         for (vmiter parentiter = vmiter(this, 0);
             parentiter.low();
             parentiter.next()) {
@@ -951,7 +969,7 @@ int proc::syscall_fork(regstate* regs) {
 
         p->regs_->reg_rax = 0;
         p->parent_id_ = parent_id;
-        
+        log_printf("section 3\n");
         // copy over per process file descriptor table from parent
         // Here is a try at rectifying this disaster.
         // for each file descriptor in the parents open_fds_
@@ -960,19 +978,20 @@ int proc::syscall_fork(regstate* regs) {
         //  But then the open_fds_[i] should point to some j, rather than i
         //  Which is what Linux does, by the way.  There is that layer of indirection.
         //  I think this is still salvageable
-        for (int i = 0; i < MAX_FDS; i++) {
-            p->fdtable_[i] = fdtable[i];
-            if (vntable[i]) {
-                vntable[i]->vn_refcount_ += 1;
+        for (int ix = 0; ix < MAX_FDS; ix++) {
+            p->fdtable_[ix] = fdtable[ix];
+            if (vntable[ix]) {
+                vntable[ix]->vn_refcount_ += 1;
             }
-            p->vntable_[i] = vntable[i];
+            p->vntable_[ix] = vntable[ix];
         }
 
         log_printf("about to push back child\n");
         ptable[parent_id]->children_.push_back(p);
 
         ptable[i]->pstate_ = ps_runnable;
-        cpus[i % ncpu].enqueue(p);
+        p->cpu_index_ = i % ncpu;
+        cpus[p->cpu_index_].enqueue(p);
     
 
     // return 0 to the child
@@ -1429,6 +1448,8 @@ static void memshow() {
 void tick() {
     // Update current time
     ++ticks;
+    //log_printf("sleep_wq: %p\n", &sleep_wq);
+    sleep_wq.wake_all();
 
     // Update display
     if (consoletype == CONSOLE_MEMVIEWER) {

@@ -17,6 +17,7 @@
 
 struct keyboardstate {
     spinlock lock_;
+    wait_queue keyboardstate_wq_;
     char buf_[256];
     unsigned pos_ = 0;      // next position to read
     unsigned len_ = 0;      // number of characters in buffer
