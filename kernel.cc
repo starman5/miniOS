@@ -224,12 +224,12 @@ void kernel_start(const char* command) {
     console_clear();
 
     // set up process descriptors
-    {
-        spinlock_guard guard(ptable_lock);
+    //{
+        //spinlock_guard guard(ptable_lock);
         for (pid_t i = 0; i < NPROC; i++) {
             ptable[i] = nullptr;
         }
-    }
+    //}
 
     pipe_buffers = (bbuffer*) kalloc(PAGESIZE * 4);
     for (long unsigned int ind = 0; ind < sizeof(pipe_buffers); ind++) {
@@ -237,41 +237,41 @@ void kernel_start(const char* command) {
     }
 
     vnode_page = (vnode*) kalloc(PAGESIZE);
-    {
-        spinlock_guard guard2(vnode_page_lock);
+    //{
+        //spinlock_guard guard2(vnode_page_lock);
         for (long unsigned int v = 0; v < (PAGESIZE / (int)sizeof(vnode)); v++) {
             vnode_page[v].vn_ops_ = nullptr;
             vnode_page[v].vn_data_ = nullptr;
             vnode_page[v].vn_refcount_ = 0;
             vnode_page[v].vn_offset_ = 0;
         }
-    }
-    {
-        spinlock_guard guard3(vnode_ops_lock);
+    //}
+    //{
+        //spinlock_guard guard3(vnode_ops_lock);
         vnode_ops_page = (vnode_ops*) kalloc(PAGESIZE);
         for (long unsigned int op = 0; op < (PAGESIZE / sizeof(vnode_ops)); op++) {
             vnode_ops_page[op].vop_open = nullptr;
             vnode_ops_page[op].vop_read = nullptr;
             vnode_ops_page[op].vop_write = nullptr;
         }
-    }
+    //}
     
     // Set up the vn_ops
-    {
-        spinlock_guard guard4(vnode_page_lock);
+    //{
+        //spinlock_guard guard4(vnode_page_lock);
         stdin_vnode = &vnode_page[0];
         stdout_vnode = &vnode_page[1];
         stderr_vnode = &vnode_page[2];
-    }
+    //}
 
-    {   
-        spinlock_guard guard5(vnode_ops_lock);
+    //{   
+        //spinlock_guard guard5(vnode_ops_lock);
         stdin_vn_ops = &vnode_ops_page[0];
         stdout_vn_ops = &vnode_ops_page[1];
         stderr_vn_ops = &vnode_ops_page[2];
         readend_pipe_vn_ops = &vnode_ops_page[3];
         writeend_pipe_vn_ops = &vnode_ops_page[4];
-    }
+    //}
 
     stdin_vn_ops->vop_read = stdin_read;
     stdin_vn_ops->vop_write = stdout_write;
@@ -298,8 +298,8 @@ void kernel_start(const char* command) {
     setup_init_child();
 
     // Add file descriptors to the process' file descriptor table
-    {
-        spinlock_guard guard(ptable_lock);
+    //{
+        //spinlock_guard guard(ptable_lock);
         ptable[2]->fdtable_[0] = 0;
         ptable[2]->fdtable_[1] = 1;
         ptable[2]->fdtable_[2] = 2;   
@@ -312,7 +312,7 @@ void kernel_start(const char* command) {
         ptable[2]->vntable_[0] = stdin_vnode;
         ptable[2]->vntable_[1] = stdout_vnode;
         ptable[2]->vntable_[2] = stderr_vnode;
-    }
+    //}
 
         // start running processes
         cpus[0].schedule(nullptr);
@@ -350,7 +350,7 @@ void run_init() {
         }
     }*/
     while (true) {
-        spinlock_guard guard(ptable_lock);
+        //spinlock_guard guard(ptable_lock);
         if (!ptable[1]->children_.front()) {
             log_printf("halting\n");
             process_halt();
@@ -416,7 +416,7 @@ void boot_process_start(pid_t pid, const char* name) {
 //    task's stack, then calls proc::exception().
 
 void proc::exception(regstate* regs) {
-    log_printf("in proc exception\n");
+    //log_printf("in proc exception\n");
     // It can be useful to log events using `log_printf`.
     // Events logged this way are stored in the host's `log.txt` file.
     //log_printf("proc %d: exception %d @%p\n", id_, regs->reg_intno, regs->reg_rip);
