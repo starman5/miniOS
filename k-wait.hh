@@ -19,18 +19,22 @@ inline waiter::~waiter() {
 
 inline void waiter::prepare(wait_queue& wq) {
     // your code here
-    log_printf("in prepare\n");
     auto irqs = wq.lock_.lock();
+    log_printf("in prepare\n");
     p_ = current();
     //log_printf("p_: %p\n", current());
+    //assert(&wq);
+    //assert(wq_);
     wq_ = &wq;
     //log_printf("wq_: %p\n", wq_);
     //auto irqs = wq.lock_.lock();
     p_->pstate_ = proc::ps_blocked;
     //log_printf("pstate_: %i\n", this->p_->pstate_);
+    assert(wq_);
     wq_->q_.push_back(this);
     assert(wq.q_.front());
     assert(wq_ == &wq);
+    log_printf("end prepare\n");
     wq_->lock_.unlock(irqs);
     //log_printf("end of prepare\n");
 }

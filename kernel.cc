@@ -15,6 +15,7 @@
 // # timer interrupts so far on CPU 0
 std::atomic<unsigned long> ticks;
 wait_queue sleep_wq;
+wait_queue readpipe_wq;
 
 static void tick();
 static void boot_process_start(pid_t pid, const char* program_name);
@@ -29,7 +30,10 @@ spinlock vnode_ops_lock;
 bbuffer* pipe_buffers;
 
 int bbuffer::bbuf_read(char* buf, int sz) {
-    auto lockthing = this->bbuffer_lock.lock();
+    log_printf("in bbuf read\n");
+    log_printf("locked: %i\n", this->bbuffer_lock.is_locked());
+    //auto lockthing = this->bbuffer_lock.lock();
+    log_printf("grabbed the lock\n");
     if (this->write_closed_) {
         return 0;
     }
@@ -61,12 +65,12 @@ int bbuffer::bbuf_read(char* buf, int sz) {
         log_printf("pos == 0 and sz > 0 and thiswrite\n");
         pos = -1;
     }
-    this->bbuffer_lock.unlock(lockthing);
+    //this->bbuffer_lock.unlock(lockthing);
     return pos;
 }
 
 int bbuffer::bbuf_write(char* buf, int sz) {
-    auto irqs = this->bbuffer_lock.lock();
+    //auto irqs = this->bbuffer_lock.lock();
     int pos = 0;
     while (pos < sz && this->blen_ < bcapacity) {
         int bindex = (this->bpos_ + this->blen_) % bcapacity;
@@ -92,7 +96,8 @@ int bbuffer::bbuf_write(char* buf, int sz) {
         pos += n;
         log_printf("pos: %i\n", pos);   
     }
-    this->bbuffer_lock.unlock(irqs);
+    log_printf("unlocking 1\n");
+    //this->bbuffer_lock.unlock(irqs);
     if (pos == 0 && sz > 0) {
         log_printf("po is zero, sz > 0");
         return -1;
@@ -128,7 +133,7 @@ int stdout_write(vnode* vn, uintptr_t addr, int sz) {
         ++n;
         console_printf(0x0F00, "%c", ch);
     }
-
+    readpipe_wq.wake_all();
     return n;
 
 }
@@ -188,8 +193,11 @@ int stdin_read(vnode* vn, uintptr_t addr, int sz) {
 
 int pipe_read(vnode* vn, uintptr_t buf, int sz) {
     log_printf("in pipe read\n");
+    assert(vn);
     bbuffer* pipe_buffer = (bbuffer*) vn->vn_data_;
-    log_printf("addr of buf: %p len: %i\n", pipe_buffer, pipe_buffer->blen_);
+    assert(vn->vn_data_);
+    assert(pipe_buffer);
+    //log_printf("addr of buf: %p len: %i\n", pipe_buffer, pipe_buffer->blen_);
     //int ret = pipe_buffer->bbuf_read((char*) buf, sz);
     //while (ret == -1) {
     //    log_printf("buffer empty\n");
@@ -199,10 +207,16 @@ int pipe_read(vnode* vn, uintptr_t buf, int sz) {
     auto irqs = pipe_buffer->bbuffer_lock.lock();
     waiter w;
     int thing;
-    w.block_until(*w.wq_, [&] () {
+    log_printf("here\n");
+    //log_printf("%p\n", w.wq_);
+    w.block_until(readpipe_wq, [&] () {
+        log_printf("check\n");
+        assert(pipe_buffer);
         thing = pipe_buffer->bbuf_read((char*) buf, sz);
         return thing != -1;
     }, pipe_buffer->bbuffer_lock, irqs);
+
+    pipe_buffer->bbuffer_lock.unlock(irqs);
     return thing;
 
 }
