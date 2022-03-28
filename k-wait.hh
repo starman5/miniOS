@@ -47,10 +47,10 @@ inline void waiter::block() {
     //log_printf("p: %p\n", p_);
     if (p_->pstate_ == proc::ps_blocked) {
         log_printf("about to yield\n");
-        assert(!p_->fdtable_lock_.is_locked()); 
-        assert(!p_->vntable_lock_.is_locked());
-        assert(!wq_->lock_.is_locked());
-        assert(!ptable_lock.is_locked());
+        //assert(!p_->fdtable_lock_.is_locked()); 
+        //assert(!p_->vntable_lock_.is_locked());
+        //assert(!wq_->lock_.is_locked());
+        //assert(!ptable_lock.is_locked());
         p_->yield();
     }
     else {
