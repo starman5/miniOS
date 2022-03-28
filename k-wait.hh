@@ -19,8 +19,8 @@ inline waiter::~waiter() {
 
 inline void waiter::prepare(wait_queue& wq) {
     // your code here
-    auto irqs = wq.lock_.lock();
     //log_printf("in prepare\n");
+    auto irqs = wq.lock_.lock();
     p_ = current();
     //log_printf("p_: %p\n", current());
     wq_ = &wq;
@@ -30,15 +30,16 @@ inline void waiter::prepare(wait_queue& wq) {
     //log_printf("pstate_: %i\n", this->p_->pstate_);
     wq_->q_.push_back(this);
     assert(wq.q_.front());
-    wq.lock_.unlock(irqs);
-    log_printf("end of prepare\n");
+    wq_->lock_.unlock(irqs);
+    //log_printf("end of prepare\n");
 }
 
 inline void waiter::block() {
-    log_printf("bru\n");
+    //log_printf("bru\n");
     assert(p_ == current());
     // your code here
-    log_printf("in block\n");
+    //log_printf("in block\n");
+    //log_printf("p: %p\n", p_);
     if (p_->pstate_ == proc::ps_blocked) {
         p_->yield();
     }
@@ -49,10 +50,10 @@ inline void waiter::block() {
 
 inline void waiter::clear() {
     // your code here
-    log_printf("in clear\n");
+    //log_printf("in clear\n");
     auto irqs = wq_->lock_.lock();
-    p_->wake();
-    log_printf("right here\n");
+    wake();
+    //log_printf("right here\n");
     if (this->links_.is_linked()) {
         wq_->q_.erase(this);
     }
@@ -62,7 +63,7 @@ inline void waiter::clear() {
 }
 
 inline void waiter::wake() {
-    log_printf("in wake\n");
+    //log_printf("in wake\n");
     assert(wq_->lock_.is_locked());
     p_->wake();
 }
@@ -73,6 +74,7 @@ inline void waiter::wake() {
 template <typename F>
 inline void waiter::block_until(wait_queue& wq, F predicate) {
     while (true) {
+        //log_printf("in loop\n");
         prepare(wq);
         if (predicate()) {
             break;

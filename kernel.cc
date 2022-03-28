@@ -23,6 +23,8 @@ static void run_init();
 static void setup_init_child();
 
 spinlock open_fds_lock;
+spinlock vnode_page_lock;
+spinlock vnode_ops_lock;
 
 bbuffer* pipe_buffers;
 
@@ -221,8 +223,11 @@ void kernel_start(const char* command) {
     console_clear();
 
     // set up process descriptors
-    for (pid_t i = 0; i < NPROC; i++) {
-        ptable[i] = nullptr;
+    {
+        spinlock_guard guard(ptable_lock);
+        for (pid_t i = 0; i < NPROC; i++) {
+            ptable[i] = nullptr;
+        }
     }
 
     pipe_buffers = (bbuffer*) kalloc(PAGESIZE * 4);
@@ -231,29 +236,41 @@ void kernel_start(const char* command) {
     }
 
     vnode_page = (vnode*) kalloc(PAGESIZE);
-    for (long unsigned int v = 0; v < (PAGESIZE / (int)sizeof(vnode)); v++) {
-        vnode_page[v].vn_ops_ = nullptr;
-        vnode_page[v].vn_data_ = nullptr;
-        vnode_page[v].vn_refcount_ = 0;
-        vnode_page[v].vn_offset_ = 0;
+    {
+        spinlock_guard guard2(vnode_page_lock);
+        for (long unsigned int v = 0; v < (PAGESIZE / (int)sizeof(vnode)); v++) {
+            vnode_page[v].vn_ops_ = nullptr;
+            vnode_page[v].vn_data_ = nullptr;
+            vnode_page[v].vn_refcount_ = 0;
+            vnode_page[v].vn_offset_ = 0;
+        }
     }
-    vnode_ops_page = (vnode_ops*) kalloc(PAGESIZE);
-    for (long unsigned int op = 0; op < (PAGESIZE / sizeof(vnode_ops)); op++) {
-        vnode_ops_page[op].vop_open = nullptr;
-        vnode_ops_page[op].vop_read = nullptr;
-        vnode_ops_page[op].vop_write = nullptr;
+    {
+        spinlock_guard guard3(vnode_ops_lock);
+        vnode_ops_page = (vnode_ops*) kalloc(PAGESIZE);
+        for (long unsigned int op = 0; op < (PAGESIZE / sizeof(vnode_ops)); op++) {
+            vnode_ops_page[op].vop_open = nullptr;
+            vnode_ops_page[op].vop_read = nullptr;
+            vnode_ops_page[op].vop_write = nullptr;
+        }
     }
     
     // Set up the vn_ops
-    stdin_vnode = &vnode_page[0];
-    stdout_vnode = &vnode_page[1];
-    stderr_vnode = &vnode_page[2];
+    {
+        spinlock_guard guard4(vnode_page_lock);
+        stdin_vnode = &vnode_page[0];
+        stdout_vnode = &vnode_page[1];
+        stderr_vnode = &vnode_page[2];
+    }
 
-    stdin_vn_ops = &vnode_ops_page[0];
-    stdout_vn_ops = &vnode_ops_page[1];
-    stderr_vn_ops = &vnode_ops_page[2];
-    readend_pipe_vn_ops = &vnode_ops_page[3];
-    writeend_pipe_vn_ops = &vnode_ops_page[4];
+    {   
+        spinlock_guard guard5(vnode_ops_lock);
+        stdin_vn_ops = &vnode_ops_page[0];
+        stdout_vn_ops = &vnode_ops_page[1];
+        stderr_vn_ops = &vnode_ops_page[2];
+        readend_pipe_vn_ops = &vnode_ops_page[3];
+        writeend_pipe_vn_ops = &vnode_ops_page[4];
+    }
 
     stdin_vn_ops->vop_read = stdin_read;
     stdin_vn_ops->vop_write = stdout_write;
@@ -280,21 +297,24 @@ void kernel_start(const char* command) {
     setup_init_child();
 
     // Add file descriptors to the process' file descriptor table
-    ptable[2]->fdtable_[0] = 0;
-    ptable[2]->fdtable_[1] = 1;
-    ptable[2]->fdtable_[2] = 2;   
-    for (int i = 3; i < MAX_FDS; i++) {
-        ptable[2]->fdtable_[i] = -1;
-        ptable[2]->vntable_[i] = nullptr;
+    {
+        spinlock_guard guard(ptable_lock);
+        ptable[2]->fdtable_[0] = 0;
+        ptable[2]->fdtable_[1] = 1;
+        ptable[2]->fdtable_[2] = 2;   
+        for (int i = 3; i < MAX_FDS; i++) {
+            ptable[2]->fdtable_[i] = -1;
+            ptable[2]->vntable_[i] = nullptr;
+        }
+
+        // Add stdin, stdout, stderr to process' vnode table
+        ptable[2]->vntable_[0] = stdin_vnode;
+        ptable[2]->vntable_[1] = stdout_vnode;
+        ptable[2]->vntable_[2] = stderr_vnode;
     }
 
-    // Add stdin, stdout, stderr to process' vnode table
-    ptable[2]->vntable_[0] = stdin_vnode;
-    ptable[2]->vntable_[1] = stdout_vnode;
-    ptable[2]->vntable_[2] = stderr_vnode;
-
-    // start running processes
-    cpus[0].schedule(nullptr);
+        // start running processes
+        cpus[0].schedule(nullptr);
 }
 
 void setup_init_child() {
@@ -666,15 +686,19 @@ uintptr_t proc::syscall(regstate* regs) {
     }
 
     case SYSCALL_MSLEEP: {
+        int ticksoriginal = ticks;
+        
         //log_printf("in sleep\n");
         // use ticks atomic variable
         unsigned long wakeup_time = ticks + (regs->reg_rdi + 9) / 10;
         /*while (long(wakeup_time - ticks) > 0) {
             this->yield();
         }*/
-        waiter().block_until(sleep_wq, [&] {
-            return (long(wakeup_time - ticks) < 0);
+        //log_printf("about to block\n");
+        waiter().block_until(sleep_wq, [&] () {
+            return (long(wakeup_time - ticks) <= 0);
         });
+        log_printf("difference: %i, expected: %i\n", ticks - ticksoriginal, regs->reg_rdi);
         //log_printf("after sleep\n");
 
         return 0;
@@ -890,10 +914,12 @@ int proc::syscall_fork(regstate* regs) {
     log_printf("in fork\n");
     // Find the next available pid by looping through the ones already used
     pid_t parent_id = this->id_;
-    auto irqs = open_fds_lock.lock();
+    auto irqs = this->fdtable_lock_.lock();
     int* fdtable = this->fdtable_;
+    this->fdtable_lock_.unlock(irqs);
+    auto irqs2 = this->vntable_lock_.lock();
     vnode** vntable = this->vntable_;
-    open_fds_lock.unlock(irqs);
+    this->vntable_lock_.unlock(irqs2);
     log_printf("section 1\n");
 
     proc* p = knew<proc>();
@@ -901,7 +927,7 @@ int proc::syscall_fork(regstate* regs) {
         log_printf("fork failure\n");
         return -1;
     }
-    log_printf("a\n");
+    //log_printf("a\n");
     
     x86_64_pagetable* child_pagetable = kalloc_pagetable();
     if (child_pagetable == nullptr) {
@@ -909,25 +935,29 @@ int proc::syscall_fork(regstate* regs) {
         kfree(p);
         return -1;
     }
-    log_printf("b\n");
-
+    //log_printf("b\n");
     int i = 1;
+    //log_printf("hi\n");
     {
+        log_printf("in\n");
         spinlock_guard guard(ptable_lock);
+        //log_printf("a");
         for (; i < NPROC; i++) {
+            //log_printf("here\n");
             
                 if (ptable[i] == nullptr) {
                     log_printf("created p %i\n", i);
                     break;
                 }
             }
-        
+        //log_printf("i: %i, nproc: %i\n", i, NPROC);
         if (i == NPROC) {
             log_printf("fork failure\n");
             kfree(p);
             return -1;
         }
-        log_printf("c\n");
+        //log_printf("c\n");
+        assert(p);
         p->init_user((pid_t) i, child_pagetable);
     
         log_printf("sectino 2\n");
@@ -969,7 +999,7 @@ int proc::syscall_fork(regstate* regs) {
 
         p->regs_->reg_rax = 0;
         p->parent_id_ = parent_id;
-        log_printf("section 3\n");
+        //log_printf("section 3\n");
         // copy over per process file descriptor table from parent
         // Here is a try at rectifying this disaster.
         // for each file descriptor in the parents open_fds_
@@ -978,6 +1008,9 @@ int proc::syscall_fork(regstate* regs) {
         //  But then the open_fds_[i] should point to some j, rather than i
         //  Which is what Linux does, by the way.  There is that layer of indirection.
         //  I think this is still salvageable
+        //log_printf("%p\n", fdtable);
+        auto irqs3 = this->fdtable_lock_.lock();
+        auto irqs4 = this->vntable_lock_.lock();
         for (int ix = 0; ix < MAX_FDS; ix++) {
             p->fdtable_[ix] = fdtable[ix];
             if (vntable[ix]) {
@@ -985,10 +1018,14 @@ int proc::syscall_fork(regstate* regs) {
             }
             p->vntable_[ix] = vntable[ix];
         }
+        this->vntable_lock_.unlock(irqs3);
+        this->fdtable_lock_.unlock(irqs4);
 
-        log_printf("about to push back child\n");
+        //log_printf("about to push back child\n");
+        assert(ptable[parent_id]);
         ptable[parent_id]->children_.push_back(p);
 
+        assert(ptable[i]);
         ptable[i]->pstate_ = ps_runnable;
         p->cpu_index_ = i % ncpu;
         cpus[p->cpu_index_].enqueue(p);
