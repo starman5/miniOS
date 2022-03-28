@@ -139,6 +139,7 @@ int stderr_write(vnode* vn, uintptr_t addr, int sz) {
 }
 
 int stdin_read(vnode* vn, uintptr_t addr, int sz) {
+    log_printf("in stdin read\n");
     auto& kbd = keyboardstate::get();
     auto irqs = kbd.lock_.lock();
 
@@ -152,16 +153,16 @@ int stdin_read(vnode* vn, uintptr_t addr, int sz) {
     // (special case: do not block if the user wants to read 0 bytes)
     // block until sz == 0 and kbd.eol != 0
     // currently have the lock
-    /*waiter().block_until(kbd.keyboardstate_wq_, [&] () {
-        return (sz == 0 || kbd.eol_ != 0);
-    }, kbd.lock_, irqs);
-    log_printf("after blocking\n");*/
+    //waiter().block_until(kbd.keyboardstate_wq_, [&] () {
+    //    return (sz == 0 || kbd.eol_ != 0);
+    //}, kbd.lock_, irqs);
+    log_printf("after blocking\n");
 
-    /*while (sz != 0 && kbd.eol_ == 0) {
+    while (sz != 0 && kbd.eol_ == 0) {
         kbd.lock_.unlock(irqs);
         current()->yield();
         irqs = kbd.lock_.lock();
-    }*/
+    }
 
     // read that line or lines
     int n = 0;
@@ -335,8 +336,9 @@ void init_first_process() {
         ptable[1] = p_init;
     }
   
-    log_printf("about to schedule init_first_process on cpu 0.  id = %i, parent = %i\n", p_init->id_, p_init->parent_id_);
+    //log_printf("about to schedule init_first_process on cpu 0.  id = %i, parent = %i\n", p_init->id_, p_init->parent_id_);
     // Smart to enqueue on cpu 0 because that will always be available, even at the very very beginning
+    log_printf("end init_first_process\n");
     cpus[0].enqueue(p_init);
 }
 
@@ -348,12 +350,14 @@ void run_init() {
         }
     }*/
     while (true) {
+        spinlock_guard guard(ptable_lock);
         if (!ptable[1]->children_.front()) {
             log_printf("halting\n");
             process_halt();
         }
         int* status;
         current()->syscall_waitpid(0, status, W_NOHANG);
+        log_printf("end run_init\n");
     }
 }
 
@@ -367,6 +371,7 @@ void run_init() {
 
 void boot_process_start(pid_t pid, const char* name) {
     // look up process image in initfs
+    log_printf("in boot process start\n");
     memfile_loader ld(memfile::initfs_lookup(name), kalloc_pagetable());
     assert(ld.memfile_ && ld.pagetable_);
     int r = proc::load(ld);
@@ -395,6 +400,7 @@ void boot_process_start(pid_t pid, const char* name) {
     }
 
     // add to run queue
+    log_printf("end boot process start\n");
     p->cpu_index_ = pid % ncpu;
     cpus[p->cpu_index_].enqueue(p);
 }
@@ -410,6 +416,7 @@ void boot_process_start(pid_t pid, const char* name) {
 //    task's stack, then calls proc::exception().
 
 void proc::exception(regstate* regs) {
+    log_printf("in proc exception\n");
     // It can be useful to log events using `log_printf`.
     // Events logged this way are stored in the host's `log.txt` file.
     //log_printf("proc %d: exception %d @%p\n", id_, regs->reg_intno, regs->reg_rip);
@@ -599,7 +606,7 @@ uintptr_t proc::syscall(regstate* regs) {
     }
 
     case SYSCALL_WAITPID: {
-        //log_printf("before waitpid\n");
+        log_printf("in waitpid\n");
 
         pid_t pid = regs->reg_rdi;
         int* status = (int*) regs->reg_rsi;
@@ -616,7 +623,7 @@ uintptr_t proc::syscall(regstate* regs) {
         // Free all memory associated with the current process
             //ptable must be protected by lock
         {
-            //log_printf("----- sys_exit on process %i\n", id_);
+            log_printf("----- sys_exit on process %i\n", id_);
             spinlock_guard guard(ptable_lock);
             assert(ptable[this->id_] != nullptr);
 
@@ -688,7 +695,7 @@ uintptr_t proc::syscall(regstate* regs) {
     case SYSCALL_MSLEEP: {
         int ticksoriginal = ticks;
         
-        //log_printf("in sleep\n");
+        log_printf("in sleep\n");
         // use ticks atomic variable
         unsigned long wakeup_time = ticks + (regs->reg_rdi + 9) / 10;
         /*while (long(wakeup_time - ticks) > 0) {
@@ -698,7 +705,7 @@ uintptr_t proc::syscall(regstate* regs) {
         waiter().block_until(sleep_wq, [&] () {
             return (long(wakeup_time - ticks) <= 0);
         });
-        log_printf("difference: %i, expected: %i\n", ticks - ticksoriginal, regs->reg_rdi);
+        //log_printf("difference: %i, expected: %i\n", ticks - ticksoriginal, regs->reg_rdi);
         //log_printf("after sleep\n");
 
         return 0;
@@ -725,9 +732,10 @@ uintptr_t proc::syscall(regstate* regs) {
     }
     
     case SYSCALL_CLOSE: {
+        log_printf("in sys close\n");
         auto irqs = open_fds_lock.lock(); 
         int fd = regs->reg_rdi;
-        log_printf("proc %i closing fd %i\n", this->id_, fd);
+        //log_printf("proc %i closing fd %i\n", this->id_, fd);
         if (fd < 0 or fd >= MAX_FDS or this->fdtable_[fd] == -1) {
             log_printf("bad close\n");
             open_fds_lock.unlock(irqs);
@@ -817,7 +825,7 @@ uintptr_t proc::syscall_pipe(regstate* regs) {
         open_fds_lock.unlock(irqs);
         return E_MFILE;
     }
-    log_printf("readfd: %i\n", readfd);
+    //log_printf("readfd: %i\n", readfd);
 
     // Find closed file descriptor for write end
     int writefd;
@@ -883,6 +891,7 @@ uintptr_t proc::syscall_pipe(regstate* regs) {
 }
 
 int proc::syscall_dup2(regstate* regs) {
+    log_printf("in dup2\n");
     auto irqs = open_fds_lock.lock();
     int oldfd = regs->reg_rdi;
     int newfd = regs->reg_rsi;
@@ -918,9 +927,10 @@ int proc::syscall_fork(regstate* regs) {
     int* fdtable = this->fdtable_;
     this->fdtable_lock_.unlock(irqs);
     auto irqs2 = this->vntable_lock_.lock();
+    log_printf("in fork vntable lock\n");
     vnode** vntable = this->vntable_;
     this->vntable_lock_.unlock(irqs2);
-    log_printf("section 1\n");
+    //log_printf("section 1\n");
 
     proc* p = knew<proc>();
     if (p == nullptr) {
@@ -939,20 +949,20 @@ int proc::syscall_fork(regstate* regs) {
     int i = 1;
     //log_printf("hi\n");
     {
-        log_printf("in\n");
+        //log_printf("in\n");
         spinlock_guard guard(ptable_lock);
         //log_printf("a");
         for (; i < NPROC; i++) {
             //log_printf("here\n");
             
                 if (ptable[i] == nullptr) {
-                    log_printf("created p %i\n", i);
+                    //log_printf("created p %i\n", i);
                     break;
                 }
             }
         //log_printf("i: %i, nproc: %i\n", i, NPROC);
         if (i == NPROC) {
-            log_printf("fork failure\n");
+            //log_printf("fork failure\n");
             kfree(p);
             return -1;
         }
@@ -960,7 +970,7 @@ int proc::syscall_fork(regstate* regs) {
         assert(p);
         p->init_user((pid_t) i, child_pagetable);
     
-        log_printf("sectino 2\n");
+        //log_printf("sectino 2\n");
         for (vmiter parentiter = vmiter(this, 0);
             parentiter.low();
             parentiter.next()) {
@@ -993,7 +1003,7 @@ int proc::syscall_fork(regstate* regs) {
         }
     
         memcpy(p->regs_, regs, sizeof(regstate));
-        log_printf("after memcpy\n");
+        //log_printf("after memcpy\n");
 
         ptable[i] = p;
 
@@ -1011,6 +1021,7 @@ int proc::syscall_fork(regstate* regs) {
         //log_printf("%p\n", fdtable);
         auto irqs3 = this->fdtable_lock_.lock();
         auto irqs4 = this->vntable_lock_.lock();
+        log_printf("yoo\n");
         for (int ix = 0; ix < MAX_FDS; ix++) {
             p->fdtable_[ix] = fdtable[ix];
             if (vntable[ix]) {
@@ -1018,6 +1029,7 @@ int proc::syscall_fork(regstate* regs) {
             }
             p->vntable_[ix] = vntable[ix];
         }
+        log_printf("fork end vntable lock\n");
         this->vntable_lock_.unlock(irqs3);
         this->fdtable_lock_.unlock(irqs4);
 
@@ -1040,7 +1052,7 @@ int proc::syscall_fork(regstate* regs) {
     }
             
     // return pid to the parent
-    log_printf("end of fork\n");
+    //log_printf("end of fork\n");
     return i;
 
 }
@@ -1269,7 +1281,7 @@ int proc::syscall_nasty_alloc() {
 uintptr_t proc::syscall_read(regstate* regs) {
     // This is a slow system call, so allow interrupts by default
     sti();
-    //log_printf("In syscall_read\n");
+    log_printf("In syscall_read\n");
 
     int fd = regs->reg_rdi;
     uintptr_t addr = regs->reg_rsi;
@@ -1280,28 +1292,37 @@ uintptr_t proc::syscall_read(regstate* regs) {
     // Your code here!
     // * Read from open file `fd` (reg_rdi), rather than `keyboardstate`.
     // * Validate the read buffer.
-    auto irqs = open_fds_lock.lock();
-    if (fd < 0 or fd >= MAX_FDS or this->fdtable_[fd] == -1) {
-        log_printf("bad read!!!\n");
-        open_fds_lock.unlock(irqs);
-        return E_BADF;
+    {
+        spinlock_guard guard(this->fdtable_lock_);
+        if (fd < 0 or fd >= MAX_FDS or this->fdtable_[fd] == -1) {
+            log_printf("bad read!!!\n");
+            //open_fds_lock.unlock(irqs);
+            return E_BADF;
+        }
     }
-    vnode* readfile = this->vntable_[fd];
-    //log_printf("readfile: %p\n", readfile);
-    log_printf("Read: id %i, fd: %i, sz: %i\n", this->id_, fd, sz);
-    // Call the read vn_op
-    //log_printf("readfile: %p\n", readfile);
-    //log_printf("readfile->vn_ops_: %p\n", readfile->vn_ops_);
-    //log_printf("vopread: %p\n", readfile->vn_ops_->vop_read);
-    int (*read_func)(vnode* vn, uintptr_t addr, int sz) = readfile->vn_ops_->vop_read;
-    if (!read_func) {
-        log_printf("!read_func\n");
-        open_fds_lock.unlock(irqs);
-        return E_BADF;
-    }
-    //log_printf("after getting read_func\n");
-    open_fds_lock.unlock(irqs);
-    return read_func(readfile, addr, sz);
+
+        auto irqs = this->vntable_lock_.lock();
+        vnode* readfile = this->vntable_[fd];
+        //log_printf("readfile: %p\n", readfile);
+        log_printf("Read: id %i, fd: %i, sz: %i\n", this->id_, fd, sz);
+        // Call the read vn_op
+        //log_printf("readfile: %p\n", readfile);
+        //log_printf("readfile->vn_ops_: %p\n", readfile->vn_ops_);
+        //log_printf("vopread: %p\n", readfile->vn_ops_->vop_read);
+        //log_printf("readfile: %p\n", readfile);
+        //log_printf("readfile->vn_ops_: %p\n", readfile->vn_ops_);
+        //log_printf("readfile->vn_ops_->vop_read: %p\n", readfile->vn_ops_->vop_read);
+        int (*read_func)(vnode* vn, uintptr_t addr, int sz) = readfile->vn_ops_->vop_read;
+        assert(read_func);
+        if (!read_func) {
+            log_printf("!read_func\n");
+            this->vntable_lock_.unlock(irqs);
+            return E_BADF;
+        }
+        log_printf("after getting read_func\n");
+        this->vntable_lock_.unlock(irqs);
+        //log_printf("please\n");
+        return read_func(readfile, addr, sz);
 
     /*auto& kbd = keyboardstate::get();
     auto irqs = kbd.lock_.lock();
@@ -1354,23 +1375,30 @@ uintptr_t proc::syscall_write(regstate* regs) {
     // Your code here!
     // * Write to open file `fd` (reg_rdi), rather than `consolestate`.
     // * Validate the write buffer.
-    auto irqs = open_fds_lock.lock();
-    if (this->fdtable_[fd] == -1 or fd < 0 or fd >= MAX_FDS) {
-        log_printf("bad write!!!\n");
-        open_fds_lock.unlock(irqs);
-        return E_BADF;
+    // auto irqs = this->fdtable_lock_.lock();
+    {
+        spinlock_guard guard(this->fdtable_lock_);
+        if (this->fdtable_[fd] == -1 or fd < 0 or fd >= MAX_FDS) {
+            log_printf("bad write!!!\n");
+            return E_BADF;
+        }
     }
-    vnode* writefile = this->vntable_[fd];
-    //log_printf("syscall_write system_vn_table[fd]: %p\n", writefile);
-    //log_printf("%p\n", writefile->vn_ops_);
-    auto write_func = writefile->vn_ops_->vop_write;
-    if (!write_func) {
-        log_printf("!write_func\n");
-        open_fds_lock.unlock(irqs);
-        return E_BADF;
-    }
-    open_fds_lock.unlock(irqs);
-    return write_func(writefile, addr, sz);
+    auto irqs2 = this->vntable_lock_.lock();
+    log_printf("sdfasdf\n");
+    
+        //spinlock_guard vnguard(this->vntable_lock_);
+        vnode* writefile = this->vntable_[fd];
+        //log_printf("syscall_write system_vn_table[fd]: %p\n", writefile);
+        //log_printf("%p\n", writefile->vn_ops_);
+        auto write_func = writefile->vn_ops_->vop_write;
+        if (!write_func) {
+            log_printf("!write_func\n");
+            this->vntable_lock_.unlock(irqs2);
+            return E_BADF;
+        }
+        this->vntable_lock_.unlock(irqs2);
+        return write_func(writefile, addr, sz);
+    //}
 
     /*auto& csl = consolestate::get();
     spinlock_guard guard(csl.lock_);

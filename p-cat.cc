@@ -2,8 +2,11 @@
 
 void process_main(int argc, char** argv) {
     char buf[256];
+    //printf("1\n");
+    //printf("2\n");
 
     for (int i = 1; i == 1 || i < argc; ++i) {
+        //printf("in\n");
         int f = 0;
         if (i < argc && strcmp(argv[i], "-") != 0) {
             f = sys_open(argv[i], OF_READ);
@@ -12,6 +15,7 @@ void process_main(int argc, char** argv) {
                 sys_exit(1);
             }
         }
+        printf("here\n");
         while (true) {
             ssize_t n = sys_read(f, buf, sizeof(buf));
             if (n == 0 || (n < 0 && n != E_AGAIN)) {
