@@ -190,13 +190,20 @@ int pipe_read(vnode* vn, uintptr_t buf, int sz) {
     log_printf("in pipe read\n");
     bbuffer* pipe_buffer = (bbuffer*) vn->vn_data_;
     log_printf("addr of buf: %p len: %i\n", pipe_buffer, pipe_buffer->blen_);
-    int ret = pipe_buffer->bbuf_read((char*) buf, sz);
-    while (ret == -1) {
-        log_printf("buffer empty\n");
-        current()->yield();
-        ret = pipe_buffer->bbuf_read((char*) buf, sz);
-    }
-    return ret;
+    //int ret = pipe_buffer->bbuf_read((char*) buf, sz);
+    //while (ret == -1) {
+    //    log_printf("buffer empty\n");
+    //    current()->yield();
+    //    ret = pipe_buffer->bbuf_read((char*) buf, sz);
+    //}
+    auto irqs = pipe_buffer->bbuffer_lock.lock();
+    waiter w;
+    int thing;
+    w.block_until(*w.wq_, [&] () {
+        thing = pipe_buffer->bbuf_read((char*) buf, sz);
+        return thing != -1;
+    }, pipe_buffer->bbuffer_lock, irqs);
+    return thing;
 
 }
 
@@ -357,7 +364,7 @@ void run_init() {
         }
         int* status;
         current()->syscall_waitpid(0, status, W_NOHANG);
-        log_printf("end run_init\n");
+        //log_printf("end run_init\n");
     }
 }
 
@@ -805,7 +812,7 @@ uintptr_t proc::syscall(regstate* regs) {
 
 uintptr_t proc::syscall_pipe(regstate* regs) {
     log_printf("in syscall pipe\n");
-    auto irqs = open_fds_lock.lock();
+    auto irqs = this->fdtable_lock_.lock();
     assert(this->fdtable_[0] != -1);
     assert(this->fdtable_[1] != -1);
     assert(this->fdtable_[2] != -1);
@@ -822,7 +829,7 @@ uintptr_t proc::syscall_pipe(regstate* regs) {
         }
     }
     if (!existsreadfd) { 
-        open_fds_lock.unlock(irqs);
+        this->fdtable_lock_.unlock(irqs);
         return E_MFILE;
     }
     //log_printf("readfd: %i\n", readfd);
@@ -839,10 +846,11 @@ uintptr_t proc::syscall_pipe(regstate* regs) {
         }
     }
     if (!existswritefd) {
-        open_fds_lock.unlock(irqs);
+        this->fdtable_lock_.unlock(irqs);
         return E_MFILE;
     }
     log_printf("writefd: %i\n", writefd);
+    this->fdtable_lock_.unlock(irqs);
 
     // Look for an available empty buffer
     int bufferindex;
@@ -886,7 +894,7 @@ uintptr_t proc::syscall_pipe(regstate* regs) {
     uintptr_t returnValue = ((uintptr_t)(writefd) << 32) + (uintptr_t) readfd;
     log_printf("%i\n", returnValue);
     log_printf("%i\n", returnValue >> 32);
-    open_fds_lock.unlock(irqs);
+    //open_fds_lock.unlock(irqs);
     return returnValue;
 }
 
@@ -1286,6 +1294,13 @@ uintptr_t proc::syscall_read(regstate* regs) {
     int fd = regs->reg_rdi;
     uintptr_t addr = regs->reg_rsi;
     size_t sz = regs->reg_rdx;
+    //assert(vmiter(pagetable_, addr).present());
+    /*for (vmiter it(pagetable_, addr); it.va() < it.va() + sz; ++it) {
+        if (!(it.present())) {
+            log_printf("sdf\n");
+            return E_FAULT;
+        }
+    }*/
 
     //log_printf("after accessing registers\n");
 
@@ -1313,7 +1328,7 @@ uintptr_t proc::syscall_read(regstate* regs) {
         //log_printf("readfile->vn_ops_: %p\n", readfile->vn_ops_);
         //log_printf("readfile->vn_ops_->vop_read: %p\n", readfile->vn_ops_->vop_read);
         int (*read_func)(vnode* vn, uintptr_t addr, int sz) = readfile->vn_ops_->vop_read;
-        assert(read_func);
+        //assert(read_func);
         if (!read_func) {
             log_printf("!read_func\n");
             this->vntable_lock_.unlock(irqs);
@@ -1371,7 +1386,13 @@ uintptr_t proc::syscall_write(regstate* regs) {
     size_t sz = regs->reg_rdx;
 
     log_printf("Write, id: %i, fd = %i, sz = %i\n", this->id_, fd, sz);
-
+    //assert(vmiter(pagetable_, addr).present());
+    /*for (vmiter it(pagetable_, addr); it.va() < it.va() + sz; ++it) {
+        if (!(it.present())) {
+            log_printf("asdf\n");
+            return E_FAULT;
+        }
+    }*/
     // Your code here!
     // * Write to open file `fd` (reg_rdi), rather than `consolestate`.
     // * Validate the write buffer.
@@ -1384,7 +1405,7 @@ uintptr_t proc::syscall_write(regstate* regs) {
         }
     }
     auto irqs2 = this->vntable_lock_.lock();
-    log_printf("sdfasdf\n");
+    //log_printf("sdfasdf\n");
     
         //spinlock_guard vnguard(this->vntable_lock_);
         vnode* writefile = this->vntable_[fd];
