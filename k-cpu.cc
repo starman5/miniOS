@@ -75,7 +75,7 @@ void cpustate::enqueue(proc* p) {
 //    run `yielding_from` unless no other runnable process exists.
 
 void cpustate::schedule(proc* yielding_from) {
-    log_printf("in scheduler\n");
+    //log_printf("in scheduler\n");
     assert(contains(rdrsp()));     // running on CPU stack
     assert(is_cli());              // interrupts are currently disabled
     assert(spinlock_depth_ == 0);  // no spinlocks are held
@@ -121,6 +121,7 @@ void cpustate::schedule(proc* yielding_from) {
     }
 
     // run `current_`
+    //log_printf("running: %i\n", current_->id_);
     set_pagetable(current_->pagetable_);
     current_->resume(); // does not return
 }
