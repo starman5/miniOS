@@ -36,6 +36,8 @@ struct vnode {
     int vn_offset_ = 0;
     void* vn_data_ = nullptr;
     vnode_ops* vn_ops_ = nullptr;
+    int other_end = -1;
+    bool is_pipe = false;
 };
 
 // Bounded buffer for pipe
@@ -555,7 +557,7 @@ inline void proc::wake() {
     //log_printf("in wake\n");
     int s = ps_blocked;
     if (pstate_.compare_exchange_strong(s, ps_runnable)) {
-        //log_printf("enqueueing on cpu\n");
+        log_printf("enqueueing on cpu\n");
         cpus[cpu_index_].enqueue(this);
     }
 }

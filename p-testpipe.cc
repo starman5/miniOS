@@ -126,6 +126,7 @@ void process_main() {
         assert_eq(x, 0);
 
         sys_exit(0);
+        //console_printf("exit happens\n");
     }
 
     x = sys_close(pfd[0]);
@@ -137,6 +138,7 @@ void process_main() {
     n = sys_read(qfd[0], buf, 100);
     assert_eq(n, 9);
     assert_memeq(buf, "hello mom", 9);
+    console_printf("before write\n");
 
     n = sys_write(pfd[1], "hello", 5);
     assert_eq(n, 5);

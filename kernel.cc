@@ -133,7 +133,7 @@ int stdout_write(vnode* vn, uintptr_t addr, int sz) {
         ++n;
         console_printf(0x0F00, "%c", ch);
     }
-    readpipe_wq.wake_all();
+
     return n;
 
 }
@@ -210,8 +210,8 @@ int pipe_read(vnode* vn, uintptr_t buf, int sz) {
     log_printf("here\n");
     //log_printf("%p\n", w.wq_);
     w.block_until(readpipe_wq, [&] () {
-        log_printf("check\n");
-        assert(pipe_buffer);
+        //log_printf("check\n");
+        //assert(pipe_buffer);
         thing = pipe_buffer->bbuf_read((char*) buf, sz);
         return thing != -1;
     }, pipe_buffer->bbuffer_lock, irqs);
@@ -226,11 +226,14 @@ int pipe_write(vnode* vn, uintptr_t buf, int sz) {
     bbuffer* pipe_buffer = (bbuffer*) vn->vn_data_;
     log_printf("addr of buf: %p len: %i\n", pipe_buffer, pipe_buffer->blen_);
     int writeret = pipe_buffer->bbuf_write((char*) buf, sz);
+    //readpipe_wq.wake_all();
     while (writeret == -1) {
         log_printf("buffer full\n");
         current()->yield();
         writeret = pipe_buffer->bbuf_write((char*) buf, sz);
     }
+    log_printf("before wake all\n");
+    readpipe_wq.wake_all();
     return writeret;
 }
 
@@ -646,6 +649,7 @@ uintptr_t proc::syscall(regstate* regs) {
         {
             log_printf("----- sys_exit on process %i\n", id_);
             spinlock_guard guard(ptable_lock);
+            log_printf("ptlock\n");
             assert(ptable[this->id_] != nullptr);
 
             //log_printf("before first child\n");
@@ -689,14 +693,14 @@ uintptr_t proc::syscall(regstate* regs) {
                     it.kfree_page();
                 }
             }
-            //log_printf("out of vmiter\n");
+            log_printf("out of vmiter\n");
 
             assert(pagetable_ != early_pagetable);
 
             for (ptiter it(pagetable_); it.low(); it.next()) {
                 it.kfree_ptp(); 
             }
-            //log_printf("out of ptiter\n");
+            log_printf("out of ptiter\n");
 
             kfree(pagetable_);
 
@@ -708,7 +712,7 @@ uintptr_t proc::syscall(regstate* regs) {
         this->pstate_ = ps_exited;
         this->exit_status_ = regs->reg_rdi;
         //yield_noreturn();
-        //log_printf("outside lock\n");
+        log_printf("outside lock\n");
         yield_noreturn();
 
     }
@@ -754,12 +758,12 @@ uintptr_t proc::syscall(regstate* regs) {
     
     case SYSCALL_CLOSE: {
         log_printf("in sys close\n");
-        auto irqs = open_fds_lock.lock(); 
+        auto irqs = this->fdtable_lock_.lock(); 
         int fd = regs->reg_rdi;
         //log_printf("proc %i closing fd %i\n", this->id_, fd);
         if (fd < 0 or fd >= MAX_FDS or this->fdtable_[fd] == -1) {
             log_printf("bad close\n");
-            open_fds_lock.unlock(irqs);
+            this->fdtable_lock_.unlock(irqs);
             return E_BADF;
         }
 
@@ -768,7 +772,7 @@ uintptr_t proc::syscall(regstate* regs) {
         this->fdtable_[fd] = -1;
         //log_printf("%i\n", this->fdtable_[fd]);
         //log_printf("%p, %p\n", fd, this->vntable_[fd], this->vntable_[-1]);
-        open_fds_lock.unlock(irqs);
+        this->fdtable_lock_.unlock(irqs);
         
         return 0;
     }
@@ -887,6 +891,8 @@ uintptr_t proc::syscall_pipe(regstate* regs) {
         if (!vnode_page[k].vn_ops_) {
             vnode_page[k].vn_data_ = (bbuffer*) &pipe_buffers[bufferindex];
             vnode_page[k].vn_ops_ = readend_pipe_vn_ops;
+            vnode_page[k].other_end = writefd;
+            vnode_page[k].is_pipe = true;
             assert(this->fdtable_[readfd] == readfd);
             this->vntable_[readfd] = &vnode_page[k];
             log_printf("pipe system_vn_table[readfd]: %p\n", &vnode_page[k]);
@@ -898,6 +904,8 @@ uintptr_t proc::syscall_pipe(regstate* regs) {
         if (!vnode_page[l].vn_ops_) {
             vnode_page[l].vn_data_ = (bbuffer*) &pipe_buffers[bufferindex];
             vnode_page[l].vn_ops_ = writeend_pipe_vn_ops;
+            vnode_page[l].other_end = readfd;
+            vnode_page[l].is_pipe = true;
             assert(this->fdtable_[readfd] == readfd);
             this->vntable_[writefd] = &vnode_page[l];
             break;
@@ -1330,6 +1338,7 @@ uintptr_t proc::syscall_read(regstate* regs) {
         }
     }
 
+        log_printf("hii: %i\n", this->fdtable_lock_.is_locked());
         auto irqs = this->vntable_lock_.lock();
         vnode* readfile = this->vntable_[fd];
         //log_printf("readfile: %p\n", readfile);
@@ -1413,13 +1422,16 @@ uintptr_t proc::syscall_write(regstate* regs) {
     // auto irqs = this->fdtable_lock_.lock();
     {
         spinlock_guard guard(this->fdtable_lock_);
+        log_printf("fd lock\n");
         if (this->fdtable_[fd] == -1 or fd < 0 or fd >= MAX_FDS) {
             log_printf("bad write!!!\n");
             return E_BADF;
         }
+
     }
+    log_printf("before vntable_lock\n");
     auto irqs2 = this->vntable_lock_.lock();
-    //log_printf("sdfasdf\n");
+    log_printf("vn lock\n");
     
         //spinlock_guard vnguard(this->vntable_lock_);
         vnode* writefile = this->vntable_[fd];
@@ -1430,6 +1442,11 @@ uintptr_t proc::syscall_write(regstate* regs) {
             log_printf("!write_func\n");
             this->vntable_lock_.unlock(irqs2);
             return E_BADF;
+        }
+
+        if (writefile->is_pipe && writefile->other_end == -1) {
+            this->vntable_lock_.unlock(irqs2);
+            return E_PIPE;
         }
         this->vntable_lock_.unlock(irqs2);
         return write_func(writefile, addr, sz);

@@ -73,7 +73,7 @@ inline void waiter::clear() {
 }
 
 inline void waiter::wake() {
-    log_printf("in wake\n");
+    //log_printf("in wake\n");
     assert(wq_->lock_.is_locked());
     p_->wake();
 }
