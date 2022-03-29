@@ -15,7 +15,6 @@
 // # timer interrupts so far on CPU 0
 std::atomic<unsigned long> ticks;
 wait_queue sleep_wq;
-wait_queue readpipe_wq;
 
 static void tick();
 static void boot_process_start(pid_t pid, const char* program_name);
@@ -193,10 +192,11 @@ int stdin_read(vnode* vn, uintptr_t addr, int sz) {
 
 int pipe_read(vnode* vn, uintptr_t buf, int sz) {
     log_printf("in pipe read\n");
-    assert(vn);
+    //log_printf("vn: %p\n", vn);
     bbuffer* pipe_buffer = (bbuffer*) vn->vn_data_;
     assert(vn->vn_data_);
     assert(pipe_buffer);
+    log_printf("buf: %p\n", pipe_buffer);
     //log_printf("addr of buf: %p len: %i\n", pipe_buffer, pipe_buffer->blen_);
     //int ret = pipe_buffer->bbuf_read((char*) buf, sz);
     //while (ret == -1) {
@@ -209,11 +209,11 @@ int pipe_read(vnode* vn, uintptr_t buf, int sz) {
     int thing;
     log_printf("here\n");
     //log_printf("%p\n", w.wq_);
-    w.block_until(readpipe_wq, [&] () {
+    w.block_until(pipe_buffer->bbuffer_wq_, [&] () {
         //log_printf("check\n");
-        //assert(pipe_buffer);
+        log_printf("closed: %i\n", pipe_buffer->write_closed_ == true);
         thing = pipe_buffer->bbuf_read((char*) buf, sz);
-        return thing != -1;
+        return (thing != -1 or pipe_buffer->write_closed_ == true);
     }, pipe_buffer->bbuffer_lock, irqs);
 
     pipe_buffer->bbuffer_lock.unlock(irqs);
@@ -223,8 +223,10 @@ int pipe_read(vnode* vn, uintptr_t buf, int sz) {
 
 int pipe_write(vnode* vn, uintptr_t buf, int sz) {
     log_printf("in pipe write\n");
+    assert(vn);
     bbuffer* pipe_buffer = (bbuffer*) vn->vn_data_;
-    log_printf("addr of buf: %p len: %i\n", pipe_buffer, pipe_buffer->blen_);
+    assert(pipe_buffer);
+    //log_printf("addr of buf: %p len: %i\n", pipe_buffer, pipe_buffer->blen_);
     int writeret = pipe_buffer->bbuf_write((char*) buf, sz);
     //readpipe_wq.wake_all();
     while (writeret == -1) {
@@ -233,7 +235,8 @@ int pipe_write(vnode* vn, uintptr_t buf, int sz) {
         writeret = pipe_buffer->bbuf_write((char*) buf, sz);
     }
     log_printf("before wake all\n");
-    readpipe_wq.wake_all();
+    //log_printf("%p\n", pipe_buffer->bbuffer_wq_);
+    pipe_buffer->bbuffer_wq_.wake_all();
     return writeret;
 }
 
@@ -246,7 +249,6 @@ void kernel_start(const char* command) {
     init_hardware();
     consoletype = CONSOLE_NORMAL;
     console_clear();
-
     // set up process descriptors
     //{
         //spinlock_guard guard(ptable_lock);
@@ -760,19 +762,27 @@ uintptr_t proc::syscall(regstate* regs) {
         log_printf("in sys close\n");
         auto irqs = this->fdtable_lock_.lock(); 
         int fd = regs->reg_rdi;
-        //log_printf("proc %i closing fd %i\n", this->id_, fd);
+        log_printf("proc %i closing fd %i\n", this->id_, fd);
         if (fd < 0 or fd >= MAX_FDS or this->fdtable_[fd] == -1) {
             log_printf("bad close\n");
             this->fdtable_lock_.unlock(irqs);
             return E_BADF;
         }
-
-        this->vntable_[fd]->vn_refcount_ -= 1;
-        this->vntable_[fd] = nullptr;
+        this->fdtable_lock_.unlock(irqs);
+        auto irqs2 = this->vntable_lock_.lock();
+        if (this->vntable_[fd]->vn_ops_->vop_write == pipe_write) {
+            log_printf("%p, yesss\n", this->vntable_[fd]->vn_data_);
+            ((bbuffer*)this->vntable_[fd]->vn_data_)->write_closed_ == true;
+        }
+        ((bbuffer*)(this->vntable_[fd]->vn_data_))->bbuffer_wq_.wake_all();
+        //this->vntable_[fd]->vn_refcount_ -= 1;
+        //this->vntable_[fd] = nullptr;
+        this->vntable_lock_.unlock(irqs2);
+        auto irqs3 = this->fdtable_lock_.lock();
         this->fdtable_[fd] = -1;
         //log_printf("%i\n", this->fdtable_[fd]);
         //log_printf("%p, %p\n", fd, this->vntable_[fd], this->vntable_[-1]);
-        this->fdtable_lock_.unlock(irqs);
+        this->fdtable_lock_.unlock(irqs3);
         
         return 0;
     }
@@ -894,7 +904,9 @@ uintptr_t proc::syscall_pipe(regstate* regs) {
             vnode_page[k].other_end = writefd;
             vnode_page[k].is_pipe = true;
             assert(this->fdtable_[readfd] == readfd);
+            auto irqs2 = this->vntable_lock_.lock();
             this->vntable_[readfd] = &vnode_page[k];
+            this->vntable_lock_.unlock(irqs2);
             log_printf("pipe system_vn_table[readfd]: %p\n", &vnode_page[k]);
             break;
         }
@@ -907,7 +919,9 @@ uintptr_t proc::syscall_pipe(regstate* regs) {
             vnode_page[l].other_end = readfd;
             vnode_page[l].is_pipe = true;
             assert(this->fdtable_[readfd] == readfd);
+            auto irqs3 = this->vntable_lock_.lock();
             this->vntable_[writefd] = &vnode_page[l];
+            this->vntable_lock_.unlock(irqs3);
             break;
         }
     }
@@ -922,25 +936,29 @@ uintptr_t proc::syscall_pipe(regstate* regs) {
 
 int proc::syscall_dup2(regstate* regs) {
     log_printf("in dup2\n");
-    auto irqs = open_fds_lock.lock();
+    auto irqs = this->fdtable_lock_.lock();
     int oldfd = regs->reg_rdi;
     int newfd = regs->reg_rsi;
     log_printf("dup2 on oldfd %i, newfd %i\n", oldfd, newfd);
     if (this->fdtable_[oldfd] == -1 or newfd < 0 or newfd > MAX_FDS or oldfd < 0 or oldfd > MAX_FDS) {
-        open_fds_lock.unlock(irqs);
+        this->fdtable_lock_.unlock(irqs);
         return E_BADF;
     }
+    this->fdtable_lock_.unlock(irqs);
 
     // if (open_fds_[newfd] != -1) {
     //     system_vn_table[newfd] = nullptr;
     // }
 
     // At the newfd index in the system wide fd table should be the same vnode as that of the oldfd index
+    auto irqs2 = this->vntable_lock_.lock();
     vnode* old_vnode = this->vntable_[oldfd];
     this->vntable_[newfd] = old_vnode;
+    this->vntable_lock_.unlock(irqs2);
     log_printf("dup2 system_vn_table[newfd]: %p\n", old_vnode);
+    auto irqs3 = this->fdtable_lock_.lock();
     this->fdtable_[newfd] = newfd;
-    open_fds_lock.unlock(irqs);
+    this->fdtable_lock_.unlock(irqs3);
 
     return newfd;
 }

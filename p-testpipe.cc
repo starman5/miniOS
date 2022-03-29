@@ -150,12 +150,13 @@ void process_main() {
     assert_eq(n, 5);
     //console_printf("2\n");
 
+    // last read call
     n = sys_read(qfd[0], buf, 100);
     assert_eq(n, 0);
 
     n = sys_write(pfd[1], "wharg", 5);
     assert_eq(n, E_PIPE);
-    //console_printf("3\n");
+    console_printf("3\n");
 
     x = sys_close(qfd[0]);
     assert_eq(x, 0);

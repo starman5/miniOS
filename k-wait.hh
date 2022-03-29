@@ -60,10 +60,11 @@ inline void waiter::block() {
 
 inline void waiter::clear() {
     // your code here
-    log_printf("in clear\n");
+    //log_printf("in clear\n");
     auto irqs = wq_->lock_.lock();
+    log_printf("will wake in clean\n");
     wake();
-    //log_printf("right here\n");
+    log_printf("right here\n");
     if (this->links_.is_linked()) {
         wq_->q_.erase(this);
     }
@@ -107,7 +108,7 @@ inline void waiter::block_until(wait_queue& wq, F predicate,
         prepare(wq);
         //log_printf("after preparee\n");
         if (predicate()) {
-            //log_printf("predicate is true\n");
+            log_printf("predicate is true\n");
             break;
         }
         //log_printf("here\n");
