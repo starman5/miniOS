@@ -703,6 +703,10 @@ uintptr_t proc::syscall(regstate* regs) {
         }
         return 0;
     }
+
+    case SYSCALL_OPEN: {
+        return proc::syscall_open(regs);
+    }
     
     case SYSCALL_CLOSE: {
         log_printf("in sys_close\n");
@@ -784,6 +788,43 @@ uintptr_t proc::syscall(regstate* regs) {
     assert(start_canary != end_canary);
     assert(start_canary == end_canary);
     assert(0 == 1);
+}
+
+int proc::syscall_open(regstate* regs) {
+    const char* pathname = (const char*)regs->reg_rdi;
+    int flag = regs->reg_rsi;
+    // validate the name
+
+    // search for a memfile with pathname in the memfile::initfs array
+    //      use memfile::initfs_lookup
+
+    // use bitmasks of some kind
+
+    bool create = false;
+    if (flag == OF_CREATE) {
+        create = true;
+    }
+    memfile m;
+    memfile* initfs_ar = m.initfs;
+    int initfs_index = m.initfs_lookup(pathname, create);
+    if (initfs_index < 0) {
+        return initfs_index;
+    }
+    
+    if (flag == OF_TRUNC) {
+        // set the file's length to zero
+        initfs_ar[initfs_index].set_length(0);
+    }
+
+    auto irqs = vntable_lock_.lock();
+    for (int i = 0; i < MAX_FDS; i++) {
+        if (!vntable_[i]) {
+            // create a vnode representing memfs;
+            // if OF_READ is present, then set up a vop_read, else nullptr
+            // if OF_WRITE is present, then set up a vop_write, else nullptr
+            vntable_[i] = 
+        }
+    }
 }
 
 uintptr_t proc::syscall_pipe(regstate* regs) {

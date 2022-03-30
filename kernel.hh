@@ -120,6 +120,7 @@ struct __attribute__((aligned(4096))) proc {
 
         inline bool resumable() const;
 
+        int syscall_open(regstate* regs);
         int syscall_dup2(regstate* regs);
         uintptr_t syscall_pipe(regstate* regs);
         int syscall_fork(regstate* regs);
