@@ -22,11 +22,6 @@ static void init_first_process();
 static void run_init();
 static void setup_init_child();
 
-spinlock open_fds_lock;
-spinlock vnode_page_lock;
-spinlock vnode_ops_lock;
-
-bbuffer* pipe_buffers;
 
 int bbuffer::bbuf_read(char* buf, int sz) {
     log_printf("in bbuf read\n");
@@ -105,9 +100,6 @@ int bbuffer::bbuf_write(char* buf, int sz) {
         return pos;
     }
 }
-
-vnode* vnode_page;
-vnode_ops* vnode_ops_page;
 
 
 vnode* stdin_vnode;
@@ -250,54 +242,21 @@ void kernel_start(const char* command) {
     consoletype = CONSOLE_NORMAL;
     console_clear();
     // set up process descriptors
-    //{
-        //spinlock_guard guard(ptable_lock);
-        for (pid_t i = 0; i < NPROC; i++) {
-            ptable[i] = nullptr;
-        }
-    //}
 
-    pipe_buffers = (bbuffer*) kalloc(PAGESIZE * 4);
-    for (long unsigned int ind = 0; ind < sizeof(pipe_buffers); ind++) {
-        pipe_buffers[ind].available_ = true;
+    for (pid_t i = 0; i < NPROC; i++) {
+        ptable[i] = nullptr;
     }
 
-    vnode_page = (vnode*) kalloc(PAGESIZE);
-    //{
-        //spinlock_guard guard2(vnode_page_lock);
-        for (long unsigned int v = 0; v < (PAGESIZE / (int)sizeof(vnode)); v++) {
-            vnode_page[v].vn_ops_ = nullptr;
-            vnode_page[v].vn_data_ = nullptr;
-            vnode_page[v].vn_refcount_ = 0;
-            vnode_page[v].vn_offset_ = 0;
-        }
-    //}
-    //{
-        //spinlock_guard guard3(vnode_ops_lock);
-        vnode_ops_page = (vnode_ops*) kalloc(PAGESIZE);
-        for (long unsigned int op = 0; op < (PAGESIZE / sizeof(vnode_ops)); op++) {
-            vnode_ops_page[op].vop_open = nullptr;
-            vnode_ops_page[op].vop_read = nullptr;
-            vnode_ops_page[op].vop_write = nullptr;
-        }
-    //}
-    
-    // Set up the vn_ops
-    //{
-        //spinlock_guard guard4(vnode_page_lock);
-        stdin_vnode = &vnode_page[0];
-        stdout_vnode = &vnode_page[1];
-        stderr_vnode = &vnode_page[2];
-    //}
+    stdin_vnode = knew<vnode>();
+    stdout_vnode = knew<vnode>();
+    stderr_vnode = knew<vnode>();
 
-    //{   
-        //spinlock_guard guard5(vnode_ops_lock);
-        stdin_vn_ops = &vnode_ops_page[0];
-        stdout_vn_ops = &vnode_ops_page[1];
-        stderr_vn_ops = &vnode_ops_page[2];
-        readend_pipe_vn_ops = &vnode_ops_page[3];
-        writeend_pipe_vn_ops = &vnode_ops_page[4];
-    //}
+
+    stdin_vn_ops = knew<vnode_ops>();
+    stdout_vn_ops = knew<vnode_ops>();
+    stderr_vn_ops = knew<vnode_ops>();
+    readend_pipe_vn_ops = knew<vnode_ops>();
+    writeend_pipe_vn_ops = knew<vnode_ops>();;
 
     stdin_vn_ops->vop_read = stdin_read;
     stdin_vn_ops->vop_write = stdout_write;
@@ -369,12 +328,6 @@ void init_first_process() {
 }
 
 void run_init() {
-  /*  if (!first) {
-        if (!ptable[1]->children_.front()) {
-            log_printf("halting\n");
-            process_halt();
-        }
-    }*/
     while (true) {
         //spinlock_guard guard(ptable_lock);
         if (!ptable[1]->children_.front()) {
@@ -774,14 +727,15 @@ uintptr_t proc::syscall(regstate* regs) {
             log_printf("%p, yesss\n", this->vntable_[fd]->vn_data_);
             ((bbuffer*)this->vntable_[fd]->vn_data_)->write_closed_ == true;
         }
-        ((bbuffer*)(this->vntable_[fd]->vn_data_))->bbuffer_wq_.wake_all();
-        //this->vntable_[fd]->vn_refcount_ -= 1;
-        //this->vntable_[fd] = nullptr;
+        ((bbuffer*)this->vntable_[fd]->vn_data_)->bbuffer_wq_.wake_all();
+        this->vntable_[fd]->vn_refcount_ -= 1;
+        this->vntable_[fd] = nullptr;
         this->vntable_lock_.unlock(irqs2);
         auto irqs3 = this->fdtable_lock_.lock();
         this->fdtable_[fd] = -1;
         //log_printf("%i\n", this->fdtable_[fd]);
         //log_printf("%p, %p\n", fd, this->vntable_[fd], this->vntable_[-1]);
+        log_printf("ill fucking kill you\n");
         this->fdtable_lock_.unlock(irqs3);
         
         return 0;
@@ -883,48 +837,31 @@ uintptr_t proc::syscall_pipe(regstate* regs) {
     // Look for an available empty buffer
     int bufferindex;
     log_printf("size of bbuf: %i\n", sizeof(bbuffer));
-    log_printf("size of pipe_buffers: %i\n", sizeof(pipe_buffers));
     //log_printf("size division: %i\n", sizeof(pipe_buffers) / sizeof(bbuffer));
-    for (long unsigned int bufnum = 0; bufnum < sizeof(pipe_buffers); bufnum++) {
-        log_printf("available: %i\n", pipe_buffers[bufnum].available_);
-        if (pipe_buffers[bufnum].available_ == true) {
-            bufferindex = bufnum;
-            pipe_buffers[bufnum].available_ = false;
-            break;
-        }
-    }
-    log_printf("bufferindex: %i\n", bufferindex);
+
+    bbuffer* pipe_buffer = knew<bbuffer>();
 
     // Create a new vnode and set vnode_ops to readpipe_vn_ops
     // Look through vnode_page to find first empty entry
-    for (long unsigned int k = 0; k < (PAGESIZE / sizeof(vnode)); k++) {
-        if (!vnode_page[k].vn_ops_) {
-            vnode_page[k].vn_data_ = (bbuffer*) &pipe_buffers[bufferindex];
-            vnode_page[k].vn_ops_ = readend_pipe_vn_ops;
-            vnode_page[k].other_end = writefd;
-            vnode_page[k].is_pipe = true;
-            assert(this->fdtable_[readfd] == readfd);
-            auto irqs2 = this->vntable_lock_.lock();
-            this->vntable_[readfd] = &vnode_page[k];
-            this->vntable_lock_.unlock(irqs2);
-            log_printf("pipe system_vn_table[readfd]: %p\n", &vnode_page[k]);
-            break;
-        }
-    }
+    vnode* readend_vnode = knew<vnode>();
+    readend_vnode->vn_data_ = pipe_buffer;
+    readend_vnode->vn_ops_ = readend_pipe_vn_ops;
+    readend_vnode->other_end = writefd;
+    readend_vnode->is_pipe = true;
+    assert(this->fdtable_[readfd] == readfd);
+    auto irqs2 = this->vntable_lock_.lock();
+    this->vntable_[readfd] = readend_vnode;
+    this->vntable_lock_.unlock(irqs2);
 
-    for (long unsigned int l = 0; l < (PAGESIZE / sizeof(vnode)); l++) {
-        if (!vnode_page[l].vn_ops_) {
-            vnode_page[l].vn_data_ = (bbuffer*) &pipe_buffers[bufferindex];
-            vnode_page[l].vn_ops_ = writeend_pipe_vn_ops;
-            vnode_page[l].other_end = readfd;
-            vnode_page[l].is_pipe = true;
-            assert(this->fdtable_[readfd] == readfd);
-            auto irqs3 = this->vntable_lock_.lock();
-            this->vntable_[writefd] = &vnode_page[l];
-            this->vntable_lock_.unlock(irqs3);
-            break;
-        }
-    }
+    vnode* writeend_vnode = knew<vnode>();
+    writeend_vnode->vn_data_ = pipe_buffer;
+    writeend_vnode->vn_ops_ = writeend_pipe_vn_ops;
+    writeend_vnode->other_end = readfd;
+    writeend_vnode->is_pipe = true;
+    assert(this->fdtable_[readfd] == readfd);
+    auto irqs3 = this->vntable_lock_.lock();
+    this->vntable_[writefd] = writeend_vnode;
+    this->vntable_lock_.unlock(irqs3);
 
     // Return the two fds concatenated.  Write end comes before read end
     uintptr_t returnValue = ((uintptr_t)(writefd) << 32) + (uintptr_t) readfd;
