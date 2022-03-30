@@ -283,24 +283,17 @@ void kernel_start(const char* command) {
     setup_init_child();
 
     // Add file descriptors to the process' file descriptor table
-    //{
-        //spinlock_guard guard(ptable_lock);
-        ptable[2]->fdtable_[0] = 0;
-        ptable[2]->fdtable_[1] = 1;
-        ptable[2]->fdtable_[2] = 2;   
-        for (int i = 3; i < MAX_FDS; i++) {
-            ptable[2]->fdtable_[i] = -1;
-            ptable[2]->vntable_[i] = nullptr;
-        }
+    for (int i = 3; i < MAX_FDS; i++) {
+        ptable[2]->vntable_[i] = nullptr;
+    }
 
-        // Add stdin, stdout, stderr to process' vnode table
-        ptable[2]->vntable_[0] = stdin_vnode;
-        ptable[2]->vntable_[1] = stdout_vnode;
-        ptable[2]->vntable_[2] = stderr_vnode;
-    //}
+    // Add stdin, stdout, stderr to process' vnode table
+    ptable[2]->vntable_[0] = stdin_vnode;
+    ptable[2]->vntable_[1] = stdout_vnode;
+    ptable[2]->vntable_[2] = stderr_vnode;
 
-        // start running processes
-        cpus[0].schedule(nullptr);
+    // start running processes
+    cpus[0].schedule(nullptr);
 }
 
 void setup_init_child() {
@@ -712,31 +705,32 @@ uintptr_t proc::syscall(regstate* regs) {
     }
     
     case SYSCALL_CLOSE: {
-        log_printf("in sys close\n");
-        auto irqs = this->fdtable_lock_.lock(); 
+        log_printf("in sys_close\n");
         int fd = regs->reg_rdi;
+        auto irqs = this->vntable_lock_.lock();
         log_printf("proc %i closing fd %i\n", this->id_, fd);
-        if (fd < 0 or fd >= MAX_FDS or this->fdtable_[fd] == -1) {
+        if (fd < 0 or fd >= MAX_FDS or !this->vntable_[fd]) {
             log_printf("bad close\n");
-            this->fdtable_lock_.unlock(irqs);
+            this->vntable_lock_.unlock(irqs);
             return E_BADF;
         }
-        this->fdtable_lock_.unlock(irqs);
-        auto irqs2 = this->vntable_lock_.lock();
+        log_printf("hi\n");
+        assert(vntable_[fd]);
+        assert(vntable_[fd]->vn_ops_);
+        assert(vntable_[fd]->vn_ops_);
         if (this->vntable_[fd]->vn_ops_->vop_write == pipe_write) {
-            log_printf("%p, yesss\n", this->vntable_[fd]->vn_data_);
+            assert((bbuffer*)this->vntable_[fd]->vn_data_);
             ((bbuffer*)this->vntable_[fd]->vn_data_)->write_closed_ == true;
         }
-        ((bbuffer*)this->vntable_[fd]->vn_data_)->bbuffer_wq_.wake_all();
+        log_printf("hiii\n");
+        log_printf("%p\n", this->vntable_[fd]->vn_data_);
+        if (this->vntable_[fd]->vn_data_) {
+            ((bbuffer*)this->vntable_[fd]->vn_data_)->bbuffer_wq_.wake_all();
+        }
         this->vntable_[fd]->vn_refcount_ -= 1;
         this->vntable_[fd] = nullptr;
-        this->vntable_lock_.unlock(irqs2);
-        auto irqs3 = this->fdtable_lock_.lock();
-        this->fdtable_[fd] = -1;
-        //log_printf("%i\n", this->fdtable_[fd]);
-        //log_printf("%p, %p\n", fd, this->vntable_[fd], this->vntable_[-1]);
-        log_printf("ill fucking kill you\n");
-        this->fdtable_lock_.unlock(irqs3);
+        log_printf("here\n");
+        this->vntable_lock_.unlock(irqs);
         
         return 0;
     }
@@ -794,71 +788,61 @@ uintptr_t proc::syscall(regstate* regs) {
 
 uintptr_t proc::syscall_pipe(regstate* regs) {
     log_printf("in syscall pipe\n");
-    auto irqs = this->fdtable_lock_.lock();
-    assert(this->fdtable_[0] != -1);
-    assert(this->fdtable_[1] != -1);
-    assert(this->fdtable_[2] != -1);
-    
+    auto irqs = this->vntable_lock_.lock();
+    assert(this->vntable_[0]);
+    assert(this->vntable_[1]);
+    assert(this->vntable_[2]);
+
+    bbuffer* new_buffer = knew<bbuffer>();
+    vnode* readend_vnode = knew<vnode>();
+    vnode* writeend_vnode = knew<vnode>();
+  
     // Find closed file descriptor for read end
     int readfd;
     bool existsreadfd = false;
     for (int i = 0; i < MAX_FDS; i++) {
-        if (this->fdtable_[i] == -1) {
+        if (!this->vntable_[i]) {
             readfd = i;
-            this->fdtable_[i] = i;
+            this->vntable_[i] = readend_vnode;
             existsreadfd = true;
             break;
         }
     }
     if (!existsreadfd) { 
-        this->fdtable_lock_.unlock(irqs);
+        this->vntable_lock_.unlock(irqs);
         return E_MFILE;
     }
-    //log_printf("readfd: %i\n", readfd);
 
     // Find closed file descriptor for write end
     int writefd;
     int existswritefd = false;
     for (int j = 0; j < MAX_FDS; j++) {
-        if (this->fdtable_[j] == -1) {
+        if (!this->vntable_[j]) {
             writefd = j;
-            this->fdtable_[j] = j;
+            this->vntable_[j] = writeend_vnode;
             existswritefd = true;
             break;
         }
     }
     if (!existswritefd) {
-        this->fdtable_lock_.unlock(irqs);
+        this->vntable_lock_.unlock(irqs);
         return E_MFILE;
     }
     log_printf("writefd: %i\n", writefd);
-    this->fdtable_lock_.unlock(irqs);
+    this->vntable_lock_.unlock(irqs);
 
-    // Look for an available empty buffer
-    int bufferindex;
-    log_printf("size of bbuf: %i\n", sizeof(bbuffer));
-    //log_printf("size division: %i\n", sizeof(pipe_buffers) / sizeof(bbuffer));
-
-    bbuffer* pipe_buffer = knew<bbuffer>();
-
-    // Create a new vnode and set vnode_ops to readpipe_vn_ops
-    // Look through vnode_page to find first empty entry
-    vnode* readend_vnode = knew<vnode>();
-    readend_vnode->vn_data_ = pipe_buffer;
+    readend_vnode->vn_data_ = new_buffer;
     readend_vnode->vn_ops_ = readend_pipe_vn_ops;
     readend_vnode->other_end = writefd;
     readend_vnode->is_pipe = true;
-    assert(this->fdtable_[readfd] == readfd);
     auto irqs2 = this->vntable_lock_.lock();
     this->vntable_[readfd] = readend_vnode;
     this->vntable_lock_.unlock(irqs2);
 
-    vnode* writeend_vnode = knew<vnode>();
-    writeend_vnode->vn_data_ = pipe_buffer;
+    writeend_vnode->vn_data_ = new_buffer;
     writeend_vnode->vn_ops_ = writeend_pipe_vn_ops;
     writeend_vnode->other_end = readfd;
     writeend_vnode->is_pipe = true;
-    assert(this->fdtable_[readfd] == readfd);
     auto irqs3 = this->vntable_lock_.lock();
     this->vntable_[writefd] = writeend_vnode;
     this->vntable_lock_.unlock(irqs3);
@@ -873,29 +857,20 @@ uintptr_t proc::syscall_pipe(regstate* regs) {
 
 int proc::syscall_dup2(regstate* regs) {
     log_printf("in dup2\n");
-    auto irqs = this->fdtable_lock_.lock();
     int oldfd = regs->reg_rdi;
     int newfd = regs->reg_rsi;
+    auto irqs = this->vntable_lock_.lock();
     log_printf("dup2 on oldfd %i, newfd %i\n", oldfd, newfd);
-    if (this->fdtable_[oldfd] == -1 or newfd < 0 or newfd > MAX_FDS or oldfd < 0 or oldfd > MAX_FDS) {
-        this->fdtable_lock_.unlock(irqs);
+    if (newfd < 0 or newfd > MAX_FDS or oldfd < 0 or oldfd > MAX_FDS or !this->vntable_[oldfd]) {
+        this->vntable_lock_.unlock(irqs);
         return E_BADF;
     }
-    this->fdtable_lock_.unlock(irqs);
-
-    // if (open_fds_[newfd] != -1) {
-    //     system_vn_table[newfd] = nullptr;
-    // }
 
     // At the newfd index in the system wide fd table should be the same vnode as that of the oldfd index
-    auto irqs2 = this->vntable_lock_.lock();
     vnode* old_vnode = this->vntable_[oldfd];
     this->vntable_[newfd] = old_vnode;
-    this->vntable_lock_.unlock(irqs2);
     log_printf("dup2 system_vn_table[newfd]: %p\n", old_vnode);
-    auto irqs3 = this->fdtable_lock_.lock();
-    this->fdtable_[newfd] = newfd;
-    this->fdtable_lock_.unlock(irqs3);
+    this->vntable_lock_.unlock(irqs);
 
     return newfd;
 }
@@ -908,13 +883,10 @@ int proc::syscall_fork(regstate* regs) {
     log_printf("in fork\n");
     // Find the next available pid by looping through the ones already used
     pid_t parent_id = this->id_;
-    auto irqs = this->fdtable_lock_.lock();
-    int* fdtable = this->fdtable_;
-    this->fdtable_lock_.unlock(irqs);
-    auto irqs2 = this->vntable_lock_.lock();
+    auto irqs = this->vntable_lock_.lock();
     log_printf("in fork vntable lock\n");
     vnode** vntable = this->vntable_;
-    this->vntable_lock_.unlock(irqs2);
+    this->vntable_lock_.unlock(irqs);
     //log_printf("section 1\n");
 
     proc* p = knew<proc>();
@@ -994,29 +966,16 @@ int proc::syscall_fork(regstate* regs) {
 
         p->regs_->reg_rax = 0;
         p->parent_id_ = parent_id;
-        //log_printf("section 3\n");
-        // copy over per process file descriptor table from parent
-        // Here is a try at rectifying this disaster.
-        // for each file descriptor in the parents open_fds_
-        //  Take the vnode in the system wide vnode table at that descriptor
-        //  Then memcpy to the next available index in system wide vnode table
-        //  But then the open_fds_[i] should point to some j, rather than i
-        //  Which is what Linux does, by the way.  There is that layer of indirection.
-        //  I think this is still salvageable
-        //log_printf("%p\n", fdtable);
-        auto irqs3 = this->fdtable_lock_.lock();
-        auto irqs4 = this->vntable_lock_.lock();
-        log_printf("yoo\n");
+
+        auto irqs2 = this->vntable_lock_.lock();
         for (int ix = 0; ix < MAX_FDS; ix++) {
-            p->fdtable_[ix] = fdtable[ix];
             if (vntable[ix]) {
                 vntable[ix]->vn_refcount_ += 1;
             }
             p->vntable_[ix] = vntable[ix];
         }
         log_printf("fork end vntable lock\n");
-        this->vntable_lock_.unlock(irqs3);
-        this->fdtable_lock_.unlock(irqs4);
+        this->vntable_lock_.unlock(irqs2);
 
         //log_printf("about to push back child\n");
         assert(ptable[parent_id]);
@@ -1027,17 +986,8 @@ int proc::syscall_fork(regstate* regs) {
         p->cpu_index_ = i % ncpu;
         cpus[p->cpu_index_].enqueue(p);
     
-
-    // return 0 to the child
-    
-
-
-    // mark it as runnable.  Maybe don't mark as runnable before all regs are set
-    // because another cpu could run it with wrong registers
     }
-            
-    // return pid to the parent
-    //log_printf("end of fork\n");
+
     return i;
 
 }
@@ -1090,10 +1040,6 @@ int* proc::check_exited(pid_t pid, bool condition) {
 }
 
 int proc::syscall_waitpid(pid_t pid, int* status, int options) {
-    //log_printf(" --- In waitpid.  Current process: %i, Pid argument: %i\n", this->id_, pid);
-    //log_printf("--- in waitpid\n");
-    // The assertion below is stupid because pid could be 0 many many times
-    //assert(ptable[pid]);
     {
         spinlock_guard guard(ptable_lock);
 
@@ -1146,41 +1092,6 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                 }
                 if (this->children_.front()) {
                     int* zombies_exist = check_exited(pid, true);
-                    //log_printf("zombies_exist addr: %p\n", zombies_exist);
-                    //log_printf("zombies_exist: %i\n", zombies_exist[0]);
-                    //log_printf("pid: %i\n", zombies_exist[1]);
-                
-                // // Check all processes in ptable to see if one has exited and needs to be reaped
-                // //log_printf("0 pid\n");
-                // bool zombies_exist = false;
-                // if (this->children_.front()) {
-                //     proc* first_child = this->children_.pop_front();
-                //     this->children_.push_back(first_child);
-                //     proc* child = this->children_.pop_front();
-                //     while (child != first_child) {
-                //         if (child->pstate_ == ps_exited) {
-                //             log_printf("id %i, ps_exited\n", child->id_);
-                //             zombies_exist = true;
-                //             pid = child->id_;
-                //             //this->children_.push_back(child);
-                //             break;
-                //         }
-                //         this->children_.push_back(child);
-                //         child = this->children_.pop_front();
-                //     }
-                //     if (child == first_child) {
-                //         if (child->pstate_ == ps_exited) {
-                //             zombies_exist = true;
-                //             pid = child->id_;
-                //         }
-                //         else {
-                //         log_printf("restore\n");
-                //         this->children_.push_back(child);
-                //         }
-                //     }
-                    
-
-                    //log_printf("outside loop\n");
 
                     if (zombies_exist[0] == 0) {
                         //log_printf("nothing to wait for\n");
@@ -1188,7 +1099,6 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                             return E_AGAIN;
                         }
                         else {
-                            //goto tryagain;
                             goto block;
                         }
                     }
@@ -1201,11 +1111,6 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                 }
             }
             
-            
-            //log_printf("got here\n");
-            //log_printf("pid: %i\n", pid);
-            //log_printf("pointer: %p\n", ptable[pid]);
-            // Store the exit status inside *status
             if (status) {
                 *status = ptable[pid]->exit_status_;
                 //log_printf("after exit status set\n");
@@ -1225,11 +1130,6 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
     return pid;
 
         block:
-        //log_printf("ptable after block: %p\n", ptable[pid]);
-        //{
-            //spinlock_guard guard(ptable_lock);
-            //log_printf("Block Here\n");
-            //log_printf("ptable[pid]: %p\n", ptable[pid]);
             if (pid != 0) {
                 while (ptable[pid]->pstate_ != ps_exited) {
                     this->yield();
@@ -1241,9 +1141,8 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                     this->yield();
                 }
             }
-        //}
+        
         return syscall_waitpid(pid, status, options);
-
 
 }
 
@@ -1284,27 +1183,16 @@ uintptr_t proc::syscall_read(regstate* regs) {
     // Your code here!
     // * Read from open file `fd` (reg_rdi), rather than `keyboardstate`.
     // * Validate the read buffer.
-    {
-        spinlock_guard guard(this->fdtable_lock_);
-        if (fd < 0 or fd >= MAX_FDS or this->fdtable_[fd] == -1) {
+        auto irqs = this->vntable_lock_.lock();
+        if (fd < 0 or fd >= MAX_FDS or !this->vntable_[fd]) {
             log_printf("bad read!!!\n");
-            //open_fds_lock.unlock(irqs);
+            this->vntable_lock_.unlock(irqs);
             return E_BADF;
         }
-    }
-
-        log_printf("hii: %i\n", this->fdtable_lock_.is_locked());
-        auto irqs = this->vntable_lock_.lock();
+    
         vnode* readfile = this->vntable_[fd];
-        //log_printf("readfile: %p\n", readfile);
         log_printf("Read: id %i, fd: %i, sz: %i\n", this->id_, fd, sz);
-        // Call the read vn_op
-        //log_printf("readfile: %p\n", readfile);
-        //log_printf("readfile->vn_ops_: %p\n", readfile->vn_ops_);
-        //log_printf("vopread: %p\n", readfile->vn_ops_->vop_read);
-        //log_printf("readfile: %p\n", readfile);
-        //log_printf("readfile->vn_ops_: %p\n", readfile->vn_ops_);
-        //log_printf("readfile->vn_ops_->vop_read: %p\n", readfile->vn_ops_->vop_read);
+
         int (*read_func)(vnode* vn, uintptr_t addr, int sz) = readfile->vn_ops_->vop_read;
         //assert(read_func);
         if (!read_func) {
@@ -1314,7 +1202,6 @@ uintptr_t proc::syscall_read(regstate* regs) {
         }
         log_printf("after getting read_func\n");
         this->vntable_lock_.unlock(irqs);
-        //log_printf("please\n");
         return read_func(readfile, addr, sz);
 
     /*auto& kbd = keyboardstate::get();
@@ -1375,35 +1262,33 @@ uintptr_t proc::syscall_write(regstate* regs) {
     // * Write to open file `fd` (reg_rdi), rather than `consolestate`.
     // * Validate the write buffer.
     // auto irqs = this->fdtable_lock_.lock();
-    {
-        spinlock_guard guard(this->fdtable_lock_);
+        auto irqs = this->vntable_lock_.lock();
         log_printf("fd lock\n");
-        if (this->fdtable_[fd] == -1 or fd < 0 or fd >= MAX_FDS) {
+        if (fd < 0 or fd >= MAX_FDS or !this->vntable_[fd]) {
             log_printf("bad write!!!\n");
+            this->vntable_lock_.unlock(irqs);
             return E_BADF;
         }
 
-    }
     log_printf("before vntable_lock\n");
-    auto irqs2 = this->vntable_lock_.lock();
     log_printf("vn lock\n");
     
-        //spinlock_guard vnguard(this->vntable_lock_);
         vnode* writefile = this->vntable_[fd];
         //log_printf("syscall_write system_vn_table[fd]: %p\n", writefile);
         //log_printf("%p\n", writefile->vn_ops_);
         auto write_func = writefile->vn_ops_->vop_write;
         if (!write_func) {
             log_printf("!write_func\n");
-            this->vntable_lock_.unlock(irqs2);
+            this->vntable_lock_.unlock(irqs);
             return E_BADF;
         }
 
         if (writefile->is_pipe && writefile->other_end == -1) {
-            this->vntable_lock_.unlock(irqs2);
+            this->vntable_lock_.unlock(irqs);
             return E_PIPE;
         }
-        this->vntable_lock_.unlock(irqs2);
+        this->vntable_lock_.unlock(irqs);
+
         return write_func(writefile, addr, sz);
     //}
 

@@ -77,9 +77,7 @@ struct __attribute__((aligned(4096))) proc {
         int exit_status_ = 1;                      // Process's exit status
         bool waited_ = false;
 
-        int fdtable_[MAX_FDS];
-        spinlock fdtable_lock_;
-        vnode* vntable_[SZ_VN_TABLE];
+        vnode* vntable_[MAX_FDS];
         spinlock vntable_lock_;
 
         int cpu_index_;
