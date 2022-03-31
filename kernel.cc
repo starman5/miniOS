@@ -29,7 +29,8 @@ int bbuffer::bbuf_read(char* buf, int sz) {
     //auto lockthing = this->bbuffer_lock.lock();
     log_printf("grabbed the lock\n");
     if (this->write_closed_) {
-        return 0;
+        // EOF is returned when the pipe is drained
+        log_printf("WriteCLosed\n");
     }
     int pos = 0;
     while (pos < sz && this->blen_ > 0) {
@@ -59,6 +60,10 @@ int bbuffer::bbuf_read(char* buf, int sz) {
         log_printf("pos == 0 and sz > 0 and thiswrite\n");
         pos = -1;
     }
+    //if (pos == 0 && sz > 0 && this->write_closed_) {
+    //    log_printf("RET0\n");
+    //    return 0;
+    //}
     //this->bbuffer_lock.unlock(lockthing);
     return pos;
 }
@@ -755,7 +760,8 @@ uintptr_t proc::syscall(regstate* regs) {
         assert(vntable_[fd]->vn_ops_);
         if (this->vntable_[fd]->vn_ops_->vop_write == pipe_write) {
             assert((bbuffer*)this->vntable_[fd]->vn_data_);
-            ((bbuffer*)this->vntable_[fd]->vn_data_)->write_closed_ == true;
+            log_printf("CHANGetotrue\n");
+            ((bbuffer*)this->vntable_[fd]->vn_data_)->write_closed_ = true;
         }
         log_printf("hiii\n");
         log_printf("%p\n", this->vntable_[fd]->vn_data_);
@@ -1366,9 +1372,9 @@ uintptr_t proc::syscall_read(regstate* regs) {
         }
     
         vnode* readfile = this->vntable_[fd];
-        log_printf("%p\n", readfile);
-        log_printf("%p\n", (memfile*)readfile->vn_data_);
-        log_printf("%s\n", ((memfile*)readfile->vn_data_)->data_);
+        //log_printf("%p\n", readfile);
+        //log_printf("%p\n", (memfile*)readfile->vn_data_);
+        //log_printf("%s\n", ((memfile*)readfile->vn_data_)->data_);
         log_printf("Read: id %i, fd: %i, sz: %i\n", this->id_, fd, sz);
 
         int (*read_func)(vnode* vn, uintptr_t addr, int sz) = readfile->vn_ops_->vop_read;
