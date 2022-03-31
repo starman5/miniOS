@@ -115,8 +115,11 @@ vnode_ops* writeend_pipe_vn_ops;
 
 int memfs_vop_read(vnode* vn, uintptr_t addr, int sz) {
     // memcpy stuff
-    log_printf("%s\n", ((memfile*)vn->vn_data_)->data_);
-    memcpy((void*)addr, ((memfile*)vn->vn_data_)->data_, sz);
+    memfile* memf = (memfile*)vn->vn_data_;
+    log_printf("%s\n", memf->data_ + vn->vn_offset_);
+    memcpy((void*)addr, memf->data_ + vn->vn_offset_, sz);
+
+    vn->vn_offset_ += sz;
     return sz;
 }
 
