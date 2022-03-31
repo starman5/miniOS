@@ -730,9 +730,14 @@ uintptr_t proc::syscall(regstate* regs) {
         return 0;
     }
 
+    case SYSCALL_EXECV: {
+        return proc::syscall_execv(regs);
+    }
+
     case SYSCALL_OPEN: {
         return proc::syscall_open(regs);
     }
+
     
     case SYSCALL_CLOSE: {
         log_printf("in sys_close\n");
@@ -816,6 +821,46 @@ uintptr_t proc::syscall(regstate* regs) {
     assert(0 == 1);
 }
 
+int proc::syscall_execv(regstate* regs) {
+    const char* pathname = (const char*)regs->reg_rdi;
+    const char* const* argv = (const char* const*)regs->reg_rsi;
+    int argc = regs->reg_rdx;
+
+    log_printf("about to validate\n");
+    // Validate pathname
+    if (!vmiter(pagetable_, (uintptr_t)pathname).user() or !vmiter(pagetable_, (uintptr_t)pathname).present()) {
+        return E_FAULT;
+    }
+
+    // Validate argv
+    if (argv[argc]) {
+        return E_FAULT;
+    }
+
+    log_printf("will lookup\n");
+    // Lookup memfile
+    memfile m;
+    memfile* initfs_ar = m.initfs;
+    int initfs_index = m.initfs_lookup(pathname, false);
+    if (initfs_index < 0) {
+        return initfs_index;
+    }
+
+    log_printf("allocate new memfile\n");
+    memfile* new_memf = knew<memfile>();
+    new_memf = &initfs_ar[initfs_index];
+
+    x86_64_pagetable* new_pagetable = kalloc_pagetable();
+
+    log_printf("load pagetable\n");
+    // Load the pagetable
+    memfile_loader memf_loader = memfile_loader(new_memf, new_pagetable);
+    load(memf_loader);
+    log_printf("finished loading\n");
+    return 0;
+
+}
+
 int proc::syscall_open(regstate* regs) {
     const char* pathname = (const char*)regs->reg_rdi;
     int flags = regs->reg_rsi;
@@ -832,9 +877,9 @@ int proc::syscall_open(regstate* regs) {
     }
 
     // Look up pathname
-    memfile* m = knew<memfile>();
-    memfile* initfs_ar = m->initfs;
-    int initfs_index = m->initfs_lookup(pathname, ((flags & OF_CREATE) == OF_CREATE));
+    memfile m;
+    memfile* initfs_ar = m.initfs;
+    int initfs_index = m.initfs_lookup(pathname, ((flags & OF_CREATE) == OF_CREATE));
     if (initfs_index < 0) {
         return initfs_index;
     }
