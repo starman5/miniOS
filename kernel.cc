@@ -816,20 +816,22 @@ int proc::syscall_open(regstate* regs) {
     }
 
     // Look up pathname
-    memfile m;
-    memfile* initfs_ar = m.initfs;
-    int initfs_index = m.initfs_lookup(pathname, ((flags & OF_CREATE) == OF_CREATE));
+    memfile* m = knew<memfile>();
+    memfile* initfs_ar = m->initfs;
+    int initfs_index = m->initfs_lookup(pathname, ((flags & OF_CREATE) == OF_CREATE));
     if (initfs_index < 0) {
         return initfs_index;
     }
 
-    memfile current_memfile = initfs_ar[initfs_index];
-    log_printf("%s\n", current_memfile.data_);
+    //memfile current_memfile = initfs_ar[initfs_index];
+    memfile* current_memfile = knew<memfile>();
+    current_memfile = &initfs_ar[initfs_index];
+    log_printf("%s\n", current_memfile->data_);
     
     if ((flags & OF_TRUNC) == OF_TRUNC) {
         log_printf("truncating\n");
         // set the file's length to zero
-        current_memfile.set_length(0);
+        current_memfile->set_length(0);
     }
 
     auto irqs = vntable_lock_.lock();
@@ -855,8 +857,8 @@ int proc::syscall_open(regstate* regs) {
                 new_vn_ops->vop_write = memfs_vop_write;
             }
 
-            new_vnode->vn_data_ = &current_memfile;
-            log_printf("%p\n", &current_memfile);
+            new_vnode->vn_data_ = current_memfile;
+            log_printf("%p\n", current_memfile);
             log_printf("%s\n", ((memfile*)new_vnode->vn_data_)->data_);
             log_printf("%p\n", new_vnode);
 
