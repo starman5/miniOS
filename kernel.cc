@@ -115,8 +115,7 @@ vnode_ops* writeend_pipe_vn_ops;
 
 int memfs_vop_read(vnode* vn, uintptr_t addr, int sz) {
     // memcpy stuff
-    log_printf("%p\n", vn->vn_data_);
-    log_printf("%p\n", addr);
+    log_printf("%s\n", ((memfile*)vn->vn_data_)->data_);
     memcpy((void*)addr, ((memfile*)vn->vn_data_)->data_, sz);
     return sz;
 }
@@ -825,9 +824,10 @@ int proc::syscall_open(regstate* regs) {
     }
 
     memfile current_memfile = initfs_ar[initfs_index];
-    log_printf("%c\n", current_memfile.name_[0]);
+    log_printf("%s\n", current_memfile.data_);
     
     if ((flags & OF_TRUNC) == OF_TRUNC) {
+        log_printf("truncating\n");
         // set the file's length to zero
         current_memfile.set_length(0);
     }
@@ -856,9 +856,14 @@ int proc::syscall_open(regstate* regs) {
             }
 
             new_vnode->vn_data_ = &current_memfile;
+            log_printf("%p\n", &current_memfile);
+            log_printf("%s\n", ((memfile*)new_vnode->vn_data_)->data_);
+            log_printf("%p\n", new_vnode);
 
             new_vnode->vn_ops_ = new_vn_ops;
             vntable_[i] = new_vnode;
+            log_printf("%s\n", ((memfile*)vntable_[i]->vn_data_)->data_);
+            log_printf("%i\n", i);
             break;
         }
     }
@@ -866,10 +871,11 @@ int proc::syscall_open(regstate* regs) {
     vntable_lock_.unlock(irqs);
     
     if (!existsSpace) {
-
+        log_printf("bad\n");
         return E_NOSPC;
     }
     else {
+        log_printf("%i\n", newfd);
         return newfd;
     }
 }
@@ -1279,6 +1285,9 @@ uintptr_t proc::syscall_read(regstate* regs) {
         }
     
         vnode* readfile = this->vntable_[fd];
+        log_printf("%p\n", readfile);
+        log_printf("%p\n", (memfile*)readfile->vn_data_);
+        log_printf("%s\n", ((memfile*)readfile->vn_data_)->data_);
         log_printf("Read: id %i, fd: %i, sz: %i\n", this->id_, fd, sz);
 
         int (*read_func)(vnode* vn, uintptr_t addr, int sz) = readfile->vn_ops_->vop_read;

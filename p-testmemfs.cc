@@ -4,8 +4,6 @@ void process_main() {
     int f = sys_open("emerson.txt", OF_READ);
     assert_gt(f, 2);
 
-    console_printf("0\n");
-
     char buf[200];
     ssize_t n = sys_read(f, buf, 1);
     assert_eq(n, 1);
