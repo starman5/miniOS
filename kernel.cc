@@ -854,20 +854,28 @@ int proc::syscall_execv(regstate* regs) {
 
     log_printf("load pagetable\n");
     // Load the pagetable
-    memfile_loader memf_loader = memfile_loader(new_memf, new_pagetable);
+    memfile_loader memf_loader(new_memf, new_pagetable);
     load(memf_loader);
     log_printf("finished loading\n");
 
     // Allocate and map a new stack
     void* stkpg = kalloc(PAGESIZE);
     assert(stkpg);
-    vmiter(this, MEMSIZE_VIRTUAL - PAGESIZE).map(stkpg, PTE_PWU);
+    vmiter(new_pagetable, MEMSIZE_VIRTUAL - PAGESIZE).map(stkpg, PTE_PWU);
 
     // Map console
-    vmiter(this, ktext2pa(console)).try_map(ktext2pa(console), PTE_PWU);
+    vmiter(new_pagetable, ktext2pa(console)).try_map(ktext2pa(console), PTE_PWU);
+
+    init_user(id_, new_pagetable);
+    this->regs_->reg_rip = memf_loader.entry_rip_;
+    this->regs_->reg_rsi = MEMSIZE_VIRTUAL;
+
+    set_pagetable(new_pagetable);
+
+    kfree(pagetable_);
 
     log_printf("end execv\n");
-    return 0;
+    yield_noreturn();
 
 }
 
