@@ -52,6 +52,7 @@ void process_main() {
     n = sys_read(f, buf, 10);
     assert_eq(n, 10);
     assert_memeq(buf, ",\nGay and ", 10);
+    console_printf("great\n");
 
     r = sys_close(f);
     assert_eq(r, 0);

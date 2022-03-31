@@ -119,8 +119,15 @@ int memfs_vop_read(vnode* vn, uintptr_t addr, int sz) {
     log_printf("%s\n", memf->data_ + vn->vn_offset_);
     memcpy((void*)addr, memf->data_ + vn->vn_offset_, sz);
 
-    vn->vn_offset_ += sz;
-    return sz;
+    if (vn->vn_offset_ + sz > memf->len_) {
+        int sz_read = memf->len_ - vn->vn_offset_;
+        vn->vn_offset_ += sz_read;
+        return sz_read;
+    }   
+    else {
+        vn->vn_offset_ += sz;
+        return sz;
+    }
 }
 
 int memfs_vop_write(vnode* vn, uintptr_t addr, int sz) {
@@ -747,7 +754,7 @@ uintptr_t proc::syscall(regstate* regs) {
         }
         log_printf("hiii\n");
         log_printf("%p\n", this->vntable_[fd]->vn_data_);
-        if (this->vntable_[fd]->vn_data_) {
+        if (this->vntable_[fd]->vn_data_ && this->vntable_[fd]->is_pipe) {
             ((bbuffer*)this->vntable_[fd]->vn_data_)->bbuffer_wq_.wake_all();
         }
         this->vntable_[fd]->vn_refcount_ -= 1;
@@ -813,8 +820,14 @@ int proc::syscall_open(regstate* regs) {
     const char* pathname = (const char*)regs->reg_rdi;
     int flags = regs->reg_rsi;
     
-    // Validate the name
+    // Validate the name.  It is a char*.  Make sure it is not just some random pointer
     if (!pathname) {
+        return E_FAULT;
+    }
+
+    log_printf("%p\n", pathname);
+    if (!vmiter(pagetable_, (uintptr_t)pathname).present() or !vmiter(pagetable_, (uintptr_t)pathname).low() or !vmiter(pagetable_, (uintptr_t)pathname).writable()) {
+        log_printf("not valid\n");
         return E_FAULT;
     }
 
