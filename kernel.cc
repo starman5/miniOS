@@ -113,6 +113,23 @@ vnode_ops* readend_pipe_vn_ops;
 vnode_ops* writeend_pipe_vn_ops;
 
 
+int memfs_vop_read(vnode* vn, uintptr_t addr, int sz) {
+    // memcpy stuff
+    log_printf("%p\n", vn->vn_data_);
+    log_printf("%p\n", addr);
+    memcpy((void*)addr, ((memfile*)vn->vn_data_)->data_, sz);
+    return sz;
+}
+
+int memfs_vop_write(vnode* vn, uintptr_t addr, int sz) {
+    // memcpy stuff
+    if (vn->vn_offset_ + sz > ((memfile*)vn->vn_data_)->len_) {
+        ((memfile*)vn->vn_data_)->set_length(((memfile*)vn->vn_data_)->len_ + (sz - vn->vn_offset_));
+    }
+    memcpy((void*)addr, vn->vn_data_, sz);
+    return sz;
+}
+
 int stdout_write(vnode* vn, uintptr_t addr, int sz) {
     log_printf("in stdout write\n");
     auto& csl = consolestate::get();
@@ -792,38 +809,68 @@ uintptr_t proc::syscall(regstate* regs) {
 
 int proc::syscall_open(regstate* regs) {
     const char* pathname = (const char*)regs->reg_rdi;
-    int flag = regs->reg_rsi;
-    // validate the name
-
-    // search for a memfile with pathname in the memfile::initfs array
-    //      use memfile::initfs_lookup
-
-    // use bitmasks of some kind
-
-    bool create = false;
-    if (flag == OF_CREATE) {
-        create = true;
+    int flags = regs->reg_rsi;
+    
+    // Validate the name
+    if (!pathname) {
+        return E_FAULT;
     }
+
+    // Look up pathname
     memfile m;
     memfile* initfs_ar = m.initfs;
-    int initfs_index = m.initfs_lookup(pathname, create);
+    int initfs_index = m.initfs_lookup(pathname, ((flags & OF_CREATE) == OF_CREATE));
     if (initfs_index < 0) {
         return initfs_index;
     }
+
+    memfile current_memfile = initfs_ar[initfs_index];
+    log_printf("%c\n", current_memfile.name_[0]);
     
-    if (flag == OF_TRUNC) {
+    if ((flags & OF_TRUNC) == OF_TRUNC) {
         // set the file's length to zero
-        initfs_ar[initfs_index].set_length(0);
+        current_memfile.set_length(0);
     }
 
     auto irqs = vntable_lock_.lock();
+    bool existsSpace = false;
+    int newfd;
     for (int i = 0; i < MAX_FDS; i++) {
         if (!vntable_[i]) {
-            // create a vnode representing memfs;
-            // if OF_READ is present, then set up a vop_read, else nullptr
-            // if OF_WRITE is present, then set up a vop_write, else nullptr
-            vntable_[i] = 
+            existsSpace = true;
+            newfd = i;
+            vnode* new_vnode = knew<vnode>();
+            vnode_ops* new_vn_ops = knew<vnode_ops>();
+            if ((flags & OF_READ) != OF_READ) {
+                new_vn_ops->vop_read = nullptr;
+            }
+            else {
+                log_printf("can read\n");
+                new_vn_ops->vop_read = memfs_vop_read;
+            }
+            if ((flags & OF_WRITE) != OF_WRITE) {
+                new_vn_ops->vop_write = nullptr;
+            }
+            else {
+                new_vn_ops->vop_write = memfs_vop_write;
+            }
+
+            new_vnode->vn_data_ = &current_memfile;
+
+            new_vnode->vn_ops_ = new_vn_ops;
+            vntable_[i] = new_vnode;
+            break;
         }
+    }
+
+    vntable_lock_.unlock(irqs);
+    
+    if (!existsSpace) {
+
+        return E_NOSPC;
+    }
+    else {
+        return newfd;
     }
 }
 

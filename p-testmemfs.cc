@@ -4,14 +4,20 @@ void process_main() {
     int f = sys_open("emerson.txt", OF_READ);
     assert_gt(f, 2);
 
+    console_printf("0\n");
+
     char buf[200];
     ssize_t n = sys_read(f, buf, 1);
     assert_eq(n, 1);
     assert_memeq(buf, "W", 1);
 
+    console_printf("1\n");
+
     n = sys_read(f, buf, 2);
     assert_eq(n, 2);
     assert_memeq(buf, "he", 2);
+
+    console_printf("2\n");
 
     n = sys_read(f, buf, 3);
     assert_eq(n, 3);
@@ -82,7 +88,6 @@ void process_main() {
     r = sys_close(f3);
     assert_eq(r, 0);
 
-
     r = sys_open(nullptr, OF_READ);
     assert_eq(r, E_FAULT);
 
@@ -90,6 +95,7 @@ void process_main() {
     char* page = reinterpret_cast<char*>(
         round_up(reinterpret_cast<uintptr_t>(end), PAGESIZE)
     ) + PAGESIZE;
+    console_printf("%p\n", page);
     r = sys_page_alloc(page);
     assert_eq(r, 0);
 
