@@ -895,14 +895,35 @@ int proc::syscall_open(regstate* regs) {
     }
 
     log_printf("%p\n", pathname);
-    if (!vmiter(pagetable_, (uintptr_t)pathname).present() or !vmiter(pagetable_, (uintptr_t)pathname).low() or !vmiter(pagetable_, (uintptr_t)pathname).writable()) {
+    if (!vmiter(pagetable_, (uintptr_t)pathname).present() or !vmiter(pagetable_, (uintptr_t)pathname).user() or !vmiter(pagetable_, (uintptr_t)pathname).writable()) {
         log_printf("not valid\n");
         return E_FAULT;
     }
 
+    log_printf("not here\n");
+
+
     // Look up pathname
     memfile m;
     memfile* initfs_ar = m.initfs;
+
+    bool found = false;
+    for (int i = 0; i < 64; i++) {
+        int j = 0;
+        for (; j < 64; j++) {
+            if (initfs_ar[i].name_[j] == '\0') {
+                break;
+            }
+        }
+        if (pathname[j] == '\0') {
+            found = true;
+        } 
+    }
+    if (!found) {
+        return E_FAULT;
+    }
+
+    log_printf("didn't catch it\n");
     int initfs_index = m.initfs_lookup(pathname, ((flags & OF_CREATE) == OF_CREATE));
     if (initfs_index < 0) {
         return initfs_index;
