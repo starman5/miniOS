@@ -1513,6 +1513,7 @@ uintptr_t proc::syscall_readdiskfile(regstate* regs) {
     // This is a slow system call, so allow interrupts by default
     sti();
 
+    log_printf("heeer\n");
     const char* filename = reinterpret_cast<const char*>(regs->reg_rdi);
     unsigned char* buf = reinterpret_cast<unsigned char*>(regs->reg_rsi);
     size_t sz = regs->reg_rdx;
@@ -1528,6 +1529,7 @@ uintptr_t proc::syscall_readdiskfile(regstate* regs) {
         return E_NOENT;
     }
 
+    log_printf("looked up\n");
     // read file inode
     ino->lock_read();
     chkfs_fileiter it(ino);

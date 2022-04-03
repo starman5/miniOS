@@ -122,9 +122,20 @@ bool bcentry::load(irqstate& irqs, bcentry_clean_function cleaner) {
 void bcentry::put() {
     spinlock_guard guard(lock_);
     assert(ref_ != 0);
-    if (--ref_ == 0) {
+    // Eviction here.  Implement LRU
+    // Strategy:  Assign a recent number to each bcentry.  When put is called:
+    //  Assign the current bcentry's recent number to 1.  Increment all other
+    //  Recent numbers in the bufcache.  While iterating, maintain a maximum var
+    //  Clear the bcentry associated with the maximum var
+    //
+    // Synchronization:
+    //  If put is holding the buffercache wide lock, we are all good.  Otherwise, problems
+    
+    /*if (--ref_ == 0) {
         clear();
-    }
+    }*/
+    --ref_;
+
 }
 
 

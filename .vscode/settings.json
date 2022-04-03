@@ -13,10 +13,11 @@
         "unordered_set": "cpp",
         "__bit_reference": "cpp",
         "__string": "cpp",
-        "cstring": "cpp"
-        //"atomic": "cpp",
-        //"__hash_table": "cpp",
-        //"ios": "cpp",
-        //"system_error": "cpp"
+        "cstring": "cpp",
+        "__hash_table": "cpp",
+        "atomic": "cpp",
+        "ios": "cpp",
+        "system_error": "cpp",
+        "ostream": "cpp"
     }
 }
