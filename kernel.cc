@@ -843,12 +843,17 @@ int proc::syscall_execv(regstate* regs) {
         return E_FAULT;
     }
 
+    /*memfile_loader ld(memfile::initfs_lookup(name), kalloc_pagetable());
+    assert(ld.memfile_ && ld.pagetable_);
+    int r = proc::load(ld);*/
+
     log_printf("will lookup\n");
     // Lookup memfile
     memfile m;
-    memfile* initfs_ar = m.initfs;
-    int initfs_index = m.initfs_lookup(pathname, false);
+    memfile* initfs_ar = memfile::initfs;
+    int initfs_index = memfile::initfs_lookup(pathname, false);
     if (initfs_index < 0) {
+        log_printf("error lookup\n");
         return initfs_index;
     }
 
@@ -861,11 +866,27 @@ int proc::syscall_execv(regstate* regs) {
     log_printf("load pagetable\n");
     // Load the pagetable
     memfile_loader memf_loader(new_memf, new_pagetable);
-    load(memf_loader);
+    int r = load(memf_loader);
+    assert(r >= 0);
     log_printf("finished loading\n");
 
-    // Allocate and map a new stack
     void* stkpg = kalloc(PAGESIZE);
+    assert(stkpg);
+    
+    //log_printf("id: %i, parent_id: %i\n", p->id_, p->parent_id_);
+
+    vmiter(new_pagetable, MEMSIZE_VIRTUAL - PAGESIZE).map(stkpg, PTE_PWU);
+    //uintptr_t console_page = 47104 - (47104 % 4096);
+    vmiter(new_pagetable, ktext2pa(console)).map(ktext2pa(console), PTE_PWU);
+
+    this->init_user(this->id_, new_pagetable);
+
+    this->regs_->reg_rip = memf_loader.entry_rip_;
+    this->regs_->reg_rsp = MEMSIZE_VIRTUAL;
+
+
+    // Allocate and map a new stack page
+   /* void* stkpg = kalloc(PAGESIZE);
     assert(stkpg);
     vmiter(new_pagetable, MEMSIZE_VIRTUAL - PAGESIZE).map(stkpg, PTE_PWU);
 
@@ -873,14 +894,57 @@ int proc::syscall_execv(regstate* regs) {
     vmiter(new_pagetable, ktext2pa(console)).try_map(ktext2pa(console), PTE_PWU);
 
     init_user(id_, new_pagetable);
-    this->regs_->reg_rip = memf_loader.entry_rip_;
-    this->regs_->reg_rsi = MEMSIZE_VIRTUAL;
 
+    // vmiter representing top of the newly allocated stack
+    vmiter it = vmiter(new_pagetable, MEMSIZE_VIRTUAL);*/
+
+   /* char* argpointers[argc];
+    for (int i = 0; i < argc; i++) {
+        // Subtract the length of the argument and leave room for null character
+        // Right now, we are putting the characters themselves on the stack, so pointers
+        // to the strings will be valid
+        it -= (strlen(argv[i]) + 1);
+        char* ptr = pa2kptr<char*>(it.pa());
+        strcpy(ptr, argv[i]);
+        argpointers[i] = (char*) it.va();    
+    }
+
+    it -= (it.va() % sizeof(char*));
+
+    it -= sizeof(char*);
+
+    // Insert nullptr at the last index in argpointers
+    char* ptr = knew<char>();
+    ptr = nullptr;
+    char* thing = pa2kptr<char*>(it.pa());
+    memcpy(thing, &ptr, sizeof(char*));
+
+    for (int j = argc - 1; j >= 0; j--) {
+        it -= sizeof(char*);
+        char* dest = pa2kptr<char*>(it.pa());
+        memcpy(dest, &argpointers[j], sizeof(char*));
+    }
+
+    this->regs_->reg_rip = memf_loader.entry_rip_;
+    this->regs_->reg_rsi = it.va();
+    this->regs_->reg_rdi = argc;
+
+    if (regs_->reg_rsi % 16 == 0) {
+        regs_->reg_rsp = regs_->reg_rsi - 8;
+    }
+
+    else {
+        regs_->reg_rsp = regs_->reg_rsi;
+    }*/
+    //log_printf("before setting pagetbale\n");
     set_pagetable(new_pagetable);
+    //log_printf("after\n");
 
     kfree(pagetable_);
 
-    log_printf("end execv\n");
+    //this->cpu_index_ = id_ % ncpu;
+    //cpus[this->cpu_index_].enqueue(this);
+    //log_printf("end execv\n");
     yield_noreturn();
 
 }
@@ -895,19 +959,29 @@ int proc::syscall_open(regstate* regs) {
     }
 
     log_printf("%p\n", pathname);
-    if (!vmiter(pagetable_, (uintptr_t)pathname).present() or !vmiter(pagetable_, (uintptr_t)pathname).user() or !vmiter(pagetable_, (uintptr_t)pathname).writable()) {
+    if (!vmiter(pagetable_, (uintptr_t)pathname).present() or !vmiter(pagetable_, (uintptr_t)pathname).user()) {
         log_printf("not valid\n");
         return E_FAULT;
     }
 
     log_printf("not here\n");
 
+    for (vmiter it(pagetable_, (uintptr_t) pathname); it.va() != 0; it++) {
+        log_printf("%p\n", (char*)it.va());
+        if (!it.present() or !it.user()) {
+            return E_FAULT;
+        }
+        if (*((char*)it.va()) == '\0') {
+            break;
+        }
+    }
+
 
     // Look up pathname
     memfile m;
     memfile* initfs_ar = m.initfs;
 
-    bool found = false;
+    /*bool found = false;
     for (int i = 0; i < 64; i++) {
         int j = 0;
         for (; j < 64; j++) {
@@ -921,7 +995,7 @@ int proc::syscall_open(regstate* regs) {
     }
     if (!found) {
         return E_FAULT;
-    }
+    }*/
 
     log_printf("didn't catch it\n");
     int initfs_index = m.initfs_lookup(pathname, ((flags & OF_CREATE) == OF_CREATE));
