@@ -967,8 +967,6 @@ int proc::syscall_open(regstate* regs) {
     log_printf("not here\n");
 
     for (vmiter it(pagetable_, (uintptr_t) pathname); it.va() != 0; it++) {
-        log_printf("%p\n", (char*)it.va());
-        log_printf("%p\n", pa2ka(it.pa()));
         if (!it.present() or !it.user()) {
             return E_FAULT;
         }
