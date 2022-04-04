@@ -881,8 +881,8 @@ int proc::syscall_execv(regstate* regs) {
 
     this->init_user(this->id_, new_pagetable);
 
-    this->regs_->reg_rip = memf_loader.entry_rip_;
-    this->regs_->reg_rsp = MEMSIZE_VIRTUAL;
+    //this->regs_->reg_rip = memf_loader.entry_rip_;
+    //this->regs_->reg_rsp = MEMSIZE_VIRTUAL;
 
 
     // Allocate and map a new stack page
@@ -893,20 +893,20 @@ int proc::syscall_execv(regstate* regs) {
     // Map console
     vmiter(new_pagetable, ktext2pa(console)).try_map(ktext2pa(console), PTE_PWU);
 
-    init_user(id_, new_pagetable);
+    init_user(id_, new_pagetable);*/
 
     // vmiter representing top of the newly allocated stack
-    vmiter it = vmiter(new_pagetable, MEMSIZE_VIRTUAL);*/
+    vmiter it = vmiter(new_pagetable, MEMSIZE_VIRTUAL);
 
-   /* char* argpointers[argc];
+    char* argpointers[argc];
     for (int i = 0; i < argc; i++) {
         // Subtract the length of the argument and leave room for null character
         // Right now, we are putting the characters themselves on the stack, so pointers
         // to the strings will be valid
         it -= (strlen(argv[i]) + 1);
-        char* ptr = pa2kptr<char*>(it.pa());
+        char* ptr = (char*) it.va();
         strcpy(ptr, argv[i]);
-        argpointers[i] = (char*) it.va();    
+        argpointers[i] = ptr;    
     }
 
     it -= (it.va() % sizeof(char*));
@@ -916,12 +916,12 @@ int proc::syscall_execv(regstate* regs) {
     // Insert nullptr at the last index in argpointers
     char* ptr = knew<char>();
     ptr = nullptr;
-    char* thing = pa2kptr<char*>(it.pa());
+    char* thing = (char*) it.va();
     memcpy(thing, &ptr, sizeof(char*));
 
     for (int j = argc - 1; j >= 0; j--) {
         it -= sizeof(char*);
-        char* dest = pa2kptr<char*>(it.pa());
+        char* dest = (char*) it.va();
         memcpy(dest, &argpointers[j], sizeof(char*));
     }
 
@@ -935,7 +935,7 @@ int proc::syscall_execv(regstate* regs) {
 
     else {
         regs_->reg_rsp = regs_->reg_rsi;
-    }*/
+    }
     //log_printf("before setting pagetbale\n");
     set_pagetable(new_pagetable);
     //log_printf("after\n");
@@ -968,6 +968,7 @@ int proc::syscall_open(regstate* regs) {
 
     for (vmiter it(pagetable_, (uintptr_t) pathname); it.va() != 0; it++) {
         log_printf("%p\n", (char*)it.va());
+        log_printf("%p\n", pa2ka(it.pa()));
         if (!it.present() or !it.user()) {
             return E_FAULT;
         }
