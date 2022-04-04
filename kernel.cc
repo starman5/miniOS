@@ -10,7 +10,8 @@
 // kernel.cc
 //
 //    This is the kernel
-
+#define MIN_ORDER       12
+#define MAX_ORDER       21
 
 // # timer interrupts so far on CPU 0
 std::atomic<unsigned long> ticks;
@@ -537,6 +538,10 @@ uintptr_t proc::syscall(regstate* regs) {
         }
 
         return 0;
+    }
+
+    case SYSCALL_TESTKALLOC: {
+        return syscall_testkalloc(regs);
     }
 
     case SYSCALL_TEST_ALLOC: {
@@ -1593,12 +1598,15 @@ uintptr_t proc::syscall_readdiskfile(regstate* regs) {
     off_t off = regs->reg_r10;
 
     if (!sata_disk) {
+        log_printf("bad\n");
         return E_IO;
     }
+    log_printf("about to read\n");
 
     // read root directory to find file inode number
     auto ino = chkfsstate::get().lookup_inode(filename);
     if (!ino) {
+        log_printf("bad\n");
         return E_NOENT;
     }
 
@@ -1635,6 +1643,191 @@ uintptr_t proc::syscall_readdiskfile(regstate* regs) {
     return nread;
 }
 
+int proc::syscall_testkalloc(regstate* regs) {
+    int tcase = regs->reg_rdi; // type of test to run
+    
+    int num_allocs = 50; // number of allocations to make per test
+    void* ptr_arr[num_allocs]; // ptr_arr to save, which will be freed afterwards
+
+    switch (tcase) {
+        case 0: { 
+            log_printf("in case 0\n");
+
+            // simple test case 1
+            // straigforward pagesize allocations, followed by frees
+
+            uint64_t sz = PAGESIZE;
+            for (int i = 0; i < num_allocs; ++i) {
+                ptr_arr[i] = kalloc(sz);
+            }
+
+            for (int i = 0; i < num_allocs; ++i) {
+                kfree(ptr_arr[i]);
+            }
+
+            log_printf("======= TEST CASE [0] for PROCESS [%d] COMPLETED =======\n", this->id_);
+            break;
+        }
+
+        case 1: { 
+
+            // randomized general case 1
+            // Multiples of PAGESIZE allocations
+            // the order of the allocation is randomized
+            // ranges between max order to min order
+
+            int ro = 0;
+            uint64_t sz = PAGESIZE;
+
+            for (int i = 0; i < num_allocs; ++i) {
+                ro = rand(MIN_ORDER, MAX_ORDER);
+                sz = 1 << ro;
+                ptr_arr[i] = kalloc(sz);
+            }
+
+            for (int i = 0; i < num_allocs; ++i) {
+                kfree(ptr_arr[i]);
+            }
+
+            log_printf("======= TEST CASE [1] for PROCESS [%d] COMPLETED =======\n", this->id_);
+            break;
+        }
+
+        case 2: { 
+
+            // randomized general case 2
+            // non-multiples of PAGESIZE
+            // can range fom 4096 bytes to 2^21 bytes
+
+            uint64_t sz;
+
+            for (int i = 0; i < num_allocs; ++i) {
+                sz = rand(1 << MIN_ORDER, 1 << MAX_ORDER);
+                ptr_arr[i] = kalloc(sz);
+            }
+
+            for (int i = 0; i < num_allocs; ++i) {
+                kfree(ptr_arr[i]);
+            }
+            log_printf("======= TEST CASE [2] for PROCESS [%d] COMPLETED =======\n", this->id_);
+            break;
+        }
+
+        case 3: { 
+
+            // randomized general case 3
+            // smaller but randomized page size allocations
+            // sz requested by random generator is constrained to 
+            // smaller allocation sizes thus, more allocations overall
+
+            uint64_t sz;
+            for (int j = 0; j < 10; ++j) {
+                for (int i = 0; i < num_allocs; ++i) {
+                    sz = rand(1 << MIN_ORDER, 1 << (MAX_ORDER - 5));
+                    ptr_arr[i] = kalloc(sz);
+                }
+
+                for (int i = 0; i < num_allocs; ++i) {
+                    kfree(ptr_arr[i]);
+                }
+            }
+            log_printf("======= TEST CASE [3] for PROCESS [%d] COMPLETED =======\n", this->id_);
+            break;
+        }
+        // ----- SLAB ALLOCATOR TESTS -----
+        case 4: {
+
+            // slab allocator random test 1
+            // sizes of only smaller slabs are allocated
+            // we expect here that by the time 50 allocations are requested
+            // the smaller slabs will be used up and larger slabs will be
+            // allocated until those are used up as well, at which point the 
+            // buddy allocator will take over
+
+            for (int j = 0; j < 10; ++j) {
+                uint64_t sz;
+                for (int i = 0; i < num_allocs; ++i) {
+                    sz = rand(1 << 2, 1 << 6);
+                    ptr_arr[i] = kalloc(sz);
+                }
+                for (int i = 0; i < num_allocs; ++i) {
+                    kfree(ptr_arr[i]);
+                }
+            }
+            log_printf("======= {SLAB} TEST CASE [4] for PROCESS [%d] COMPLETED =======\n", this->id_);
+            break;
+
+        }
+
+        case 5: {
+
+            // randomized slab allocator test 2
+            // now we start with the larger 512 byte allocation sizes
+            // we expect that these chunks will be used up quickly and
+            // then the buddy allocator will take over
+
+            for (int j = 0; j < 10; ++j) {
+                uint64_t sz;
+                for (int i = 0; i < num_allocs; ++i) {
+                    sz = rand(1 << 7, (1 << 9) - 8);
+                    ptr_arr[i] = kalloc(sz);
+                }
+                for (int i = 0; i < num_allocs; ++i) {
+                    kfree(ptr_arr[i]);
+                }
+            }
+            log_printf("======= {SLAB} TEST CASE [5] for PROCESS [%d] COMPLETED =======\n", this->id_);
+            break;
+        }
+
+        case 6: { 
+
+            // randomized slab allocator test 3
+            // we randomly switch between larger slab sizes and smaller
+            // slab sizes untill the buddy allocator takes over
+
+            for (int j = 0; j < 10; ++j) {
+                uint64_t sz;
+                for (int i = 0; i < num_allocs; ++i) {
+                    sz = rand(1 << 2, (1 << 9)- 8);
+                    ptr_arr[i] = kalloc(sz);
+                }
+                for (int i = 0; i < num_allocs; ++i) {
+                    kfree(ptr_arr[i]);
+                }
+            }
+            log_printf("======= {SLAB} TEST CASE [6] for PROCESS [%d] COMPLETED =======\n", this->id_);
+            break;
+        }
+
+        case 7: {
+
+            // randomized slab allocator test 4
+            // here we switch constantly between the large slab, small slab
+            // and the buddy allocator at the same time
+
+            for (int j = 0; j < 10; ++j) {
+                uint64_t sz;
+                for (int i = 0; i < num_allocs; ++i) {
+                    sz = rand(1 << 2, 1 << (MIN_ORDER + 2));
+                    ptr_arr[i] = kalloc(sz);
+                }
+                for (int i = 0; i < num_allocs; ++i) {
+                    kfree(ptr_arr[i]);
+                }
+            }
+            log_printf("======= {SLAB} TEST CASE [7] for PROCESS [%d] COMPLETED =======\n", this->id_);
+            break;
+        }
+
+        default: {
+            // if an incorrect test case number is called
+            log_printf("======= ERROR: Test case number %d not implemented  =======\n", tcase);
+            break;
+        }
+    }
+    return 0;
+}
 
 // memshow()
 //    Draw a picture of memory (physical and virtual) on the CGA console.

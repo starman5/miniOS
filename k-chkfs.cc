@@ -20,6 +20,7 @@ bufcache::bufcache() {
 
 bcentry* bufcache::get_disk_entry(chkfs::blocknum_t bn,
                                   bcentry_clean_function cleaner) {
+    log_printf("in get disk entry\n");                                 
     assert(chkfs::blocksize == PAGESIZE);
     auto irqs = lock_.lock();
 
@@ -80,6 +81,7 @@ bcentry* bufcache::get_disk_entry(chkfs::blocknum_t bn,
 
 bool bcentry::load(irqstate& irqs, bcentry_clean_function cleaner) {
     bufcache& bc = bufcache::get();
+    log_printf("in load\n");
 
     // load block, or wait for concurrent reader to load it
     while (true) {
@@ -122,7 +124,7 @@ bool bcentry::load(irqstate& irqs, bcentry_clean_function cleaner) {
 void bcentry::put() {
     spinlock_guard guard(lock_);
     assert(ref_ != 0);
-    // Eviction here.  Implement LRU
+    // eviction here.  Implement LRU
     // Strategy:  Assign a recent number to each bcentry.  When put is called:
     //  Assign the current bcentry's recent number to 1.  Increment all other
     //  Recent numbers in the bufcache.  While iterating, maintain a maximum var
@@ -131,10 +133,17 @@ void bcentry::put() {
     // Synchronization:
     //  If put is holding the buffercache wide lock, we are all good.  Otherwise, problems
     
-    /*if (--ref_ == 0) {
+    if (--ref_ == 0) {
+        log_printf("clearing\n");
+        clear();
+    }
+
+    /*--ref_;
+    if (++recent_num == 10) {
+        log_printf("clearing\n");
         clear();
     }*/
-    --ref_;
+    
 
 }
 
@@ -279,8 +288,10 @@ static void clean_inode_block(bcentry* entry) {
 //    you should eventually release this reference by calling `ino->put()`.
 
 chkfs::inode* chkfsstate::get_inode(inum_t inum) {
+    log_printf("in get inode\n");
     auto& bc = bufcache::get();
     auto superblock_entry = bc.get_disk_entry(0);
+    log_printf("after get disk entry\n");
     assert(superblock_entry);
     auto& sb = *reinterpret_cast<chkfs::superblock*>
         (&superblock_entry->buf_[chkfs::superblock_offset]);
@@ -356,6 +367,7 @@ chkfs::inode* chkfsstate::lookup_inode(inode* dirino,
 
 chkfs::inode* chkfsstate::lookup_inode(const char* filename) {
     auto dirino = get_inode(1);
+    log_printf("after get inode\n");
     if (dirino) {
         dirino->lock_read();
         auto ino = fs.lookup_inode(dirino, filename);

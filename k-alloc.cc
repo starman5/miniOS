@@ -212,8 +212,8 @@ void init_kalloc() {
 //    of pages.
 
 void* kalloc(size_t sz) {
-    //log_printf("In kalloc\n");
-    //log_printf("size: %i\n", sz);
+    log_printf("In kalloc\n");
+    log_printf("size: %i\n", sz);
 
     if (sz == 0 || sz > (1 << MAX_ORDER)) {
         //log_printf("Not a valid size\n");

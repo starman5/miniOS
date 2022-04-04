@@ -120,6 +120,7 @@ struct __attribute__((aligned(4096))) proc {
 
         inline bool resumable() const;
 
+        int syscall_testkalloc(regstate* regs);
         int syscall_execv(regstate* regs);
         int syscall_open(regstate* regs);
         int syscall_dup2(regstate* regs);

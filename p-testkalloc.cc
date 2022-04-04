@@ -6,11 +6,13 @@ uint8_t* heap_top;
 uint8_t* stack_bottom;
 
 void process_main() {
+    sys_testkalloc(7);
+
     // Your code here!
     // Running testkalloc should cause the kernel to run buddy allocator
     // tests. How you make this work is up to you.
 
-    sys_consoletype(CONSOLE_MEMVIEWER);
+    /*sys_consoletype(CONSOLE_MEMVIEWER);
 
     //(void) sys_fork();
     //(void) sys_fork();
@@ -40,5 +42,5 @@ void process_main() {
         }
         sys_pause();
     }
-    //sys_exit(0);
+    //sys_exit(0);*/
 }

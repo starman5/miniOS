@@ -22,6 +22,7 @@ struct bcentry {
     blocknum_t bn_;                      // disk block number (unless empty)
     unsigned ref_ = 0;                   // reference count
     unsigned char* buf_ = nullptr;       // memory buffer used for entry
+    unsigned int recent_num = 0;
 
 
     // return the index of this entry in the buffer cache

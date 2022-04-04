@@ -288,6 +288,7 @@ struct bitset_view {
 #define SYSCALL_TEST_ALLOC      135
 #define SYSCALL_TEST_FREE       136
 #define SYSCALL_WAITPID         137
+#define SYSCALL_TESTKALLOC      138
 
 // Add new system calls here.
 // Your numbers should be >=128 to avoid conflicts.
