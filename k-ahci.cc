@@ -20,6 +20,7 @@ inline void ahcistate::clear(int slot) {
 // ahcistate::push_buffer(slot, buf, sz)
 //    Append a data buffer to the buffers relevant for the next command.
 void ahcistate::push_buffer(int slot, void* buf, size_t sz) {
+    log_printf("push_buffer\n");
     // check requirements on address and size
     uint64_t pa = kptr2pa(buf);
     assert((pa & 1) == 0 && (sz & 1) == 0);       // word-aligned
@@ -36,6 +37,7 @@ void ahcistate::push_buffer(int slot, void* buf, size_t sz) {
     dma_.ct[slot].buf[nbuf].maxbyte = sz - 1;
     dma_.ch[slot].nbuf = nbuf + 1;
     dma_.ch[slot].buf_byte_pos += sz;
+    log_printf("end push_buffer\n");
 }
 
 // ahcistate::issue_ncq(slot, cmd, sector, fua = false, priority = 0)
@@ -46,6 +48,7 @@ void ahcistate::push_buffer(int slot, void* buf, size_t sz) {
 //    `priority`: 0 is normal; 2 means high priority.
 void ahcistate::issue_ncq(int slot, idecommand cmd, size_t sector,
                           bool fua, int priority) {
+    log_printf("issue ncq\n");
     assert(unsigned(slot) < unsigned(nslots_));
     assert(!(slots_outstanding_mask_ & (1U << slot)));
     assert(cmd == cmd_read_fpdma_queued || cmd == cmd_write_fpdma_queued);
@@ -74,6 +77,7 @@ void ahcistate::issue_ncq(int slot, idecommand cmd, size_t sector,
 
     slots_outstanding_mask_ |= 1U << slot;   // remember slot
     --nslots_available_;
+    log_printf("end ncq\n");
 }
 
 // ahcistate::acknowledge(slot, result)
@@ -107,10 +111,15 @@ int ahcistate::read_or_write(idecommand command, void* buf, size_t sz,
     // obtain lock
     auto irqs = lock_.lock();
 
+    //log_printf("in ahcistate read or write\n");
+
+    //log_printf("about to blockuntil in ahcistate\n");
     // block until ready for command
     waiter().block_until(wq_, [&] () {
+            //log_printf("%i\n", !slots_outstanding_mask_);
             return !slots_outstanding_mask_;
         }, lock_, irqs);
+    //log_printf("after blockuntil ahcistate\n");
 
     // send command, record buffer and status storage
     std::atomic<int> r = E_AGAIN;
@@ -122,9 +131,12 @@ int ahcistate::read_or_write(idecommand command, void* buf, size_t sz,
     lock_.unlock(irqs);
 
     // wait for response
+    //log_printf("about to wait for response\n");
     waiter().block_until(wq_, [&] () {
+            //log_printf("%i\n", r != E_AGAIN);
             return r != E_AGAIN;
         });
+    //log_printf("finished waiting for response\n");
     return r;
 }
 

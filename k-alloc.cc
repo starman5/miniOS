@@ -89,6 +89,7 @@ page_meta* split(int original_order, page_meta* starting_block, int count) {
         page_lock.unlock(irqs);
         return thing;
     }
+    page_lock.unlock(irqs);
 
 }
 
@@ -248,12 +249,14 @@ void* kalloc(size_t sz) {
                     asan_mark_memory(ka2pa(return_block->addr_), (1 << return_block->order_), false);
                     //memset(return_block->addr_, 0xCC, (1 << return_block->order_));
                 }
+                log_printf("end of kalloc\n");
                 page_lock.unlock(irqs);
                 return return_block->addr_;
             }
         }
 
         //log_printf("all lists empty\n");
+        log_printf("end of kalloc\n");
         page_lock.unlock(irqs);
         return nullptr;
     }
@@ -268,6 +271,7 @@ void* kalloc(size_t sz) {
             asan_mark_memory(ka2pa(return_block->addr_), (1 << return_block->order_), false);
             //memset(return_block->addr_, 0xCC, (1 << return_block->order_));
         }
+        log_printf("end of kalloc\n");
         page_lock.unlock(irqs);
         //log_printf("return_block: %p\n", return_block);
         return return_block->addr_;
@@ -282,6 +286,7 @@ void* kalloc(size_t sz) {
 //    `ptr == nullptr`.
 void kfree(void* ptr) {
     auto irqs = page_lock.lock();
+    log_printf("in kfree\n");
     //log_printf("In kfree.  Freeing virtual address %p associated with physical address %p\n", ptr, ka2pa(ptr));
     // check to make sure fields are not nullptr
     /*if (ptr) {
@@ -295,6 +300,7 @@ void kfree(void* ptr) {
         int page_index = (uintptr_t) ka2pa(ptr) / PAGESIZE;
         if (all_pages[page_index].free_ == true) {
             //log_printf("the page is already free\n");
+            log_printf("end kfree\n");
             page_lock.unlock(irqs);
             return;
         }
@@ -317,7 +323,7 @@ void kfree(void* ptr) {
         memset(ptr, 0xCC, (1 << order));
         //log_printf("afterm marking memset\n");
     }
-    //log_printf("end of kfree\n");
+    log_printf("end of kfree\n");
     page_lock.unlock(irqs);
 }
 

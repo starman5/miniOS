@@ -87,30 +87,38 @@ bool bcentry::load(irqstate& irqs, bcentry_clean_function cleaner) {
     while (true) {
         assert(estate_ != es_empty);
         if (estate_ == es_allocated) {
+            log_printf("es_allocated\n");
             if (!buf_) {
+                log_printf("!buf\n");
                 buf_ = reinterpret_cast<unsigned char*>
                     (kalloc(chkfs::blocksize));
                 if (!buf_) {
+                    log_printf("again !buf\n");
                     return false;
                 }
             }
             estate_ = es_loading;
             lock_.unlock(irqs);
 
+            log_printf("about to read sata disk\n");
             sata_disk->read(buf_, chkfs::blocksize,
                             bn_ * chkfs::blocksize);
 
+            log_printf("finished reading sata disk\n");
             irqs = lock_.lock();
             estate_ = es_clean;
             if (cleaner) {
                 cleaner(this);
             }
+            log_printf("about to bc wakeall\n");
             bc.read_wq_.wake_all();
         } else if (estate_ == es_loading) {
+            log_printf("es_loading\n");
             waiter().block_until(bc.read_wq_, [&] () {
                     return estate_ != es_loading;
                 }, lock_, irqs);
         } else {
+            log_printf("something else\n");
             return true;
         }
     }
@@ -128,7 +136,7 @@ void bcentry::put() {
     // Strategy:  Assign a recent number to each bcentry.  When put is called:
     //  Assign the current bcentry's recent number to 1.  Increment all other
     //  Recent numbers in the bufcache.  While iterating, maintain a maximum var
-    //  Clear the bcentry associated with the maximum var
+    //  for bcentry with ref = 0.  Clear the bcentry associated with the maximum var
     //
     // Synchronization:
     //  If put is holding the buffercache wide lock, we are all good.  Otherwise, problems
@@ -299,8 +307,10 @@ chkfs::inode* chkfsstate::get_inode(inum_t inum) {
 
     chkfs::inode* ino = nullptr;
     if (inum > 0 && inum < sb.ninodes) {
+        //log_printf("1c\n");
         auto bn = sb.inode_bn + inum / chkfs::inodesperblock;
         if (auto inode_entry = bc.get_disk_entry(bn, clean_inode_block)) {
+            //log_printf("2c\n");
             ino = reinterpret_cast<inode*>(inode_entry->buf_);
         }
     }

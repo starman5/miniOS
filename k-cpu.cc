@@ -61,6 +61,7 @@ void cpustate::disable_irq(int irqno) {
 //    `p` must be resumable (or not runnable).
 
 void cpustate::enqueue(proc* p) {
+    log_printf("%i\n", spinlock_depth_);
     spinlock_guard guard(runq_lock_);
     if (current_ != p && !p->runq_links_.is_linked()) {
         assert(p->resumable() || p->pstate_ != proc::ps_runnable);

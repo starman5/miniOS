@@ -329,10 +329,10 @@ void kernel_start(const char* command) {
 }
 
 void setup_init_child() {
-    {
-        spinlock_guard guard(ptable_lock);
+    //{
+    //    spinlock_guard guard(ptable_lock);
         ptable[1]->children_.push_back(ptable[2]);
-    }
+    //}
 }
 
 void init_first_process() {
@@ -341,10 +341,10 @@ void init_first_process() {
 
     p_init = knew<proc>();
     p_init->init_kernel(1, run_init);
-    {
-        spinlock_guard guard(ptable_lock);
+    //{
+    //    spinlock_guard guard(ptable_lock);
         ptable[1] = p_init;
-    }
+    //}
   
     //log_printf("about to schedule init_first_process on cpu 0.  id = %i, parent = %i\n", p_init->id_, p_init->parent_id_);
     // Smart to enqueue on cpu 0 because that will always be available, even at the very very beginning
@@ -528,6 +528,7 @@ uintptr_t proc::syscall(regstate* regs) {
         return 0;
 
     case SYSCALL_PAGE_ALLOC: {
+        log_printf("syscall page alloc\n");
         uintptr_t addr = regs->reg_rdi;
         if (addr >= VA_LOWEND/* || addr & 0xFFF*/) {
             return -1;
@@ -614,7 +615,7 @@ uintptr_t proc::syscall(regstate* regs) {
     }
 
     case SYSCALL_WAITPID: {
-        log_printf("in waitpid\n");
+        //log_printf("in waitpid\n");
 
         pid_t pid = regs->reg_rdi;
         int* status = (int*) regs->reg_rsi;
@@ -955,6 +956,7 @@ int proc::syscall_execv(regstate* regs) {
 }
 
 int proc::syscall_open(regstate* regs) {
+    log_printf("in open\n");
     const char* pathname = (const char*)regs->reg_rdi;
     int flags = regs->reg_rsi;
     
@@ -1320,7 +1322,9 @@ int* proc::check_exited(pid_t pid, bool condition) {
 }
 
 int proc::syscall_waitpid(pid_t pid, int* status, int options) {
+    //log_printf("in waitpid\n");
     {
+        //log_printf("waitpid grabbed lock\n");
         spinlock_guard guard(ptable_lock);
 
             // Specifying a pid
@@ -1334,6 +1338,7 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                     if (ptable[pid]) {
                         //log_printf("not ps_exited\n");
                         if (options == W_NOHANG) {
+                            //log_printf("end waitpid\n");
                             return E_AGAIN;
                         }
                         else {
@@ -1344,9 +1349,11 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                     }
                     else {
                         //log_printf("not ptable\n");
+                        //log_printf("end waitpid\n");
                         return E_CHILD;
                     }
                     //log_printf("pid not in ptable or not exited\n");
+                    //log_printf("in waitpid\n");
                     return E_AGAIN;
                 }
             }
@@ -1376,6 +1383,7 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                     if (zombies_exist[0] == 0) {
                         //log_printf("nothing to wait for\n");
                         if (options == W_NOHANG) {
+                            //log_printf("end waitpid\n");
                             return E_AGAIN;
                         }
                         else {
@@ -1387,6 +1395,7 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
 
                 else {
                     //log_printf("There are no children\n");
+                    //log_printf("end waitpid\n");
                     return E_CHILD;
                 }
             }
@@ -1401,11 +1410,12 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
             //      Check how an available pid is looked for to make sure
             ptable[pid]->waited_ = true;
             ptable[pid] = nullptr;
+            log_printf("end waitpid no error, not unlocked\n");
                             
             // Put the exit status and the pid in a register
         }
     
-    //log_printf("end of waitpid\n");
+    log_printf("end of waitpid no error\n");
 
     return pid;
 
