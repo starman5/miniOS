@@ -30,19 +30,19 @@ inline void waiter::prepare(wait_queue& wq) {
     //auto irqs = wq.lock_.lock();
     p_->pstate_ = proc::ps_blocked;
     //log_printf("pstate_: %i\n", this->p_->pstate_);
-    assert(wq_);
+    //assert(wq_);
     wq_->q_.push_back(this);
-    assert(wq.q_.front());
-    assert(wq_ == &wq);
-    log_printf("end prepare\n");
-    log_printf("vnlock: %i, ptlock: %i\n", current()->vntable_lock_.is_locked(), ptable_lock.is_locked());
+    //assert(wq.q_.front());
+    //assert(wq_ == &wq);
+    //log_printf("end prepare\n");
+    //log_printf("vnlock: %i, ptlock: %i\n", current()->vntable_lock_.is_locked(), ptable_lock.is_locked());
     wq_->lock_.unlock(irqs);
-    log_printf("after unlocking\n");
+    //log_printf("after unlocking\n");
 }
 
 inline void waiter::block() {
     log_printf("bru\n");
-    assert(p_ == current());
+    //assert(p_ == current());
     // your code here
     log_printf("in block\n");
     //log_printf("p: %p\n", p_);
@@ -61,13 +61,13 @@ inline void waiter::block() {
 
 inline void waiter::clear() {
     // your code here
-    log_printf("in clear\n");
+    //log_printf("in clear\n");
     auto irqs = wq_->lock_.lock();
-    log_printf("will wake in clean\n");
-    log_printf("right here\n");
+    //log_printf("will wake in clean\n");
+    //log_printf("right here\n");
     if (this->links_.is_linked()) {
-        wake();
         wq_->q_.erase(this);
+        wake();
     }
     wq_->lock_.unlock(irqs);
     //wq_ = nullptr;
@@ -76,7 +76,7 @@ inline void waiter::clear() {
 
 inline void waiter::wake() {
     //log_printf("in wake\n");
-    assert(wq_->lock_.is_locked());
+    //assert(wq_->lock_.is_locked());
     p_->wake();
 }
 
@@ -86,9 +86,9 @@ inline void waiter::wake() {
 template <typename F>
 inline void waiter::block_until(wait_queue& wq, F predicate) {
     while (true) {
-        log_printf("in loop\n");
+        //log_printf("in loop\n");
         prepare(wq);
-        log_printf("after prepare\n");
+        //log_printf("after prepare\n");
         if (predicate()) {
             break;
         }
@@ -106,17 +106,17 @@ template <typename F>
 inline void waiter::block_until(wait_queue& wq, F predicate,
                                 spinlock& lock, irqstate& irqs) {
     while (true) {
-        log_printf("in while loop\n");
+        //log_printf("in while loop\n");
         prepare(wq);
         //log_printf("after preparee\n");
         if (predicate()) {
-            log_printf("predicate is true\n");
+            //log_printf("predicate is true\n");
             break;
         }
         //log_printf("here\n");
-        assert(lock.is_locked());
+        //assert(lock.is_locked());
         lock.unlock(irqs);
-        log_printf("before calling block\n");
+        //log_printf("before calling block\n");
         block();
         irqs = lock.lock();
     }

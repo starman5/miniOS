@@ -556,10 +556,10 @@ inline void proc::unlock_pagetable_read(irqstate&) {
 }
 
 inline void proc::wake() {
-    log_printf("in wake\n");
+    //log_printf("in wake\n");
     int s = ps_blocked;
     if (pstate_.compare_exchange_strong(s, ps_runnable)) {
-        log_printf("enqueueing on cpu\n");
+        //log_printf("enqueueing on cpu\n");
         cpus[cpu_index_].enqueue(this);
     }
 }

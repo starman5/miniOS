@@ -99,7 +99,7 @@ bool bcentry::load(irqstate& irqs, bcentry_clean_function cleaner) {
             }
             estate_ = es_loading;
             lock_.unlock(irqs);
-
+            log_printf("buf_ = %p\n", buf_);
             log_printf("about to read sata disk\n");
             sata_disk->read(buf_, chkfs::blocksize,
                             bn_ * chkfs::blocksize);
@@ -303,14 +303,16 @@ chkfs::inode* chkfsstate::get_inode(inum_t inum) {
     assert(superblock_entry);
     auto& sb = *reinterpret_cast<chkfs::superblock*>
         (&superblock_entry->buf_[chkfs::superblock_offset]);
+    log_printf("%i\n", sb.ninodes);
     superblock_entry->put();
 
     chkfs::inode* ino = nullptr;
+    log_printf("inum: %i, sb.ninodes: %i\n", inum, sb.ninodes);
     if (inum > 0 && inum < sb.ninodes) {
-        //log_printf("1c\n");
+        log_printf("1c\n");
         auto bn = sb.inode_bn + inum / chkfs::inodesperblock;
         if (auto inode_entry = bc.get_disk_entry(bn, clean_inode_block)) {
-            //log_printf("2c\n");
+            log_printf("2c\n");
             ino = reinterpret_cast<inode*>(inode_entry->buf_);
         }
     }
@@ -377,7 +379,7 @@ chkfs::inode* chkfsstate::lookup_inode(inode* dirino,
 
 chkfs::inode* chkfsstate::lookup_inode(const char* filename) {
     auto dirino = get_inode(1);
-    log_printf("after get inode\n");
+    log_printf("get inode %p\n", dirino);
     if (dirino) {
         dirino->lock_read();
         auto ino = fs.lookup_inode(dirino, filename);

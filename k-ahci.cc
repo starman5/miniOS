@@ -111,6 +111,8 @@ int ahcistate::read_or_write(idecommand command, void* buf, size_t sz,
     // obtain lock
     auto irqs = lock_.lock();
 
+    log_printf("buf in read_or_write %p\n", buf);
+
     //log_printf("in ahcistate read or write\n");
 
     //log_printf("about to blockuntil in ahcistate\n");
@@ -120,6 +122,7 @@ int ahcistate::read_or_write(idecommand command, void* buf, size_t sz,
             return !slots_outstanding_mask_;
         }, lock_, irqs);
     //log_printf("after blockuntil ahcistate\n");
+    log_printf("buf after block: %p\n", buf);
 
     // send command, record buffer and status storage
     std::atomic<int> r = E_AGAIN;
@@ -130,12 +133,16 @@ int ahcistate::read_or_write(idecommand command, void* buf, size_t sz,
 
     lock_.unlock(irqs);
 
+    log_printf("buf before second: %p\n", buf);
+
     // wait for response
     //log_printf("about to wait for response\n");
     waiter().block_until(wq_, [&] () {
             //log_printf("%i\n", r != E_AGAIN);
             return r != E_AGAIN;
         });
+
+    log_printf("buf after second: %p\n", buf);
     //log_printf("finished waiting for response\n");
     return r;
 }
