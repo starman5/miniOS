@@ -18,6 +18,10 @@ list<page_meta, &page_meta::link_> free_blocks[MAX_ORDER - MIN_ORDER + 1];
 
 page_meta all_pages[MEMSIZE_PHYSICAL / PAGESIZE];
 
+uintptr_t calc_physical_addr(page_meta* pgmeta) {
+    (pgmeta - all_pages) * PAGESIZE;
+}
+
 
 
 // find_buddy
@@ -39,7 +43,7 @@ uintptr_t find_buddy_pa(uintptr_t p_addr) {
 }*/
 
     //return ((uintptr_t) (ka2pa(ptr) ^ (1 << all_pages[(uintptr_t)ka2pa(ptr) / PAGESIZE].order_)));
-    return ((uintptr_t) (p_addr ^ (1 << all_pages[p_addr / PAGESIZE].order_)));
+    return p_addr ^ (1UL << all_pages[p_addr / PAGESIZE].order_);
 }
 
 // split
@@ -93,6 +97,11 @@ page_meta* split(int original_order, page_meta* starting_block, int count) {
 
 }
 
+
+void kalloc_check() {
+    spinlock_guard guard(page_lock);
+    
+}
 
 
 // merge
