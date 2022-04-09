@@ -137,10 +137,14 @@ int ahcistate::read_or_write(idecommand command, void* buf, size_t sz,
 
     // wait for response
     //log_printf("about to wait for response\n");
+    spinlock thing;
+    auto irqs2 = thing.lock();
     waiter().block_until(wq_, [&] () {
             //log_printf("%i\n", r != E_AGAIN);
             return r != E_AGAIN;
-        });
+        }, thing, irqs2);
+    
+    thing.unlock(irqs2);
 
     log_printf("buf after second: %p\n", buf);
     //log_printf("finished waiting for response\n");

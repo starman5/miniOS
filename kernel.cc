@@ -1322,7 +1322,7 @@ int* proc::check_exited(pid_t pid, bool condition) {
 }
 
 int proc::syscall_waitpid(pid_t pid, int* status, int options) {
-    //log_printf("in waitpid\n");
+    log_printf("in waitpid\n");
     {
         //log_printf("waitpid grabbed lock\n");
         spinlock_guard guard(ptable_lock);
