@@ -903,7 +903,7 @@ int proc::syscall_execv(regstate* regs) {
     init_user(id_, new_pagetable);*/
 
     // vmiter representing top of the newly allocated stack
-    vmiter it = vmiter(new_pagetable, MEMSIZE_VIRTUAL);
+    vmiter it(new_pagetable, MEMSIZE_VIRTUAL);
 
     char* argpointers[argc];
     for (int i = 0; i < argc; i++) {
@@ -911,48 +911,57 @@ int proc::syscall_execv(regstate* regs) {
         // Right now, we are putting the characters themselves on the stack, so pointers
         // to the strings will be valid
         it -= (strlen(argv[i]) + 1);
-        char* ptr = (char*) it.va();
+        char* ptr = pa2kptr<char*>(it.pa());
         strcpy(ptr, argv[i]);
-        argpointers[i] = ptr;    
+        argpointers[i] = (char*) it.va(); 
+        //memcpy(it.kptr<char*>(), argv[i], strlen(argv[i]));   
     }
 
     it -= (it.va() % sizeof(char*));
 
     it -= sizeof(char*);
+    log_printf("d\n");
 
     // Insert nullptr at the last index in argpointers
-    char* ptr = knew<char>();
-    ptr = nullptr;
-    char* thing = (char*) it.va();
-    memcpy(thing, &ptr, sizeof(char*));
+    // char* ptr = knew<char>();
+    // ptr = nullptr;
+    // char* thing = (char*) it.va();
+    // memcpy(thing, &ptr, sizeof(char*));
+    memset(it.kptr<unsigned long*>(), 0, sizeof(char*));
+    log_printf("e\n");
 
     for (int j = argc - 1; j >= 0; j--) {
         it -= sizeof(char*);
-        char* dest = (char*) it.va();
-        memcpy(dest, &argpointers[j], sizeof(char*));
+         char* dest = pa2kptr<char*>(it.pa());
+         memcpy(dest, &argpointers[j], sizeof(char*));
+        //*(it.kptr<unsigned long*>()) = argpointers[j];
     }
 
-    this->regs_->reg_rip = memf_loader.entry_rip_;
-    this->regs_->reg_rsi = it.va();
-    this->regs_->reg_rdi = argc;
-    this->regs_->reg_rbp = MEMSIZE_VIRTUAL;
+    log_printf("f\n");
+    regs->reg_rip = memf_loader.entry_rip_;
+    //log_printf("hi\n");
+    regs->reg_rsi = it.va();
+    regs->reg_rdi = argc;
+    regs->reg_rbp = MEMSIZE_VIRTUAL;
+    log_printf("h\n");
 
-    if (regs_->reg_rsi % 16 == 0) {
-        regs_->reg_rsp = regs_->reg_rsi - 8;
+    if (regs->reg_rsi % 16 == 0) {
+        regs->reg_rsp = regs->reg_rsi - 8;
     }
+    //log_printf("bud\n");
 
     else {
-        regs_->reg_rsp = regs_->reg_rsi;
+        regs->reg_rsp = regs->reg_rsi;
     }
     //log_printf("before setting pagetbale\n");
     set_pagetable(new_pagetable);
-    //log_printf("after\n");
+    log_printf("after\n");
 
     kfree(old_pt);
 
     //this->cpu_index_ = id_ % ncpu;
     //cpus[this->cpu_index_].enqueue(this);
-    //log_printf("end execv\n");
+    log_printf("end execv\n");
     yield_noreturn();
 
 }
