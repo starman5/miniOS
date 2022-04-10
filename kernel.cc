@@ -872,7 +872,7 @@ int proc::syscall_execv(regstate* regs) {
     log_printf("load pagetable\n");
     // Load the pagetable
     memfile_loader memf_loader(new_memf, new_pagetable);
-    int r = load(memf_loader);
+    int r = proc::load(memf_loader);
     assert(r >= 0);
     log_printf("finished loading\n");
 
@@ -883,8 +883,9 @@ int proc::syscall_execv(regstate* regs) {
 
     vmiter(new_pagetable, MEMSIZE_VIRTUAL - PAGESIZE).map(stkpg, PTE_PWU);
     //uintptr_t console_page = 47104 - (47104 % 4096);
-    vmiter(new_pagetable, ktext2pa(console)).map(ktext2pa(console), PTE_PWU);
+    vmiter(new_pagetable, ktext2pa(console)).map(CONSOLE_ADDR, PTE_PWU);
 
+    x86_64_pagetable* old_pt = pagetable_;
     this->init_user(this->id_, new_pagetable);
 
     //this->regs_->reg_rip = memf_loader.entry_rip_;
@@ -934,6 +935,7 @@ int proc::syscall_execv(regstate* regs) {
     this->regs_->reg_rip = memf_loader.entry_rip_;
     this->regs_->reg_rsi = it.va();
     this->regs_->reg_rdi = argc;
+    this->regs_->reg_rbp = MEMSIZE_VIRTUAL;
 
     if (regs_->reg_rsi % 16 == 0) {
         regs_->reg_rsp = regs_->reg_rsi - 8;
@@ -946,7 +948,7 @@ int proc::syscall_execv(regstate* regs) {
     set_pagetable(new_pagetable);
     //log_printf("after\n");
 
-    kfree(pagetable_);
+    kfree(old_pt);
 
     //this->cpu_index_ = id_ % ncpu;
     //cpus[this->cpu_index_].enqueue(this);
