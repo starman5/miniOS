@@ -140,19 +140,39 @@ void bcentry::put() {
     //
     // Synchronization:
     //  If put is holding the buffercache wide lock, we are all good.  Otherwise, problems
+    //  Have a queue, using list_links thing
     
-    if (--ref_ == 0) {
-        log_printf("clearing\n");
-        clear();
+    // if (--ref_ == 0) {
+    //     log_printf("clearing\n");
+    //     clear();
+    // }
+
+    --ref_;
+    auto& bc = bufcache::get();
+    log_printf("a\n");
+
+    if (ref_ == 0) {
+        bc.lru_queue_.push_back(this);
+    }
+    log_printf("b\n");
+
+    auto irqs = bc.lock_.lock();
+
+    bool is_full = true;
+    for (int i = 0; i < bc.ne; i++) {
+        if (bc.e_[i].empty()) {
+            is_full = false;
+            break;
+        }
+    }
+    if (is_full) {
+        assert(bc.lru_queue_.front());
+        log_printf("z\n");
+        bcentry* last_entry = bc.lru_queue_.pop_front();
+        last_entry->clear();
     }
 
-    /*--ref_;
-    if (++recent_num == 10) {
-        log_printf("clearing\n");
-        clear();
-    }*/
-    
-
+    bc.lock_.unlock(irqs);
 }
 
 

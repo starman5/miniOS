@@ -23,6 +23,7 @@ struct bcentry {
     unsigned ref_ = 0;                   // reference count
     unsigned char* buf_ = nullptr;       // memory buffer used for entry
     unsigned int recent_num = 0;
+    list_links link_;
 
 
     // return the index of this entry in the buffer cache
@@ -50,11 +51,15 @@ struct bcentry {
 struct bufcache {
     using blocknum_t = bcentry::blocknum_t;
 
-    static constexpr size_t ne = 10;
+    static constexpr size_t ne = 100;
 
     spinlock lock_;                  // protects all entries' bn_ and ref_
     wait_queue read_wq_;
     bcentry e_[ne];
+
+    list<bcentry, &bcentry::link_> lru_queue_;
+
+
 
 
     static inline bufcache& get();
