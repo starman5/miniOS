@@ -133,6 +133,7 @@ inline bool bcentry::contains(const void* ptr) const {
 }
 
 inline void bcentry::clear() {
+    log_printf("in clear\n");
     assert(ref_ == 0);
     estate_ = es_empty;
     if (buf_) {

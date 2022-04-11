@@ -1,6 +1,7 @@
 #ifndef CHICKADEE_K_DEVICES_HH
 #define CHICKADEE_K_DEVICES_HH
 #include "kernel.hh"
+#include "k-chkfs.hh"
 
 // keyboardstate: keyboard buffer and keyboard interrupts
 
@@ -122,6 +123,21 @@ inline memfile::memfile(const char* name, const char* data)
 inline bool memfile::empty() const {
     return name_[0] == 0;
 }
+
+// file::loader: loads a 'proc' from an 'ino'
+struct file_loader : public proc_loader {
+    chkfs::inode* ino_;
+
+    inline file_loader(chkfs::inode* ino, x86_64_pagetable* pt)
+        : proc_loader(pt) {
+            ino_ = ino;
+        }
+    
+    ssize_t get_page(uint8_t** pg, size_t off) override;
+    //calls chkfs_fileiter::get_disk_entry and bcentry::put
+
+    void put_page() override;
+};
 
 
 // memfile::loader: loads a `proc` from a `memfile`

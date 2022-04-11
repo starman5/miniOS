@@ -20,7 +20,7 @@ bufcache::bufcache() {
 
 bcentry* bufcache::get_disk_entry(chkfs::blocknum_t bn,
                                   bcentry_clean_function cleaner) {
-    log_printf("in get disk entry\n");                                 
+    //log_printf("in get disk entry\n");                                 
     assert(chkfs::blocksize == PAGESIZE);
     auto irqs = lock_.lock();
 
@@ -61,6 +61,10 @@ bcentry* bufcache::get_disk_entry(chkfs::blocknum_t bn,
 
     // mark reference
     ++e_[i].ref_;
+    if (e_[i].link_.is_linked()) {
+        lru_queue_.erase(&e_[i]);
+    }
+    
 
     // load block
     bool ok = e_[i].load(irqs, cleaner);
@@ -81,7 +85,7 @@ bcentry* bufcache::get_disk_entry(chkfs::blocknum_t bn,
 
 bool bcentry::load(irqstate& irqs, bcentry_clean_function cleaner) {
     bufcache& bc = bufcache::get();
-    log_printf("in load\n");
+    //log_printf("in load\n");
 
     // load block, or wait for concurrent reader to load it
     while (true) {
@@ -99,26 +103,27 @@ bool bcentry::load(irqstate& irqs, bcentry_clean_function cleaner) {
             }
             estate_ = es_loading;
             lock_.unlock(irqs);
-            log_printf("buf_ = %p\n", buf_);
-            log_printf("about to read sata disk\n");
+            //log_printf("buf_ = %p\n", buf_);
+            //log_printf("about to read sata disk\n");
             sata_disk->read(buf_, chkfs::blocksize,
                             bn_ * chkfs::blocksize);
 
-            log_printf("finished reading sata disk\n");
+            //log_printf("finished reading sata disk\n");
             irqs = lock_.lock();
             estate_ = es_clean;
             if (cleaner) {
+                //log_printf("cleaning up\n");
                 cleaner(this);
             }
-            log_printf("about to bc wakeall\n");
+            //log_printf("about to bc wakeall\n");
             bc.read_wq_.wake_all();
         } else if (estate_ == es_loading) {
-            log_printf("es_loading\n");
+            //log_printf("es_loading\n");
             waiter().block_until(bc.read_wq_, [&] () {
                     return estate_ != es_loading;
                 }, lock_, irqs);
         } else {
-            log_printf("something else\n");
+            //log_printf("something else\n");
             return true;
         }
     }
@@ -149,12 +154,14 @@ void bcentry::put() {
 
     --ref_;
     auto& bc = bufcache::get();
-    log_printf("a\n");
+    //log_printf("gooo\n");
 
     if (ref_ == 0) {
+        //log_printf("%p\n", bc.lru_queue_.prev(this));
+        //log_printf("%p\n", bc.lru_queue_.next(this));
         bc.lru_queue_.push_back(this);
     }
-    log_printf("b\n");
+    //log_printf("b\n");
 
     auto irqs = bc.lock_.lock();
 
@@ -166,6 +173,7 @@ void bcentry::put() {
         }
     }
     if (is_full) {
+        //log_printf("is full\n");
         assert(bc.lru_queue_.front());
         log_printf("z\n");
         bcentry* last_entry = bc.lru_queue_.pop_front();
@@ -299,6 +307,7 @@ chkfsstate::chkfsstate() {
 //    values that are only used in memory.
 
 static void clean_inode_block(bcentry* entry) {
+    //log_printf("clean inode_block\n");
     uint32_t entry_index = entry->index();
     auto is = reinterpret_cast<chkfs::inode*>(entry->buf_);
     for (unsigned i = 0; i != chkfs::inodesperblock; ++i) {
@@ -316,23 +325,23 @@ static void clean_inode_block(bcentry* entry) {
 //    you should eventually release this reference by calling `ino->put()`.
 
 chkfs::inode* chkfsstate::get_inode(inum_t inum) {
-    log_printf("in get inode\n");
+    //log_printf("in get inode\n");
     auto& bc = bufcache::get();
     auto superblock_entry = bc.get_disk_entry(0);
-    log_printf("after get disk entry\n");
+    //log_printf("after get disk entry\n");
     assert(superblock_entry);
     auto& sb = *reinterpret_cast<chkfs::superblock*>
         (&superblock_entry->buf_[chkfs::superblock_offset]);
-    log_printf("%i\n", sb.ninodes);
+    //log_printf("%i\n", sb.ninodes);
     superblock_entry->put();
 
     chkfs::inode* ino = nullptr;
-    log_printf("inum: %i, sb.ninodes: %i\n", inum, sb.ninodes);
+    //log_printf("inum: %i, sb.ninodes: %i\n", inum, sb.ninodes);
     if (inum > 0 && inum < sb.ninodes) {
-        log_printf("1c\n");
+        //log_printf("1c\n");
         auto bn = sb.inode_bn + inum / chkfs::inodesperblock;
         if (auto inode_entry = bc.get_disk_entry(bn, clean_inode_block)) {
-            log_printf("2c\n");
+            //log_printf("2c\n");
             ino = reinterpret_cast<inode*>(inode_entry->buf_);
         }
     }
@@ -399,7 +408,7 @@ chkfs::inode* chkfsstate::lookup_inode(inode* dirino,
 
 chkfs::inode* chkfsstate::lookup_inode(const char* filename) {
     auto dirino = get_inode(1);
-    log_printf("get inode %p\n", dirino);
+    //log_printf("get inode %p\n", dirino);
     if (dirino) {
         dirino->lock_read();
         auto ino = fs.lookup_inode(dirino, filename);

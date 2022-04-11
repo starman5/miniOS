@@ -344,3 +344,12 @@ ssize_t memfile_loader::get_page(uint8_t** pg, size_t off) {
 void memfile_loader::put_page() {
     // no need to do anything
 }
+
+ssize_t file_loader::get_page(uint8_t** pg, size_t off) {
+    //chkfs_fileiter it(ino_);
+    //bcentry* e = it.find(off).get_disk_entry();
+}
+
+void file_loader::put_page() {
+    //ino_->
+}

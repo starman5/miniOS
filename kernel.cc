@@ -24,6 +24,18 @@ static void run_init();
 static void setup_init_child();
 
 
+int disk_read(vnode* vn, uintptr_t addr, int sz) {
+    // data will contain the inode*, which you can use to read
+
+}
+
+int disk_write(vnode* vn, uintptr_t addr, int sz) {
+    // data will contain the inode*, which you can use to write
+
+}
+
+
+
 int bbuffer::bbuf_read(char* buf, int sz) {
     log_printf("in bbuf read\n");
     log_printf("locked: %i\n", this->bbuffer_lock.is_locked());
@@ -117,6 +129,7 @@ vnode_ops* stdout_vn_ops;
 vnode_ops* stderr_vn_ops;
 vnode_ops* readend_pipe_vn_ops;
 vnode_ops* writeend_pipe_vn_ops;
+vnode_ops* disk_vn_ops;
 
 
 int memfs_vop_read(vnode* vn, uintptr_t addr, int sz) {
@@ -146,7 +159,7 @@ int memfs_vop_write(vnode* vn, uintptr_t addr, int sz) {
 }
 
 int stdout_write(vnode* vn, uintptr_t addr, int sz) {
-    log_printf("in stdout write\n");
+    //log_printf("in stdout write\n");
     auto& csl = consolestate::get();
     spinlock_guard guard(csl.lock_);
     int n = 0;
@@ -288,7 +301,8 @@ void kernel_start(const char* command) {
     stdout_vn_ops = knew<vnode_ops>();
     stderr_vn_ops = knew<vnode_ops>();
     readend_pipe_vn_ops = knew<vnode_ops>();
-    writeend_pipe_vn_ops = knew<vnode_ops>();;
+    writeend_pipe_vn_ops = knew<vnode_ops>();
+    disk_vn_ops = knew<vnode_ops>();
 
     stdin_vn_ops->vop_read = stdin_read;
     stdin_vn_ops->vop_write = stdout_write;
@@ -300,6 +314,8 @@ void kernel_start(const char* command) {
     readend_pipe_vn_ops->vop_write = nullptr;
     writeend_pipe_vn_ops->vop_read = nullptr;
     writeend_pipe_vn_ops->vop_write = pipe_write;
+    disk_vn_ops->vop_read = disk_read;
+    disk_vn_ops->vop_write = disk_write;
 
     // Set up the vnodes
     stdin_vnode->vn_ops_ = stdin_vn_ops;
@@ -495,7 +511,7 @@ void proc::exception(regstate* regs) {
 //    process in `%rax`.
 
 uintptr_t proc::syscall(regstate* regs) {
-    log_printf("proc %d: syscall %ld @%p\n", id_, regs->reg_rax, regs->reg_rip);
+    //log_printf("proc %d: syscall %ld @%p\n", id_, regs->reg_rax, regs->reg_rip);
 
     // Record most recent user-mode %rip.
     recent_user_rip_ = regs->reg_rip;
@@ -834,13 +850,13 @@ uintptr_t proc::syscall(regstate* regs) {
 }
 
 int proc::syscall_execv(regstate* regs) {
-    const char* pathname = (const char*)regs->reg_rdi;
+    const char* filename = (const char*)regs->reg_rdi;
     const char* const* argv = (const char* const*)regs->reg_rsi;
     int argc = regs->reg_rdx;
 
     log_printf("about to validate\n");
     // Validate pathname
-    if (!vmiter(pagetable_, (uintptr_t)pathname).user() or !vmiter(pagetable_, (uintptr_t)pathname).present()) {
+    if (!vmiter(pagetable_, (uintptr_t)filename).user() or !vmiter(pagetable_, (uintptr_t)filename).present()) {
         return E_FAULT;
     }
 
@@ -853,26 +869,20 @@ int proc::syscall_execv(regstate* regs) {
     assert(ld.memfile_ && ld.pagetable_);
     int r = proc::load(ld);*/
 
-    log_printf("will lookup\n");
-    // Lookup memfile
-    memfile m;
-    memfile* initfs_ar = memfile::initfs;
-    int initfs_index = memfile::initfs_lookup(pathname, false);
-    if (initfs_index < 0) {
-        log_printf("error lookup\n");
-        return initfs_index;
+    if (!sata_disk) {
+        return E_IO;
     }
 
-    log_printf("allocate new memfile\n");
-    memfile* new_memf = knew<memfile>();
-    new_memf = &initfs_ar[initfs_index];
+    auto ino = chkfsstate::get().lookup_inode(filename);
+    if (!ino) {
+        log_printf("bad\n");
+        return E_NOENT;
+    }
 
     x86_64_pagetable* new_pagetable = kalloc_pagetable();
 
-    log_printf("load pagetable\n");
-    // Load the pagetable
-    memfile_loader memf_loader(new_memf, new_pagetable);
-    int r = proc::load(memf_loader);
+    file_loader ld(ino, new_pagetable);
+    int r = proc::load(ld);
     assert(r >= 0);
     log_printf("finished loading\n");
 
@@ -917,7 +927,7 @@ int proc::syscall_execv(regstate* regs) {
         //memcpy(it.kptr<char*>(), argv[i], strlen(argv[i]));   
     }
 
-    it -= (it.va() % sizeof(char*));
+    //it -= (it.va() % sizeof(char*));
 
     it -= sizeof(char*);
     log_printf("d\n");
@@ -938,7 +948,7 @@ int proc::syscall_execv(regstate* regs) {
     }
 
     log_printf("f\n");
-    regs->reg_rip = memf_loader.entry_rip_;
+    regs->reg_rip = ld.entry_rip_;
     //log_printf("hi\n");
     regs->reg_rsi = it.va();
     regs->reg_rdi = argc;
@@ -997,22 +1007,6 @@ int proc::syscall_open(regstate* regs) {
     // Look up pathname
     memfile m;
     memfile* initfs_ar = m.initfs;
-
-    /*bool found = false;
-    for (int i = 0; i < 64; i++) {
-        int j = 0;
-        for (; j < 64; j++) {
-            if (initfs_ar[i].name_[j] == '\0') {
-                break;
-            }
-        }
-        if (pathname[j] == '\0') {
-            found = true;
-        } 
-    }
-    if (!found) {
-        return E_FAULT;
-    }*/
 
     log_printf("didn't catch it\n");
     int initfs_index = m.initfs_lookup(pathname, ((flags & OF_CREATE) == OF_CREATE));
@@ -1333,7 +1327,7 @@ int* proc::check_exited(pid_t pid, bool condition) {
 }
 
 int proc::syscall_waitpid(pid_t pid, int* status, int options) {
-    log_printf("in waitpid\n");
+    //log_printf("in waitpid\n");
     {
         //log_printf("waitpid grabbed lock\n");
         spinlock_guard guard(ptable_lock);
@@ -1554,7 +1548,7 @@ uintptr_t proc::syscall_write(regstate* regs) {
     uintptr_t addr = regs->reg_rsi;
     size_t sz = regs->reg_rdx;
 
-    log_printf("Write, id: %i, fd = %i, sz = %i\n", this->id_, fd, sz);
+    //log_printf("Write, id: %i, fd = %i, sz = %i\n", this->id_, fd, sz);
     //assert(vmiter(pagetable_, addr).present());
     /*for (vmiter it(pagetable_, addr); it.va() < it.va() + sz; ++it) {
         if (!(it.present())) {
@@ -1567,15 +1561,15 @@ uintptr_t proc::syscall_write(regstate* regs) {
     // * Validate the write buffer.
     // auto irqs = this->fdtable_lock_.lock();
         auto irqs = this->vntable_lock_.lock();
-        log_printf("fd lock\n");
+        //log_printf("fd lock\n");
         if (fd < 0 or fd >= MAX_FDS or !this->vntable_[fd]) {
             log_printf("bad write!!!\n");
             this->vntable_lock_.unlock(irqs);
             return E_BADF;
         }
 
-    log_printf("before vntable_lock\n");
-    log_printf("vn lock\n");
+    //log_printf("before vntable_lock\n");
+    //log_printf("vn lock\n");
     
         vnode* writefile = this->vntable_[fd];
         //log_printf("syscall_write system_vn_table[fd]: %p\n", writefile);
@@ -1612,26 +1606,26 @@ uintptr_t proc::syscall_readdiskfile(regstate* regs) {
     // This is a slow system call, so allow interrupts by default
     sti();
 
-    log_printf("heeer\n");
+    //log_printf("heeer\n");
     const char* filename = reinterpret_cast<const char*>(regs->reg_rdi);
     unsigned char* buf = reinterpret_cast<unsigned char*>(regs->reg_rsi);
     size_t sz = regs->reg_rdx;
     off_t off = regs->reg_r10;
 
     if (!sata_disk) {
-        log_printf("bad\n");
+        //log_printf("bad\n");
         return E_IO;
     }
-    log_printf("about to read\n");
+    //log_printf("about to read\n");
 
     // read root directory to find file inode number
     auto ino = chkfsstate::get().lookup_inode(filename);
     if (!ino) {
-        log_printf("bad\n");
+        //log_printf("bad\n");
         return E_NOENT;
     }
 
-    log_printf("looked up\n");
+    //log_printf("looked up\n");
     // read file inode
     ino->lock_read();
     chkfs_fileiter it(ino);
