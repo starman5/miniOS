@@ -25,7 +25,7 @@ inline void waiter::prepare(wait_queue& wq) {
     //assert(wq_);
     wq_ = &wq;
     auto irqs = wq.lock_.lock();
-    log_printf("in prepare\n");
+    //log_printf("in prepare\n");
     //log_printf("wq_: %p\n", wq_);
     //auto irqs = wq.lock_.lock();
     p_->pstate_ = proc::ps_blocked;
@@ -41,13 +41,13 @@ inline void waiter::prepare(wait_queue& wq) {
 }
 
 inline void waiter::block() {
-    log_printf("bru\n");
+    //log_printf("bru\n");
     //assert(p_ == current());
     // your code here
-    log_printf("in block\n");
+    //log_printf("in block\n");
     //log_printf("p: %p\n", p_);
     if (p_->pstate_ == proc::ps_blocked) {
-        log_printf("about to yield\n");
+        //log_printf("about to yield\n");
         //assert(!p_->fdtable_lock_.is_locked()); 
         //assert(!p_->vntable_lock_.is_locked());
         //assert(!wq_->lock_.is_locked());

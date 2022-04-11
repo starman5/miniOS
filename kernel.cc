@@ -883,11 +883,16 @@ int proc::syscall_execv(regstate* regs) {
 
     file_loader ld(ino, new_pagetable);
     int r = proc::load(ld);
-    assert(r >= 0);
+    //assert(r >= 0);
+    if (r < 0) {
+        kfree(pagetable_);
+        return r;
+    }
     log_printf("finished loading\n");
 
     void* stkpg = kalloc(PAGESIZE);
     assert(stkpg);
+    
     
     //log_printf("id: %i, parent_id: %i\n", p->id_, p->parent_id_);
 

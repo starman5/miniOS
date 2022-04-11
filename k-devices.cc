@@ -1,5 +1,6 @@
 #include "k-devices.hh"
 #include "k-apic.hh"
+#include "k-chkfsiter.hh"
 
 // k-devices.cc
 //
@@ -346,10 +347,26 @@ void memfile_loader::put_page() {
 }
 
 ssize_t file_loader::get_page(uint8_t** pg, size_t off) {
-    //chkfs_fileiter it(ino_);
-    //bcentry* e = it.find(off).get_disk_entry();
+    log_printf("in get page\n");
+    chkfs_fileiter it(ino_);
+    bcentry* e = it.find(off).get_disk_entry();
+    if (!e) {
+        return E_IO;
+    }
+    entry = e;
+    //uintptr_t data = (uintptr_t) &e;
+    //*pg = (uint8_t*)&data;
+    *pg = e->buf_;
+    log_printf("sz: %i\n", ino_->size);
+    return ino_->size;
+
+    //return e;
+//    sets `*pg_ptr`
+//    to the address of the data in memory
+// on success return number of valid bytes starting there
 }
 
 void file_loader::put_page() {
-    //ino_->
+    log_printf("put page\n");
+    entry->put();
 }

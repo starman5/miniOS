@@ -127,6 +127,7 @@ inline bool memfile::empty() const {
 // file::loader: loads a 'proc' from an 'ino'
 struct file_loader : public proc_loader {
     chkfs::inode* ino_;
+    bcentry* entry = nullptr;
 
     inline file_loader(chkfs::inode* ino, x86_64_pagetable* pt)
         : proc_loader(pt) {

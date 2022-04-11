@@ -20,7 +20,7 @@ inline void ahcistate::clear(int slot) {
 // ahcistate::push_buffer(slot, buf, sz)
 //    Append a data buffer to the buffers relevant for the next command.
 void ahcistate::push_buffer(int slot, void* buf, size_t sz) {
-    log_printf("push_buffer\n");
+    //log_printf("push_buffer\n");
     // check requirements on address and size
     uint64_t pa = kptr2pa(buf);
     assert((pa & 1) == 0 && (sz & 1) == 0);       // word-aligned
@@ -37,7 +37,7 @@ void ahcistate::push_buffer(int slot, void* buf, size_t sz) {
     dma_.ct[slot].buf[nbuf].maxbyte = sz - 1;
     dma_.ch[slot].nbuf = nbuf + 1;
     dma_.ch[slot].buf_byte_pos += sz;
-    log_printf("end push_buffer\n");
+    //log_printf("end push_buffer\n");
 }
 
 // ahcistate::issue_ncq(slot, cmd, sector, fua = false, priority = 0)
@@ -111,7 +111,7 @@ int ahcistate::read_or_write(idecommand command, void* buf, size_t sz,
     // obtain lock
     auto irqs = lock_.lock();
 
-    log_printf("buf in read_or_write %p\n", buf);
+    //log_printf("buf in read_or_write %p\n", buf);
 
     //log_printf("in ahcistate read or write\n");
 
@@ -122,7 +122,7 @@ int ahcistate::read_or_write(idecommand command, void* buf, size_t sz,
             return !slots_outstanding_mask_;
         }, lock_, irqs);
     //log_printf("after blockuntil ahcistate\n");
-    log_printf("buf after block: %p\n", buf);
+    //log_printf("buf after block: %p\n", buf);
 
     // send command, record buffer and status storage
     std::atomic<int> r = E_AGAIN;
@@ -133,7 +133,7 @@ int ahcistate::read_or_write(idecommand command, void* buf, size_t sz,
 
     lock_.unlock(irqs);
 
-    log_printf("buf before second: %p\n", buf);
+    //log_printf("buf before second: %p\n", buf);
 
     // wait for response
     //log_printf("about to wait for response\n");

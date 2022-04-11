@@ -91,7 +91,7 @@ bool bcentry::load(irqstate& irqs, bcentry_clean_function cleaner) {
     while (true) {
         assert(estate_ != es_empty);
         if (estate_ == es_allocated) {
-            log_printf("es_allocated\n");
+            //log_printf("es_allocated\n");
             if (!buf_) {
                 log_printf("!buf\n");
                 buf_ = reinterpret_cast<unsigned char*>

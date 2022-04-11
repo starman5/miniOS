@@ -122,13 +122,16 @@ int proc::load(proc_loader& ld) {
     uint8_t* headerpg;
     ssize_t r = ld.get_page(&headerpg, 0);
     if (r < 0) {
+        log_printf("return here\n");
         return r;
     } else if (size_t(r) < sizeof(elf_header)) {
         ld.put_page();
+        log_printf("E_NOEXEC\n");
         return E_NOEXEC;
     }
 
     len = r;
+    log_printf("%i\n", len);
     memcpy(&u.eh, headerpg, sizeof(elf_header));
     if (u.eh.e_magic != ELF_MAGIC
         || u.eh.e_type != ELF_ET_EXEC
@@ -140,6 +143,11 @@ int proc::load(proc_loader& ld) {
         || u.eh.e_phnum > (len - u.eh.e_phoff) / sizeof(elf_program)
         || u.eh.e_phnum > sizeof(u.ph) / sizeof(elf_program)) {
         ld.put_page();
+        log_printf("it is here\n");
+        log_printf("%i\n", len);
+        log_printf("%i\n", u.eh.e_phoff);
+        log_printf("%i\n", PAGESIZE);
+        log_printf("%i\n", u.eh.e_phoff > PAGESIZE);
         return E_NOEXEC;
     }
     nph = u.eh.e_phnum;
@@ -152,6 +160,7 @@ int proc::load(proc_loader& ld) {
     for (unsigned i = 0; i != nph; ++i) {
         if (u.ph[i].p_type == ELF_PTYPE_LOAD
             && (r = load_segment(u.ph[i], ld)) < 0) {
+            log_printf("asd\n");
             return r;
         }
     }
