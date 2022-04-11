@@ -117,7 +117,7 @@ int proc::load(proc_loader& ld) {
     } u;
     size_t len;
     unsigned nph;
-
+    log_printf("in load\n");
     // validate the binary
     uint8_t* headerpg;
     ssize_t r = ld.get_page(&headerpg, 0);
@@ -164,6 +164,8 @@ int proc::load(proc_loader& ld) {
             return r;
         }
     }
+
+    log_printf("successful load return\n");
 
     return 0;
 }
