@@ -28,9 +28,7 @@ int disk_vop_read(vnode* vn, uintptr_t addr, int sz) {
     log_printf("in disk_vop_read\n");
     // data will contain the inode*, which you can use to read
     chkfs::inode* ino = (chkfs::inode*) vn->vn_data_;
-
     ino->lock_read();
-
     chkfs_fileiter it(ino);
 
     size_t nread = 0;
@@ -44,6 +42,7 @@ int disk_vop_read(vnode* vn, uintptr_t addr, int sz) {
                 sz - nread                         // bytes left in request
             );
             memcpy((void*)addr + nread, e->buf_ + b, ncopy);
+            assert(e->ref_ != 0);
             e->put();
 
             nread += ncopy;
@@ -52,6 +51,7 @@ int disk_vop_read(vnode* vn, uintptr_t addr, int sz) {
                 break;
             }
         } else {
+            log_printf("in the weird else\n");
             break;
         }
     }
@@ -64,7 +64,37 @@ int disk_vop_read(vnode* vn, uintptr_t addr, int sz) {
 int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
     log_printf("in disk_vop_write\n");
     // data will contain the inode*, which you can use to write
+    chkfs::inode* ino = (chkfs::inode*) vn->vn_data_;
+    ino->lock_write();
+    chkfs_fileiter it(ino);
 
+    size_t nwrite = 0;
+    while (nwrite < sz) {
+        if (bcentry* e = it.find(vn->vn_offset_).get_disk_entry()) {
+            unsigned b = it.block_relative_offset();
+            size_t ncopy = min(
+                size_t(ino->size - it.offset()),   // bytes left in file
+                chkfs::blocksize - b,              // bytes left in block
+                sz - nwrite                         // bytes left in request
+            );
+
+            memcpy(e->buf_ + b, (void*) addr + nwrite, ncopy);
+            assert(e->ref_ != 0);
+            //e->put();
+
+            nwrite += ncopy;
+            vn->vn_offset_ += ncopy;
+            if (ncopy == 0) {
+                break;
+            }
+        }
+        else {
+            break;
+        }
+    }
+    ino->unlock_write();
+    //ino->put();
+    return nwrite;
 }
 
 
@@ -916,8 +946,10 @@ int proc::syscall_execv(regstate* regs) {
     x86_64_pagetable* new_pagetable = kalloc_pagetable();
 
     file_loader ld(ino, new_pagetable);
+    log_printf("ld.pagetable_: %p\n", ld.pagetable_);
     assert(ld.ino_ && ld.pagetable_);
     int r = proc::load(ld);
+    log_printf("buffer: %p\n", ld.buffer_);
     //assert(r >= 0);
     if (r < 0) {
         log_printf("no good bud\n");
@@ -1076,6 +1108,7 @@ int proc::syscall_open(regstate* regs) {
     auto ino = chkfsstate::get().lookup_inode(pathname);
 
     if (!ino) {
+        log_printf("!ino in open\n");
         // do stuff
     }
 
@@ -1702,6 +1735,7 @@ uintptr_t proc::syscall_readdiskfile(regstate* regs) {
                 sz - nread                         // bytes left in request
             );
             memcpy(buf + nread, e->buf_ + b, ncopy);
+            assert(e->ref_ != 0);
             e->put();
 
             nread += ncopy;

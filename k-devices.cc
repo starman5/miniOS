@@ -349,14 +349,18 @@ void memfile_loader::put_page() {
 ssize_t file_loader::get_page(uint8_t** pg, size_t off) {
     log_printf("in get page\n");
     chkfs_fileiter it(ino_);
-    bcentry* e = it.find(off).get_disk_entry();
+    bcentry* e = knew<bcentry>();
+    e = it.find(off).get_disk_entry();
     if (!e) {
         return E_IO;
     }
-    entry = e;
+    log_printf("entry: %p\n", e);
+    entry_ = e;
     //uintptr_t data = (uintptr_t) &e;
     //*pg = (uint8_t*)&data;
     *pg = e->buf_;
+    buffer_ = e->buf_;
+    log_printf("e->buf: %p\n", e->buf_);
     log_printf("sz: %i\n", ino_->size);
     return ino_->size;
 
@@ -368,5 +372,5 @@ ssize_t file_loader::get_page(uint8_t** pg, size_t off) {
 
 void file_loader::put_page() {
     log_printf("put page\n");
-    entry->put();
+    entry_->put();
 }

@@ -55,18 +55,26 @@ void process_main() {
     assert_gt(wf, 2);
     assert_ne(f, wf);
 
+    printf("opened\n");
+
     memset(buf, 0, sizeof(buf));
     n = sys_read(f, buf, 8);
     assert_eq(n, 8);
     assert_memeq(buf, "OLEK WAS", 8);
 
+    printf("read\n");
+
     n = sys_write(wf, "CLARE ROJAS WAS HERE", 20);
     assert_eq(n, 20);
+
+    printf("written\n");
 
     memset(buf, 0, sizeof(buf));
     n = sys_read(f, buf, 20);
     assert_eq(n, 20);
     assert_memeq(buf, "JAS WAS HEREice hard", 20);
+
+    printf("second read\n");
 
     n = sys_write(wf, "!", 1);
     assert_eq(n, 1);
@@ -102,6 +110,8 @@ void process_main() {
     n = sys_read(f, buf, 8);
     assert_eq(n, 8);
     assert_memeq(buf, "CLARE RO", 8);
+
+    printf("past bottleneck\n");
 
     memset(buf, 0, sizeof(buf));
     n = sys_read(wf, buf, 8);
