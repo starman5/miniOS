@@ -57,7 +57,7 @@ int disk_vop_read(vnode* vn, uintptr_t addr, int sz) {
     }
 
     ino->unlock_read();
-    ino->put();
+    //ino->put();
     return nread;
 }
 

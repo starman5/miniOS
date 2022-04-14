@@ -13,7 +13,7 @@ struct bcentry {
     using blocknum_t = chkfs::blocknum_t;
 
     enum estate_t {
-        es_empty, es_allocated, es_loading, es_clean
+        es_empty, es_allocated, es_loading, es_clean, es_dirty
     };
 
     std::atomic<int> estate_ = es_empty;
@@ -58,6 +58,7 @@ struct bufcache {
     bcentry e_[ne];
 
     list<bcentry, &bcentry::link_> lru_queue_;
+    list<bcentry, &bcentry::link_> dirty_list_;
 
 
 

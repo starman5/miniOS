@@ -211,6 +211,12 @@ void bcentry::put_write() {
 int bufcache::sync(int drop) {
     // write dirty buffers to disk
     // Your code here!
+    while (bcentry* e = dirty_list_.pop_front()) {
+        // get write reference by calling bcentry::get_write()
+        // write bcentry to disk
+        // set state to clean
+        // put write reference
+    }
 
     // drop clean buffers if requested
     if (drop > 0) {
