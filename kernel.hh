@@ -38,6 +38,7 @@ struct vnode {
     vnode_ops* vn_ops_ = nullptr;
     int other_end = -1;
     bool is_pipe = false;
+    bool is_disk = false;
 };
 
 // Bounded buffer for pipe

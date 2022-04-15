@@ -60,6 +60,7 @@ bcentry* bufcache::get_disk_entry(chkfs::blocknum_t bn,
     lock_.unlock_noirq();
 
     // mark reference
+    log_printf("gde %i incr\n", e_[i].bn_);
     ++e_[i].ref_;
     if (e_[i].link_.is_linked()) {
         lru_queue_.erase(&e_[i]);
@@ -71,6 +72,7 @@ bcentry* bufcache::get_disk_entry(chkfs::blocknum_t bn,
 
     // unlock and return entry
     if (!ok) {
+        log_printf("in gt disk entry, %i about to dec refcount\n", e_[i].bn_);
         --e_[i].ref_;
     }
     e_[i].lock_.unlock(irqs);
@@ -151,7 +153,7 @@ void bcentry::put() {
     //     log_printf("clearing\n");
     //     clear();
     // }
-
+    log_printf("in bcentry::put, bn %i, about to decr refcount\n", bn_);
     --ref_;
     auto& bc = bufcache::get();
     //log_printf("gooo\n");
@@ -217,21 +219,38 @@ void bcentry::put_write() {
 int bufcache::sync(int drop) {
     // write dirty buffers to disk
     // Your code here!
-    while (bcentry* e = dirty_list_.pop_front()) {
+    list<bcentry, &bcentry::link_> mydirty;
+    mydirty.swap(dirty_list_);
+    log_printf("is buffercache locked? %i\n", lock_.is_locked());
+    auto irqs = lock_.lock();
+    while (bcentry* e = mydirty.pop_front()) {
         // get write reference by calling bcentry::get_write()
         e->get_write();
+
         // write bcentry to disk
         //  Probably some kind of call to ahcistate::read_or_write()
-
+        auto irqs2 = e->lock_.lock();
+        log_printf("before write: %i\n", e->ref_);
+        sata_disk->write(e->buf_, chkfs::blocksize, e->bn_ * chkfs::blocksize);
+        
         // set state to clean
+        e->estate_ = bcentry::es_clean;
+        //lock_.unlock(irqs);
+        e->lock_.unlock(irqs2);
+
         // put write reference
+        e->put_write();
+
+
     }
+    lock_.unlock(irqs);
 
     // drop clean buffers if requested
     if (drop > 0) {
         spinlock_guard guard(lock_);
         for (size_t i = 0; i != ne; ++i) {
             spinlock_guard eguard(e_[i].lock_);
+            log_printf("eiref: %i, bn %i\n", e_[i].ref_, e_[i].bn_);
 
             // validity checks: referenced entries aren't empty; if drop > 1,
             // no data blocks are referenced

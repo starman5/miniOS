@@ -83,7 +83,8 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
             memcpy(e->buf_ + b, (void*) addr + nwrite, ncopy);
             assert(e->ref_ != 0);
             e->put_write();
-            //e->put();
+            e->estate_ = bcentry::es_dirty;
+            e->put();
 
             nwrite += ncopy;
             vn->vn_offset_ += ncopy;
@@ -96,7 +97,7 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
         }
     }
     ino->unlock_write();
-    //ino->put();
+    ino->put();
     return nwrite;
 }
 
@@ -843,6 +844,10 @@ uintptr_t proc::syscall(regstate* regs) {
             this->vntable_lock_.unlock(irqs);
             return E_BADF;
         }
+
+        chkfs::inode* inod = (chkfs::inode*) vntable_[fd]->vn_data_;
+        log_printf("closing block %i\n", inod->entry()->bn_);
+        log_printf("vnref: %i\n", vntable_[fd]->vn_refcount_);
         log_printf("hi\n");
         assert(vntable_[fd]);
         assert(vntable_[fd]->vn_ops_);
@@ -858,6 +863,12 @@ uintptr_t proc::syscall(regstate* regs) {
             ((bbuffer*)this->vntable_[fd]->vn_data_)->bbuffer_wq_.wake_all();
         }
         this->vntable_[fd]->vn_refcount_ -= 1;
+        //if (vntable_[fd]->vn_refcount_ == 0) {
+            log_printf("donsdga\n");
+            chkfs::inode* ino = (chkfs::inode*) vntable_[fd]->vn_data_;
+            if (ino->entry()->ref_ > 0) {
+                            ino->put();
+        }
         this->vntable_[fd] = nullptr;
         log_printf("here\n");
         this->vntable_lock_.unlock(irqs);
@@ -1109,6 +1120,7 @@ int proc::syscall_open(regstate* regs) {
     // }
 
     auto ino = chkfsstate::get().lookup_inode(pathname);
+    log_printf("break\n");
 
     if (!ino) {
         log_printf("!ino in open\n");
@@ -1151,6 +1163,7 @@ int proc::syscall_open(regstate* regs) {
 
             new_vnode->vn_ops_ = new_vn_ops;
             vntable_[i] = new_vnode;
+            vntable_[i]->vn_refcount_ += 1;
             //log_printf("%s\n", ((*)vntable_[i]->vn_data_)->data_);
             //log_printf("%i\n", i);
             break;
