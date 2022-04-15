@@ -193,7 +193,7 @@ void bcentry::get_write() {
     });
 
     write_ref_ += 1;
-    assert(write_ref == 1);
+    assert(write_ref_ == 1);
 
 }
 

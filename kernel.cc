@@ -71,6 +71,7 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
     size_t nwrite = 0;
     while (nwrite < sz) {
         if (bcentry* e = it.find(vn->vn_offset_).get_disk_entry()) {
+            assert(e->ref_ > 0);
             unsigned b = it.block_relative_offset();
             size_t ncopy = min(
                 size_t(ino->size - it.offset()),   // bytes left in file
@@ -78,8 +79,10 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
                 sz - nwrite                         // bytes left in request
             );
 
+            e->get_write();
             memcpy(e->buf_ + b, (void*) addr + nwrite, ncopy);
             assert(e->ref_ != 0);
+            e->put_write();
             //e->put();
 
             nwrite += ncopy;
