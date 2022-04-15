@@ -188,8 +188,13 @@ void bcentry::put() {
 //    Obtains a write reference for this entry.
 
 void bcentry::get_write() {
-    // Your code here
-    assert(false);
+    waiter().block_until(write_wq_, [&] () {
+        return write_ref_ == 0;      
+    });
+
+    write_ref_ += 1;
+    assert(write_ref == 1);
+
 }
 
 
@@ -197,8 +202,9 @@ void bcentry::get_write() {
 //    Releases a write reference for this entry.
 
 void bcentry::put_write() {
-    // Your code here
-    assert(false);
+    write_ref_ -= 1;
+    write_wq_.wake_all();
+
 }
 
 

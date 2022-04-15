@@ -22,7 +22,10 @@ struct bcentry {
     blocknum_t bn_;                      // disk block number (unless empty)
     unsigned ref_ = 0;                   // reference count
     unsigned char* buf_ = nullptr;       // memory buffer used for entry
-    unsigned int recent_num = 0;
+    
+    unsigned write_ref_ = 0;
+    wait_queue write_wq_;
+
     list_links link_;
 
 
