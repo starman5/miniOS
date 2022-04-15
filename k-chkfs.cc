@@ -219,7 +219,10 @@ int bufcache::sync(int drop) {
     // Your code here!
     while (bcentry* e = dirty_list_.pop_front()) {
         // get write reference by calling bcentry::get_write()
+        e->get_write();
         // write bcentry to disk
+        //  Probably some kind of call to ahcistate::read_or_write()
+
         // set state to clean
         // put write reference
     }
