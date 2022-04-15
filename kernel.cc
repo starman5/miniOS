@@ -97,7 +97,7 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
         }
     }
     ino->unlock_write();
-    ino->put();
+    //ino->put();
     return nwrite;
 }
 
@@ -863,11 +863,11 @@ uintptr_t proc::syscall(regstate* regs) {
             ((bbuffer*)this->vntable_[fd]->vn_data_)->bbuffer_wq_.wake_all();
         }
         this->vntable_[fd]->vn_refcount_ -= 1;
-        //if (vntable_[fd]->vn_refcount_ == 0) {
+        if (vntable_[fd]->vn_refcount_ == 0) {
             log_printf("donsdga\n");
             chkfs::inode* ino = (chkfs::inode*) vntable_[fd]->vn_data_;
-            if (ino->entry()->ref_ > 0) {
-                            ino->put();
+            //if (ino->entry()->ref_ > 0) {
+            ino->put();
         }
         this->vntable_[fd] = nullptr;
         log_printf("here\n");
@@ -1163,7 +1163,7 @@ int proc::syscall_open(regstate* regs) {
 
             new_vnode->vn_ops_ = new_vn_ops;
             vntable_[i] = new_vnode;
-            vntable_[i]->vn_refcount_ += 1;
+            //vntable_[i]->vn_refcount_ += 1;
             //log_printf("%s\n", ((*)vntable_[i]->vn_data_)->data_);
             //log_printf("%i\n", i);
             break;
