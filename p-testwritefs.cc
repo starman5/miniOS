@@ -154,6 +154,7 @@ void process_main() {
     assert_memeq(buf, "CLARE ROOT Vegetablesce hard by,\n"
                  "Gay and polite, a cheerful cry,\n"
                  "Chic-chicadeedee", 81);
+    printf("passed assertion\n");
 
     sys_close(f);
 

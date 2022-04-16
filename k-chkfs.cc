@@ -20,7 +20,7 @@ bufcache::bufcache() {
 
 bcentry* bufcache::get_disk_entry(chkfs::blocknum_t bn,
                                   bcentry_clean_function cleaner) {
-    //log_printf("in get disk entry\n");                                 
+    log_printf("in get disk entry front: %p\n", dirty_list_.front());                                 
     assert(chkfs::blocksize == PAGESIZE);
     auto irqs = lock_.lock();
 
@@ -62,7 +62,7 @@ bcentry* bufcache::get_disk_entry(chkfs::blocknum_t bn,
     // mark reference
     log_printf("gde %i incr\n", e_[i].bn_);
     ++e_[i].ref_;
-    if (e_[i].link_.is_linked()) {
+    if (e_[i].link_.is_linked() && e_[i].estate_ != bcentry::es_dirty) {
         lru_queue_.erase(&e_[i]);
     }
     
@@ -76,6 +76,7 @@ bcentry* bufcache::get_disk_entry(chkfs::blocknum_t bn,
         --e_[i].ref_;
     }
     e_[i].lock_.unlock(irqs);
+    log_printf("end disk entry, front: %p\n", dirty_list_.front());
     return ok ? &e_[i] : nullptr;
 }
 
@@ -161,7 +162,10 @@ void bcentry::put() {
     if (ref_ == 0) {
         //log_printf("%p\n", bc.lru_queue_.prev(this));
         //log_printf("%p\n", bc.lru_queue_.next(this));
-        bc.lru_queue_.push_back(this);
+        if (!link_.is_linked() && estate_ != es_dirty) {
+            log_printf("add to lru %i\n", bn_);
+            bc.lru_queue_.push_back(this);
+        }
     }
     //log_printf("b\n");
 
@@ -179,6 +183,7 @@ void bcentry::put() {
         assert(bc.lru_queue_.front());
         log_printf("z\n");
         bcentry* last_entry = bc.lru_queue_.pop_front();
+        log_printf("clearing %i\n", last_entry->bn_);
         last_entry->clear();
     }
 
@@ -195,6 +200,18 @@ void bcentry::get_write() {
     });
 
     write_ref_ += 1;
+
+    estate_ = bcentry::es_dirty;
+    if (link_.is_linked()) {
+        bufcache::get().lru_queue_.erase(this);
+    }
+    log_printf("adding bn %i\n", bn_);
+    //if (e->link_.is_linked()) {
+    //bufcache::get().lru_queue_.erase(e);
+    log_printf("bufcache add: %p\n", &bufcache::get());
+    bufcache::get().dirty_list_.push_back(this);
+    log_printf("front: %p, %p\n", bufcache::get().dirty_list_.front(), &bufcache::get().dirty_list_);
+    //}
     assert(write_ref_ == 1);
 
 }
@@ -217,33 +234,37 @@ void bcentry::put_write() {
 //    and data blocks are unreferenced.
 
 int bufcache::sync(int drop) {
+    log_printf("in sync\n");
+    log_printf("sync bufcache: %p, %p\n", this, &this->dirty_list_);
     // write dirty buffers to disk
     // Your code here!
+    log_printf("front top sync: %p\n", dirty_list_.front());
     list<bcentry, &bcentry::link_> mydirty;
     mydirty.swap(dirty_list_);
     log_printf("is buffercache locked? %i\n", lock_.is_locked());
-    auto irqs = lock_.lock();
+    log_printf("front: %p\n", mydirty.front());
     while (bcentry* e = mydirty.pop_front()) {
         // get write reference by calling bcentry::get_write()
+        //auto irqs = lock_.lock();
         e->get_write();
 
         // write bcentry to disk
         //  Probably some kind of call to ahcistate::read_or_write()
-        auto irqs2 = e->lock_.lock();
-        log_printf("before write: %i\n", e->ref_);
+        //auto irqs2 = e->lock_.lock();
+        log_printf("before write: block %i, ref %i\n", e->bn_, e->ref_);
         sata_disk->write(e->buf_, chkfs::blocksize, e->bn_ * chkfs::blocksize);
         
         // set state to clean
         e->estate_ = bcentry::es_clean;
         //lock_.unlock(irqs);
-        e->lock_.unlock(irqs2);
+       // e->lock_.unlock(irqs2);
 
         // put write reference
+        //lock_.unlock(irqs);
         e->put_write();
 
 
     }
-    lock_.unlock(irqs);
 
     // drop clean buffers if requested
     if (drop > 0) {

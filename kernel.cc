@@ -83,7 +83,6 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
             memcpy(e->buf_ + b, (void*) addr + nwrite, ncopy);
             assert(e->ref_ != 0);
             e->put_write();
-            e->estate_ = bcentry::es_dirty;
             e->put();
 
             nwrite += ncopy;
@@ -839,6 +838,7 @@ uintptr_t proc::syscall(regstate* regs) {
         int fd = regs->reg_rdi;
         auto irqs = this->vntable_lock_.lock();
         log_printf("proc %i closing fd %i\n", this->id_, fd);
+        log_printf("close: %p\n", bufcache::get().dirty_list_.front());
         if (fd < 0 or fd >= MAX_FDS or !this->vntable_[fd]) {
             log_printf("bad close\n");
             this->vntable_lock_.unlock(irqs);
@@ -872,6 +872,7 @@ uintptr_t proc::syscall(regstate* regs) {
         this->vntable_[fd] = nullptr;
         log_printf("here\n");
         this->vntable_lock_.unlock(irqs);
+        log_printf("after close: %p\n", bufcache::get().dirty_list_.front());
         
         return 0;
     }

@@ -257,7 +257,7 @@ void* kalloc(size_t sz) {
 //    Free a pointer previously returned by `kalloc`. Does nothing if
 //    `ptr == nullptr`.
 void kfree(void* ptr) {
-    // log_printf("kfree is called, ptr = %p\n", ptr);
+    log_printf("kfree is called, ptr = %p\n", ptr);
     
     if (!ptr) {
         return;
