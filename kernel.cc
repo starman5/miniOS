@@ -1128,6 +1128,10 @@ int proc::syscall_open(regstate* regs) {
         // do stuff
     }
 
+    if (flags & OF_TRUNC && flags & OF_WRITE) {
+        ino->size = 0;
+    }
+
     // create a vnode and do stuff
     // vnode* disk_vnode = nullptr;
     // disk_vnode = knew<vnode>();
@@ -1163,6 +1167,7 @@ int proc::syscall_open(regstate* regs) {
             // log_printf("%p\n", new_vnode);
 
             new_vnode->vn_ops_ = new_vn_ops;
+
             vntable_[i] = new_vnode;
             //vntable_[i]->vn_refcount_ += 1;
             //log_printf("%s\n", ((*)vntable_[i]->vn_data_)->data_);
