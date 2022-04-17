@@ -1130,6 +1130,8 @@ int proc::syscall_open(regstate* regs) {
 
     if (flags & OF_TRUNC && flags & OF_WRITE) {
         ino->size = 0;
+        ino->entry()->estate_ = bcentry::es_dirty;
+        bufcache::get().dirty_list_.push_back(ino->entry());
     }
 
     // create a vnode and do stuff
