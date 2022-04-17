@@ -928,6 +928,9 @@ uintptr_t proc::syscall(regstate* regs) {
     case SYSCALL_PIPE:
         return syscall_pipe(regs);
 
+    case SYSCALL_LSEEK:
+        return syscall_lseek(regs);
+
     default:
         // no such system call
         log_printf("%d: no such system call %u\n", id_, regs->reg_rax);
@@ -939,6 +942,30 @@ uintptr_t proc::syscall(regstate* regs) {
     assert(start_canary != end_canary);
     assert(start_canary == end_canary);
     assert(0 == 1);
+}
+
+int proc::syscall_lseek(regstate* regs) {
+    int fd = regs->reg_rdi;
+    int off = regs->reg_rsi;
+    int lseek_tag = regs->reg_rdx;
+
+    chkfs::inode* ino = (chkfs::inode*) vntable_[fd]->vn_data_;
+    //bcentry* e = ino->entry();
+    if (lseek_tag == LSEEK_SET) {
+        vntable_[fd]->vn_offset_ = off;
+        return off;
+    }
+    else if (lseek_tag == LSEEK_CUR) {
+        vntable_[fd]->vn_offset_ += off;
+        return vntable_[fd]->vn_offset_;
+    }
+    else if (lseek_tag == LSEEK_SIZE) {
+        return ino->size;
+    }
+    else {
+        vntable_[fd]->vn_offset_ = ino->size + off;
+        return vntable_[fd]->vn_offset_;
+    }
 }
 
 int proc::syscall_execv(regstate* regs) {
