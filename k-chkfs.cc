@@ -486,5 +486,55 @@ chkfs::inode* chkfsstate::lookup_inode(const char* filename) {
 
 auto chkfsstate::allocate_extent(unsigned count) -> blocknum_t {
     // Your code here
-    return E_INVAL;
+
+    // Search for count number of free blocks in the free block bitmap
+    //      Use bitset view on the address of first bitmap block (fbb->buf)
+    // Then set those free blocks to be not free in the bitmap
+    // Then return the first block in the extent
+
+    auto& bc = bufcache::get();
+    auto superblock_entry = bc.get_disk_entry(0);
+    //log_printf("after get disk entry\n");
+    assert(superblock_entry);
+    auto& sb = *reinterpret_cast<chkfs::superblock*>
+        (&superblock_entry->buf_[chkfs::superblock_offset]);
+    //log_printf("%i\n", sb.ninodes);
+    superblock_entry->put();
+
+    // Get address of first free block in fbb
+    chkfs::blocknum_t first_fbb = sb.fbb_bn;
+    bcentry* e = bc.get_disk_entry(sb.fbb_bn);
+    assert(e);
+    void* fbb_addr = e->buf_;
+    e->put();
+
+    // Use bitset_view
+    bitset_view fbb_view(reinterpret_cast<uint64_t*>(fbb_addr), chkfs::bitsperblock);
+    int counter = 0;
+    int startblock = 0;
+    for (int endblock = 0; endblock < chkfs::bitsperblock; endblock++) {
+        if (fbb_view[endblock] == 1) {
+            counter += 1;
+        }
+        else {
+            startblock = endblock;
+            counter = 0;
+        }
+
+        if (counter == count) {
+            for (int block = startblock; block < endblock; block++) {
+                fbb_view[block] = false;
+                
+            }
+            break;
+        }
+
+    }
+    
+    if (counter != count) {
+        return E_INVAL;
+    }
+
+    return startblock;
+
 }
