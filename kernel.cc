@@ -36,11 +36,16 @@ int disk_vop_read(vnode* vn, uintptr_t addr, int sz) {
         // copy data from current block
         if (bcentry* e = it.find(vn->vn_offset_).get_disk_entry()) {
             unsigned b = it.block_relative_offset();
-            size_t ncopy = min(
+            size_t ncopy;
+            if (ino->size != 0) {
+            ncopy = min(
                 size_t(ino->size - it.offset()),   // bytes left in file
                 chkfs::blocksize - b,              // bytes left in block
                 sz - nread                         // bytes left in request
             );
+            } else {
+                ncopy = min(chkfs::blocksize - b, sz - nread);
+            }
             memcpy((void*)addr + nread, e->buf_ + b, ncopy);
             assert(e->ref_ != 0);
             e->put();
@@ -74,10 +79,12 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
             assert(e->ref_ > 0);
             unsigned b = it.block_relative_offset();
             size_t ncopy = min(
-                size_t(ino->size - it.offset()),   // bytes left in file
+                //size_t(ino->size - it.offset()),   // bytes left in file
                 chkfs::blocksize - b,              // bytes left in block
                 sz - nwrite                         // bytes left in request
             );
+
+            log_printf("%i, %i, %i\n", ino->size - it.offset(), chkfs::blocksize - b, sz - nwrite);
 
             e->get_write();
             memcpy(e->buf_ + b, (void*) addr + nwrite, ncopy);
@@ -1129,8 +1136,10 @@ int proc::syscall_open(regstate* regs) {
     }
 
     if (flags & OF_TRUNC && flags & OF_WRITE) {
+        ino->lock_write();
         ino->size = 0;
         ino->entry()->estate_ = bcentry::es_dirty;
+        ino->unlock_write();
         bufcache::get().dirty_list_.push_back(ino->entry());
     }
 
