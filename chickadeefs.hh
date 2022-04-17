@@ -68,6 +68,7 @@ struct inode {
     uint32_t mbcindex;            // used in memory, 0 when loaded from disk
     extent direct[ndirect];       // extents
     extent indirect;
+    //bool truncated = false;
 
 #ifdef CHICKADEE_KERNEL
     // return the buffer cache entry containing this buffer-cached inode

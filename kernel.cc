@@ -28,7 +28,7 @@ int disk_vop_read(vnode* vn, uintptr_t addr, int sz) {
     log_printf("in disk_vop_read\n");
     // data will contain the inode*, which you can use to read
     chkfs::inode* ino = (chkfs::inode*) vn->vn_data_;
-    ino->lock_read();
+    //ino->lock_read();
     chkfs_fileiter it(ino);
 
     size_t nread = 0;
@@ -37,15 +37,15 @@ int disk_vop_read(vnode* vn, uintptr_t addr, int sz) {
         if (bcentry* e = it.find(vn->vn_offset_).get_disk_entry()) {
             unsigned b = it.block_relative_offset();
             size_t ncopy;
-            if (ino->size != 0) {
+            //if (!ino->truncated) {
             ncopy = min(
                 size_t(ino->size - it.offset()),   // bytes left in file
                 chkfs::blocksize - b,              // bytes left in block
                 sz - nread                         // bytes left in request
             );
-            } else {
-                ncopy = min(chkfs::blocksize - b, sz - nread);
-            }
+            //} else {
+            //    ncopy = min(chkfs::blocksize - b, sz - nread);
+            //}
             memcpy((void*)addr + nread, e->buf_ + b, ncopy);
             assert(e->ref_ != 0);
             e->put();
@@ -61,7 +61,7 @@ int disk_vop_read(vnode* vn, uintptr_t addr, int sz) {
         }
     }
 
-    ino->unlock_read();
+    //ino->unlock_read();
     //ino->put();
     return nread;
 }
@@ -70,7 +70,7 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
     log_printf("in disk_vop_write\n");
     // data will contain the inode*, which you can use to write
     chkfs::inode* ino = (chkfs::inode*) vn->vn_data_;
-    ino->lock_write();
+    //ino->lock_write();
     chkfs_fileiter it(ino);
 
     size_t nwrite = 0;
@@ -78,11 +78,17 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
         if (bcentry* e = it.find(vn->vn_offset_).get_disk_entry()) {
             assert(e->ref_ > 0);
             unsigned b = it.block_relative_offset();
-            size_t ncopy = min(
-                //size_t(ino->size - it.offset()),   // bytes left in file
+            size_t ncopy;
+            if (ino->size != 0) {
+            ncopy = min(
+                size_t(ino->size - it.offset()),   // bytes left in file
                 chkfs::blocksize - b,              // bytes left in block
                 sz - nwrite                         // bytes left in request
             );
+            } else {
+                ncopy = min(chkfs::blocksize - b, sz - nwrite);
+                ino->size += ncopy;
+            }
 
             log_printf("%i, %i, %i\n", ino->size - it.offset(), chkfs::blocksize - b, sz - nwrite);
 
@@ -102,7 +108,7 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
             break;
         }
     }
-    ino->unlock_write();
+    //ino->unlock_write();
     //ino->put();
     return nwrite;
 }
@@ -1138,6 +1144,7 @@ int proc::syscall_open(regstate* regs) {
     if (flags & OF_TRUNC && flags & OF_WRITE) {
         ino->lock_write();
         ino->size = 0;
+        //ino->truncated = true;
         ino->entry()->estate_ = bcentry::es_dirty;
         ino->unlock_write();
         bufcache::get().dirty_list_.push_back(ino->entry());
