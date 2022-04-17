@@ -79,16 +79,18 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
             assert(e->ref_ > 0);
             unsigned b = it.block_relative_offset();
             size_t ncopy;
-            if (ino->size != 0) {
-            ncopy = min(
-                size_t(ino->size - it.offset()),   // bytes left in file
-                chkfs::blocksize - b,              // bytes left in block
-                sz - nwrite                         // bytes left in request
-            );
-            } else {
+            //if (ino->size != 0) {
+            //ncopy = min(
+            //    size_t(ino->size - it.offset()),   // bytes left in file
+            //    chkfs::blocksize - b,              // bytes left in block
+            //    sz - nwrite                         // bytes left in request
+            //);
+            //} //else {
                 ncopy = min(chkfs::blocksize - b, sz - nwrite);
-                ino->size += ncopy;
-            }
+                if (ino->size + ncopy > ino->size) {
+                    ino->size += ncopy;
+                };
+            //}
 
             log_printf("%i, %i, %i\n", ino->size - it.offset(), chkfs::blocksize - b, sz - nwrite);
 
