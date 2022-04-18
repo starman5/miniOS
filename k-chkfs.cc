@@ -528,7 +528,7 @@ auto chkfsstate::allocate_extent(unsigned count) -> blocknum_t {
                 //current_entry->get_write();
                 // current_entry->estate_ = bcentry::es_dirty;
                 // bc.dirty_list_.push_back(current_entry);
-                // current_entry->put();               
+                current_entry->put();               
             }
             break;
         }

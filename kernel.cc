@@ -79,7 +79,7 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
     log_printf("in disk_vop_write\n");
     // data will contain the inode*, which you can use to write
     chkfs::inode* ino = (chkfs::inode*) vn->vn_data_;
-    //ino->lock_write();
+    ino->lock_write();
     chkfs_fileiter it(ino);
 
     size_t nwrite = 0;
@@ -127,6 +127,7 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
                     // Actually add the extent to the inode
 
                     chkfs::extent* new_extent = knew<chkfs::extent>();
+                    bool foundSlot = false;
                     for (int j = 0; j < chkfs::ndirect; j++) {
                         chkfs::extent curr_extent = ino->direct[j];
                         if (curr_extent.count == 0) {
@@ -134,8 +135,20 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
                             new_extent->first = first_block;
                             new_extent->count = blocks_needed;
                             ino->direct[j] = *new_extent;
+                            foundSlot = true;
                             break;
                         }
+                    }
+
+                    if (!foundSlot) {
+                        //new_extent->first = first_block;
+                        //new_extent->count = blocks_needed;
+                        // Add it to the indirect extents block
+                        // Might need to align the offset to 4096 bytes
+                        //unsigned int local_offset = it.offset();
+                        //unsigned int new_offset = round_up(local_offset, 4096);
+                        //it.find(new_offset);
+                        it.insert(first_block, blocks_needed);
                     }
                 }
             }
@@ -160,7 +173,7 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
             break;
         }
     }
-    //ino->unlock_write();
+    ino->unlock_write();
     //ino->put();
     return nwrite;
 }
