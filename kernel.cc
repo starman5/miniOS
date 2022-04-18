@@ -109,6 +109,18 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
                         unsigned int blocks_needed = (round_up(bytes_needed, 4096)) / chkfs::blocksize;
                         chkfsstate& state = chkfsstate::get();
                         chkfs::blocknum_t first_block = state.allocate_extent(blocks_needed);
+
+                        // Actually add the extent to the inode
+
+                        chkfs::extent* new_extent - knew<chkfs::extent>();
+                        for (int j = 0; j < chkfs::ndirect; j++) {
+                            chkfs::extent curr_extent = ino->direct[j];
+                            if (curr_extent.count == 0) {
+                                new_extent->first = first_block;
+                                new_extent->count = blocks_needed;
+                                break;
+                            }
+                        }
                     }
                 };
             //}
