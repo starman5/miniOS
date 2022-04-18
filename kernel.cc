@@ -150,7 +150,7 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
             e->put();
 
             nwrite += ncopy;
-            vn->vn_offset_ += ncopy;
+            vn->vn_offset_ += nwrite;
             if (ncopy == 0) {
                 break;
             }
