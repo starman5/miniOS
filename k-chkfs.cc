@@ -524,7 +524,11 @@ auto chkfsstate::allocate_extent(unsigned count) -> blocknum_t {
         if (counter == count) {
             for (int block = startblock; block < endblock; block++) {
                 fbb_view[block] = false;
-                
+                bcentry* current_entry = bc.get_disk_entry(block);
+                current_entry->get_write();
+                // current_entry->estate_ = bcentry::es_dirty;
+                // bc.dirty_list_.push_back(current_entry);
+                // current_entry->put();               
             }
             break;
         }

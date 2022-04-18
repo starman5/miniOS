@@ -31,6 +31,9 @@ int disk_vop_read(vnode* vn, uintptr_t addr, int sz) {
     //ino->lock_read();
     chkfs_fileiter it(ino);
 
+    int extent_index = 0;
+    chkfs::extent current_extent;
+
     size_t nread = 0;
     while (nread < sz) {
         // copy data from current block
@@ -53,7 +56,13 @@ int disk_vop_read(vnode* vn, uintptr_t addr, int sz) {
             nread += ncopy;
             vn->vn_offset_ += ncopy;
             if (ncopy == 0) {
-                break;
+                // Under certain conditinos, go into the extents
+                if (sz - nread != 0 && ino->size - it.offset() != 0) {
+                    log_printf("going into the extents\n");
+                    vn->vn_offset_ += 1;
+                } else {
+                    break;
+                }
             }
         } else {
             log_printf("in the weird else\n");
@@ -74,8 +83,11 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
     chkfs_fileiter it(ino);
 
     size_t nwrite = 0;
+    log_printf("sz: %i\n", sz);
     while (nwrite < sz) {
+        log_printf("in while\n");
         if (bcentry* e = it.find(vn->vn_offset_).get_disk_entry()) {
+            log_printf("in first if\n");
             assert(e->ref_ > 0);
             unsigned b = it.block_relative_offset();
             size_t ncopy;
@@ -87,6 +99,7 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
             //);
             //} //else {
                 ncopy = min(chkfs::blocksize - b, sz - nwrite);
+                log_printf("ncopy: %i\n", ncopy);
                 if (ino->size + ncopy > ino->size) {
                     // Calculate the number of allocated bytes for this file
                     int allocated_bytes = chkfs::blocksize - b;
@@ -112,7 +125,7 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
 
                         // Actually add the extent to the inode
 
-                        chkfs::extent* new_extent - knew<chkfs::extent>();
+                        chkfs::extent* new_extent = knew<chkfs::extent>();
                         for (int j = 0; j < chkfs::ndirect; j++) {
                             chkfs::extent curr_extent = ino->direct[j];
                             if (curr_extent.count == 0) {
@@ -122,7 +135,7 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
                             }
                         }
                     }
-                };
+                }
             //}
 
             log_printf("%i, %i, %i\n", ino->size - it.offset(), chkfs::blocksize - b, sz - nwrite);
@@ -140,6 +153,7 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
             }
         }
         else {
+            log_printf("error with read disk file\n");
             break;
         }
     }

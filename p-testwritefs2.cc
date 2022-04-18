@@ -162,12 +162,18 @@ void process_main() {
     assert_eq(n, 9);
     assert_memeq(buf, "I should X", 10);
 
+    printf("about to seek\n");
+
     sz = sys_lseek(f, 4000, LSEEK_SET);
     assert_eq(sz, 4000);
+
+    printf("sought\n");
 
     n = sys_read(f, buf, 9);
     assert_eq(n, 9);
     assert_memeq(buf, "f there wX", 10);
+
+    printf("read\n");
 
     sz = sys_lseek(f, 4090, LSEEK_SET);
     assert_eq(sz, 4090);
