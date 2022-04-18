@@ -18,6 +18,7 @@
         "atomic": "cpp",
         "ios": "cpp",
         "system_error": "cpp",
-        "ostream": "cpp"
+        "ostream": "cpp",
+        "type_traits": "cpp"
     }
 }

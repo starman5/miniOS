@@ -88,7 +88,28 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
             //} //else {
                 ncopy = min(chkfs::blocksize - b, sz - nwrite);
                 if (ino->size + ncopy > ino->size) {
-                    ino->size += ncopy;
+                    // Calculate the number of allocated bytes for this file
+                    int allocated_bytes = chkfs::blocksize - b;
+                    for (int i = 0; i < chkfs::ndirect; i++) {
+                        chkfs::extent curr_extent = ino->direct[i];
+                        allocated_bytes += (curr_extent.count * 4096);
+                    }
+                    log_printf("allocated_bytes: %i\n", allocated_bytes);
+
+                    // Do indirect extents here
+
+                    if (ino->size + ncopy < allocated_bytes) {
+                        ino->size += ncopy;
+                    }
+                    else {
+                        log_printf("allocating new extents\n");
+                        ino->size += ncopy;
+                        unsigned int bytes_needed = ino->size + ncopy - allocated_bytes;
+                        assert(bytes_needed > 0);
+                        unsigned int blocks_needed = (round_up(bytes_needed, 4096)) / chkfs::blocksize;
+                        chkfsstate& state = chkfsstate::get();
+                        chkfs::blocknum_t first_block = state.allocate_extent(blocks_needed);
+                    }
                 };
             //}
 
