@@ -143,6 +143,7 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
             log_printf("%i, %i, %i\n", ino->size - it.offset(), chkfs::blocksize - b, sz - nwrite);
 
             e->get_write();
+            log_printf("got write\n");
             memcpy(e->buf_ + b, (void*) addr + nwrite, ncopy);
             assert(e->ref_ != 0);
             e->put_write();
