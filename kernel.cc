@@ -86,57 +86,59 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
     log_printf("sz: %i\n", sz);
     while (nwrite < sz) {
         log_printf("in while\n");
+        log_printf("%i, %i\n", vn->vn_offset_, it.find(vn->vn_offset_).active());
+
         if (bcentry* e = it.find(vn->vn_offset_).get_disk_entry()) {
             log_printf("in first if\n");
             assert(e->ref_ > 0);
             unsigned b = it.block_relative_offset();
-            size_t ncopy;
-            //if (ino->size != 0) {
-            //ncopy = min(
-            //    size_t(ino->size - it.offset()),   // bytes left in file
-            //    chkfs::blocksize - b,              // bytes left in block
-            //    sz - nwrite                         // bytes left in request
-            //);
-            //} //else {
-                ncopy = min(chkfs::blocksize - b, sz - nwrite);
-                log_printf("ncopy: %i\n", ncopy);
-                if (ino->size + ncopy > ino->size) {
-                    // Calculate the number of allocated bytes for this file
-                    int allocated_bytes = chkfs::blocksize - b;
-                    for (int i = 0; i < chkfs::ndirect; i++) {
-                        chkfs::extent curr_extent = ino->direct[i];
-                        allocated_bytes += (curr_extent.count * 4096);
-                    }
-                    log_printf("allocated_bytes: %i\n", allocated_bytes);
+            size_t ncopy = min(chkfs::blocksize - b, sz - nwrite);
+            log_printf("ncopy: %i\n", ncopy);
 
-                    // Do indirect extents here
+            if (ino->size + ncopy > ino->size || sz - nwrite > chkfs::blocksize - b) {
+                // Calculate the number of allocated bytes for this file
+                //int allocated_bytes = chkfs::blocksize - b;
+                int allocated_bytes = 0;
+                for (int i = 0; i < chkfs::ndirect; i++) {
+                    chkfs::extent curr_extent = ino->direct[i];
+                    allocated_bytes += (curr_extent.count * 4096);
+                }
+                
+                log_printf("allocated_bytes: %i\n", allocated_bytes);
 
-                    if (ino->size + ncopy < allocated_bytes) {
-                        ino->size += ncopy;
-                    }
-                    else {
-                        log_printf("allocating new extents\n");
-                        ino->size += ncopy;
-                        unsigned int bytes_needed = ino->size + ncopy - allocated_bytes;
-                        assert(bytes_needed > 0);
-                        unsigned int blocks_needed = (round_up(bytes_needed, 4096)) / chkfs::blocksize;
-                        chkfsstate& state = chkfsstate::get();
-                        chkfs::blocknum_t first_block = state.allocate_extent(blocks_needed);
+                // Do indirect extents here
 
-                        // Actually add the extent to the inode
+                if (ino->size + ncopy < allocated_bytes) {
+                    ino->size += ncopy;
+                }
 
-                        chkfs::extent* new_extent = knew<chkfs::extent>();
-                        for (int j = 0; j < chkfs::ndirect; j++) {
-                            chkfs::extent curr_extent = ino->direct[j];
-                            if (curr_extent.count == 0) {
-                                new_extent->first = first_block;
-                                new_extent->count = blocks_needed;
-                                break;
-                            }
+                else {
+                    log_printf("allocating new extents\n");
+                    ino->size += ncopy;
+                    //unsigned int bytes_needed = ino->size + ncopy - allocated_bytes;
+                    unsigned int bytes_needed = sz - nwrite;
+                    log_printf("bytes needed: %i\n", bytes_needed);
+                    assert(bytes_needed > 0);
+                    unsigned int blocks_needed = (round_up(bytes_needed, 4096)) / chkfs::blocksize;
+                    log_printf("blocks needed: %i\n", blocks_needed);
+                    chkfsstate& state = chkfsstate::get();
+                    chkfs::blocknum_t first_block = state.allocate_extent(blocks_needed);
+                        
+                    // Actually add the extent to the inode
+
+                    chkfs::extent* new_extent = knew<chkfs::extent>();
+                    for (int j = 0; j < chkfs::ndirect; j++) {
+                        chkfs::extent curr_extent = ino->direct[j];
+                        if (curr_extent.count == 0) {
+                            log_printf("found an empty extent\n");
+                            new_extent->first = first_block;
+                            new_extent->count = blocks_needed;
+                            ino->direct[j] = *new_extent;
+                            break;
                         }
                     }
                 }
-            //}
+            }
 
             log_printf("%i, %i, %i\n", ino->size - it.offset(), chkfs::blocksize - b, sz - nwrite);
 

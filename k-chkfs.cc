@@ -179,7 +179,7 @@ void bcentry::put() {
         }
     }
     if (is_full) {
-        //log_printf("is full\n");
+        log_printf("is full\n");
         assert(bc.lru_queue_.front());
         log_printf("z\n");
         bcentry* last_entry = bc.lru_queue_.pop_front();
