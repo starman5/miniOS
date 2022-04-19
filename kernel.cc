@@ -49,6 +49,7 @@ int disk_vop_read(vnode* vn, uintptr_t addr, int sz) {
             //} else {
             //    ncopy = min(chkfs::blocksize - b, sz - nread);
             //}
+            log_printf("ncopy: %i, %i, %i, %i\n", ncopy, ino->size - it.offset(), chkfs::blocksize - b, sz - nread);
             memcpy((void*)addr + nread, e->buf_ + b, ncopy);
             assert(e->ref_ != 0);
             e->put();
@@ -95,7 +96,10 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
             size_t ncopy = min(chkfs::blocksize - b, sz - nwrite);
             log_printf("ncopy: %i\n", ncopy);
 
-            if (ino->size + ncopy > ino->size || sz - nwrite > chkfs::blocksize - b) {
+            // if the current offset + ncopy is greater than the size, because of lseek ex
+            //if (ino->size + ncopy > ino->size || sz - nwrite > chkfs::blocksize - b) {
+            //if (ncopy > ino->size || sz - nwrite > chkfs::blocksize - b) {
+            if (it.offset() + ncopy > ino->size || sz - nwrite > chkfs::blocksize - b) {
                 // Calculate the number of allocated bytes for this file
                 //int allocated_bytes = chkfs::blocksize - b;
                 int allocated_bytes = 0;
@@ -109,6 +113,7 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
                 // Do indirect extents here
 
                 if (ino->size + ncopy < allocated_bytes) {
+                    // find a better condition, more targeted condition
                     ino->size += ncopy;
                 }
 
@@ -1347,7 +1352,7 @@ int proc::syscall_open(regstate* regs) {
             //log_printf("check: %i, %s\n", curr_ent.inum, curr_ent.name);
 
             ino = chkfsstate::get().lookup_inode(pathname);
-            //assert(ino);
+            assert(ino);
 
         }
         else {
