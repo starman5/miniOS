@@ -156,16 +156,11 @@ void process_main() {
 
     f = sys_open("thoreau.txt", OF_READ);
     assert_gt(f, 2);
-    
-    //sz = sys_lseek(wf, 0, LSEEK_SIZE);
-    //assert_eq(sz, 8800);
 
     memset(buf, 'X', sizeof(buf));
     n = sys_read(f, buf, 9);
     assert_eq(n, 9);
     assert_memeq(buf, "I should X", 10);
-
-    printf("about to seek\n");
 
     sz = sys_lseek(f, 4000, LSEEK_SET);
     assert_eq(sz, 4000);
@@ -173,8 +168,6 @@ void process_main() {
     n = sys_read(f, buf, 9);
     assert_eq(n, 9);
     assert_memeq(buf, "f there wX", 10);
-
-    printf("read\n");
 
     sz = sys_lseek(f, 4090, LSEEK_SET);
     assert_eq(sz, 4090);
@@ -186,7 +179,7 @@ void process_main() {
     sys_close(f);
 
     sz = sys_lseek(wf, 0, LSEEK_SIZE);
-   // assert_eq(sz, 8800);
+    assert_eq(sz, 8800);
 
     sys_close(wf);
 
@@ -204,8 +197,8 @@ void process_main() {
     f = sys_open("thoreau.txt", OF_READ);
     assert_gt(f, 2);
 
-    //sz = sys_lseek(f, 0, LSEEK_SIZE);
-    //assert_eq(sz, 8800);
+    sz = sys_lseek(f, 0, LSEEK_SIZE);
+    assert_eq(sz, 8800);
 
     memset(buf, 'X', sizeof(buf));
     n = sys_read(f, buf, 9);
@@ -232,24 +225,24 @@ void process_main() {
     // make a big file
     printf("%s:%d: extend more", __FILE__, __LINE__);
 
-     size_t bbsz = prepare_bigbuf();
+    size_t bbsz = prepare_bigbuf();
 
-    // wf = sys_open("thoreau.txt", OF_WRITE);
-    // assert_gt(f, 2);
+    wf = sys_open("thoreau.txt", OF_WRITE);
+    assert_gt(f, 2);
 
-    // for (int i = 0; i != 100; ++i) {
-    //     dprintf(wf, "Chick%ddee\n", i);
-    //     n = sys_write(wf, bigbuf, bbsz);
-    //     assert_eq(size_t(n), bbsz);
-    //     if (i % 10 == 0) {
-    //         printf(".");
-    //     }
-    // }
+    for (int i = 0; i != 100; ++i) {
+        dprintf(wf, "Chick%ddee\n", i);
+        n = sys_write(wf, bigbuf, bbsz);
+        assert_eq(size_t(n), bbsz);
+        if (i % 10 == 0) {
+            printf(".");
+        }
+    }
 
     printf("\n");
 
-    //sz = sys_lseek(f, 0, LSEEK_SIZE);
-    //assert_eq(sz, 405890);
+    sz = sys_lseek(f, 0, LSEEK_SIZE);
+    assert_eq(sz, 405890);
 
     sys_close(wf);
 
@@ -272,7 +265,7 @@ void process_main() {
     }
     printf("\n");
 
-    //assert_eq(sz, 405890);
+    assert_eq(sz, 405890);
     assert_eq(crc, 0x76954FBBU);
 
     sys_close(f);

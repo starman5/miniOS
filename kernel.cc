@@ -111,9 +111,14 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
                 
                 log_printf("allocated_bytes: %i\n", allocated_bytes);
 
+                log_printf("ino->size + ncopy: %i\n", ino->size + ncopy);
+                
+                log_printf("offset + ncopy: %i\n", it.offset() + ncopy);
+
                 // Do indirect extents here
 
-                if (ino->size + ncopy < allocated_bytes) {
+                //if (ino->size + ncopy < allocated_bytes) {
+                if (it.offset() + ncopy < allocated_bytes) {
                     // find a better condition, more targeted condition
                     ino->size += ncopy;
                 }
@@ -1181,6 +1186,9 @@ int proc::syscall_execv(regstate* regs) {
 
 int proc::syscall_open(regstate* regs) {
     log_printf("in open\n");
+    log_printf("inode size: %i\n", sizeof(chkfs::inode));
+    log_printf("bcentry size: %i\n", sizeof(bcentry));
+    log_printf("bufcache size: %i\n", sizeof(bufcache));
     const char* pathname = (const char*)regs->reg_rdi;
     int flags = regs->reg_rsi;
 
