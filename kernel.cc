@@ -82,6 +82,7 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
     chkfs::inode* ino = (chkfs::inode*) vn->vn_data_;
     ino->lock_write();
     chkfs_fileiter it(ino);
+    log_printf("active: %i\n", it.active());
 
     size_t nwrite = 0;
     log_printf("sz: %i\n", sz);
@@ -1346,13 +1347,39 @@ int proc::syscall_open(regstate* regs) {
             ino->type = chkfs::type_regular;
             ino->size = 0;
             ino->nlink = 1;
+            //ino->unlock_write();
+
+
+            chkfs::blocknum_t new_extent_bn = chkfsstate::get().allocate_extent(1);
+
+            // use chkfsiter::insert() and allocate_extent
+            chkfs_fileiter it2(ino);
+            it2.insert(new_extent_bn, 1);
+
             ino->unlock_write();
+
+            chkfs::blocknum_t it2block = it2.blocknum();
+            log_printf("%i\n", it2block);
+
+
+
+            // There is no block associated with this inode
+
+            bcentry* et = it2.get_disk_entry();
+
+
+
+            // Do I need to allocate a block for the new inode?  Right now if I try to get a new entry for it doesn't work
+            // Because its not active at all.  I think there is no block associated with this inode.  How do I associate a block
+            // with the inode?
+            log_printf("et: %p\n", et);
+            log_printf("et buf: %p\n", et->buf_);
 
             //chkfs::dirent curr_ent = dir_array[dir_array_indx];
             //log_printf("check: %i, %s\n", curr_ent.inum, curr_ent.name);
 
-            ino = chkfsstate::get().lookup_inode(pathname);
-            assert(ino);
+            //ino = chkfsstate::get().lookup_inode(pathname);
+            //assert(ino);
 
         }
         else {
