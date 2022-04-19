@@ -141,6 +141,7 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
                     }
 
                     if (!foundSlot) {
+                        log_printf("indirect\n");
                         //new_extent->first = first_block;
                         //new_extent->count = blocks_needed;
                         // Add it to the indirect extents block
@@ -1230,7 +1231,109 @@ int proc::syscall_open(regstate* regs) {
 
     if (!ino) {
         log_printf("!ino in open\n");
-        // do stuff
+             if (flags & OF_CREATE && flags & OF_WRITE) {
+            //chkfs::dirent* direntry = chkfsstate::get().create_direntry(1, pathname);
+            
+            // get the root directory
+            auto dirino = chkfsstate::get().get_inode(1);
+
+            // look for an empty direntry in the dirino
+            //bcentry* dirbcentry = dirino->entry();
+            chkfs_fileiter it(dirino);
+            bcentry* dirbcentry = it.get_disk_entry();
+
+            chkfs::dirent* dir_array = (chkfs::dirent*) dirbcentry->buf_;
+            int num_entries = sizeof(dir_array);
+            log_printf("num_entries: %i\n", num_entries);
+
+
+            chkfs::dirent* new_entry = nullptr;
+            for (int ent = 0; ent < 100; ent++) {
+                chkfs::dirent curr_ent = dir_array[ent];
+                log_printf("dir inum: %i\n", curr_ent.inum);
+                log_printf("filename: %s\n", curr_ent.name);
+                if (curr_ent.inum == 0) {
+                    // This one is free
+                    new_entry = &curr_ent;
+                    break;
+                }
+            
+            }
+
+            if (!new_entry) {
+                log_printf("need to allocate another direntry\n");
+                return E_IO;
+            }
+
+            // Allocate a new inode
+            // sb.inode_bn is the first inode block.  Each inode block contains 64 inodes
+            // There are sb.ninodes / 64 total inode blocks.  Look through them all
+            // An inode is free if inode::type == 0.  Find one and set it to type_regular
+
+            // Bring in the superblock
+            auto& bc = bufcache::get();
+            auto superblock_entry = bc.get_disk_entry(0);
+            //log_printf("after get disk entry\n");
+            assert(superblock_entry);
+            auto& sb = *reinterpret_cast<chkfs::superblock*>
+                (&superblock_entry->buf_[chkfs::superblock_offset]);
+            log_printf("ninodes: %i\n", sb.ninodes);
+            superblock_entry->put();
+
+            chkfs::blocknum_t ino_block = sb.inode_bn;
+            int ino_num = 0;
+
+            //while (ino_num == 0) {
+                bcentry* ino_entry = bc.get_disk_entry(ino_block);
+                chkfs::inode* ino_arr = (chkfs::inode*) ino_entry->buf_;
+
+                for (int j = 2; j < 64; j++) {
+                    chkfs::inode* curr_inode = &ino_arr[j];
+                    log_printf("type: %i\n", curr_inode->type);
+                    if (curr_inode->type == 0) {
+                        log_printf("found a free inode\n");
+                        ino_num = j;
+                        break;
+                    }
+                }
+                
+                // if (ino_num != 0) {
+                //     break;
+                // }
+
+                // if (ino_block - sb.inode_bn == sb.ninodes) {
+                //     break;
+                // }
+
+                // ino_block += 1;
+
+            //}
+            if (ino_num == 0) {
+                log_printf("that sucks\n");
+                return E_AGAIN;
+            }
+             
+
+            chkfs::inode* allocated_inode = chkfsstate::get().get_inode(ino_num);
+
+            new_entry->inum = ino_num;
+            strcpy(new_entry->name, pathname);
+            log_printf("new entry: %i, %s\n", new_entry->inum, new_entry->name);
+
+            allocated_inode->lock_write();
+            allocated_inode->type = chkfs::type_regular;
+            allocated_inode->size = 0;
+            allocated_inode->nlink = 1;
+            allocated_inode->unlock_write();
+
+            ino = chkfsstate::get().lookup_inode(pathname);
+            assert(ino);
+
+        }
+        else {
+            return E_NOENT;
+        }
+
     }
 
     if (flags & OF_TRUNC && flags & OF_WRITE) {

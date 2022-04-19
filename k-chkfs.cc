@@ -498,7 +498,7 @@ auto chkfsstate::allocate_extent(unsigned count) -> blocknum_t {
     assert(superblock_entry);
     auto& sb = *reinterpret_cast<chkfs::superblock*>
         (&superblock_entry->buf_[chkfs::superblock_offset]);
-    //log_printf("%i\n", sb.ninodes);
+    log_printf("ninodes: %i\n", sb.ninodes);
     superblock_entry->put();
 
     // Get address of first free block in fbb
