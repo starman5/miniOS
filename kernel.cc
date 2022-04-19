@@ -1237,28 +1237,44 @@ int proc::syscall_open(regstate* regs) {
             // get the root directory
             auto dirino = chkfsstate::get().get_inode(1);
 
-            // look for an empty direntry in the dirino
-            //bcentry* dirbcentry = dirino->entry();
-            chkfs_fileiter it(dirino);
-            bcentry* dirbcentry = it.get_disk_entry();
-
-            chkfs::dirent* dir_array = (chkfs::dirent*) dirbcentry->buf_;
-            int num_entries = sizeof(dir_array);
-            log_printf("num_entries: %i\n", num_entries);
-
-
+            //int dir_array_indx = 0;
             chkfs::dirent* new_entry = nullptr;
-            for (int ent = 0; ent < 100; ent++) {
-                chkfs::dirent curr_ent = dir_array[ent];
-                log_printf("dir inum: %i\n", curr_ent.inum);
-                log_printf("filename: %s\n", curr_ent.name);
-                if (curr_ent.inum == 0) {
-                    // This one is free
-                    new_entry = &curr_ent;
-                    break;
+            chkfs_fileiter it(dirino);
+            int offset = 0;
+
+            while (!new_entry) {
+
+                // look for an empty direntry in the dirino
+                //bcentry* dirbcentry = dirino->entry();
+                it.find(offset);
+                bcentry* dirbcentry = it.get_disk_entry();
+                log_printf("k entry: %p\n", dirbcentry);
+
+                chkfs::dirent* dir_array = (chkfs::dirent*) dirbcentry->buf_;
+                int num_entries = sizeof(dir_array);
+                log_printf("num_entries: %i\n", num_entries);
+
+                for (int ent = 0; ent < 32; ent++) {
+                    chkfs::dirent curr_ent = dir_array[ent];
+                    log_printf("cur %p\n", &dir_array[ent]);
+                    log_printf("dir inum: %i\n", curr_ent.inum);
+                    log_printf("filename: %s\n", curr_ent.name);
+                    if (curr_ent.inum == 0) {
+                        // This one is free
+                        new_entry = &dir_array[ent];    
+                        break;
+                    }
+                
                 }
-            
+
+                if (!new_entry) {
+                    offset += chkfs::blocksize;
+                }
             }
+            //log_printf("dir_array_index: %i\n", dir_array_indx);
+
+            //chkfs::dirent new_entry = dir_array[dir_array_indx];
+            log_printf("new_entry: %i, %s, %p\n", new_entry->inum, new_entry->name, new_entry);
 
             if (!new_entry) {
                 log_printf("need to allocate another direntry\n");
@@ -1293,6 +1309,7 @@ int proc::syscall_open(regstate* regs) {
                     if (curr_inode->type == 0) {
                         log_printf("found a free inode\n");
                         ino_num = j;
+                        log_printf("ino_num: %i\n", ino_num);
                         break;
                     }
                 }
@@ -1314,20 +1331,23 @@ int proc::syscall_open(regstate* regs) {
             }
              
 
-            chkfs::inode* allocated_inode = chkfsstate::get().get_inode(ino_num);
+            ino = chkfsstate::get().get_inode(ino_num);
 
             new_entry->inum = ino_num;
             strcpy(new_entry->name, pathname);
             log_printf("new entry: %i, %s\n", new_entry->inum, new_entry->name);
 
-            allocated_inode->lock_write();
-            allocated_inode->type = chkfs::type_regular;
-            allocated_inode->size = 0;
-            allocated_inode->nlink = 1;
-            allocated_inode->unlock_write();
+            ino->lock_write();
+            ino->type = chkfs::type_regular;
+            ino->size = 0;
+            ino->nlink = 1;
+            ino->unlock_write();
+
+            //chkfs::dirent curr_ent = dir_array[dir_array_indx];
+            //log_printf("check: %i, %s\n", curr_ent.inum, curr_ent.name);
 
             ino = chkfsstate::get().lookup_inode(pathname);
-            assert(ino);
+            //assert(ino);
 
         }
         else {

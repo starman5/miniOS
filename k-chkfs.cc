@@ -69,6 +69,7 @@ bcentry* bufcache::get_disk_entry(chkfs::blocknum_t bn,
 
     // load block
     bool ok = e_[i].load(irqs, cleaner);
+    log_printf("ok: %p\n");
 
     // unlock and return entry
     if (!ok) {
@@ -441,16 +442,21 @@ chkfs::inode* chkfsstate::lookup_inode(inode* dirino,
     chkfs::inum_t in = 0;
     for (size_t diroff = 0; !in; diroff += blocksize) {
         if (bcentry* e = it.find(diroff).get_disk_entry()) {
+            log_printf("chkfs entry: %p\n", e);
+            log_printf("in if\n");
             size_t bsz = min(dirino->size - diroff, blocksize);
             auto dirent = reinterpret_cast<chkfs::dirent*>(e->buf_);
             for (unsigned i = 0; i * sizeof(*dirent) < bsz; ++i, ++dirent) {
+                log_printf("%i, %s, %p\n", dirent->inum, dirent->name, dirent);
                 if (dirent->inum && strcmp(dirent->name, filename) == 0) {
+                    log_printf("in second if\n");
                     in = dirent->inum;
                     break;
                 }
             }
             e->put();
         } else {
+            log_printf("nullptr in here\n");
             return nullptr;
         }
     }
