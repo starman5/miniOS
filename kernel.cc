@@ -108,11 +108,21 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
                     chkfs::extent curr_extent = ino->direct[i];
                     allocated_bytes += (curr_extent.count * 4096);
                 }
+                // Also have to count indirect
+                log_printf("indirect extent first block: %i, count: %i\n", ino->indirect.first, ino->indirect.count);
+                allocated_bytes += ino->indirect.count * 4096;
+                // bcentry* indirect_block = nullptr;
+                // while (counter < ino->indirect.count) {
+                //     indirect_block = bufcache::get().get_disk_entry(ino->indirect.first + counter);
+
+                // }
+                
+                
                 
                 log_printf("allocated_bytes: %i\n", allocated_bytes);
 
-                log_printf("ino->size + ncopy: %i\n", ino->size + ncopy);
-                
+                //log_printf("ino->size + ncopy: %i\n", ino->size + ncopy);
+
                 log_printf("offset + ncopy: %i\n", it.offset() + ncopy);
 
                 // Do indirect extents here
@@ -141,6 +151,7 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
                     bool foundSlot = false;
                     for (int j = 0; j < chkfs::ndirect; j++) {
                         chkfs::extent curr_extent = ino->direct[j];
+                        log_printf("curr_extent count: %i\n", curr_extent.count);
                         if (curr_extent.count == 0) {
                             log_printf("found an empty extent\n");
                             new_extent->first = first_block;
@@ -157,9 +168,13 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
                         //new_extent->count = blocks_needed;
                         // Add it to the indirect extents block
                         // Might need to align the offset to 4096 bytes
-                        //unsigned int local_offset = it.offset();
-                        //unsigned int new_offset = round_up(local_offset, 4096);
-                        //it.find(new_offset);
+                        unsigned int local_offset = it.offset();
+                        log_printf("%i\n", local_offset);
+                        unsigned int new_offset = round_up(local_offset, 4096);
+                        log_printf("%i\n", it.active());
+                        it.find(new_offset);
+                        log_printf("%i\n", it.active());
+                        it.find(new_offset);
                         it.insert(first_block, blocks_needed);
                     }
                 }

@@ -20,7 +20,7 @@ bufcache::bufcache() {
 
 bcentry* bufcache::get_disk_entry(chkfs::blocknum_t bn,
                                   bcentry_clean_function cleaner) {
-    log_printf("in get disk entry front: %p\n", dirty_list_.front());                                 
+    //log_printf("in get disk entry front: %p\n", dirty_list_.front());                                 
     assert(chkfs::blocksize == PAGESIZE);
     auto irqs = lock_.lock();
 
@@ -77,7 +77,7 @@ bcentry* bufcache::get_disk_entry(chkfs::blocknum_t bn,
         --e_[i].ref_;
     }
     e_[i].lock_.unlock(irqs);
-    log_printf("end disk entry, front: %p\n", dirty_list_.front());
+    //log_printf("end disk entry, front: %p\n", dirty_list_.front());
     return ok ? &e_[i] : nullptr;
 }
 
@@ -209,9 +209,9 @@ void bcentry::get_write() {
     log_printf("adding bn %i\n", bn_);
     //if (e->link_.is_linked()) {
     //bufcache::get().lru_queue_.erase(e);
-    log_printf("bufcache add: %p\n", &bufcache::get());
+    //log_printf("bufcache add: %p\n", &bufcache::get());
     bufcache::get().dirty_list_.push_back(this);
-    log_printf("front: %p, %p\n", bufcache::get().dirty_list_.front(), &bufcache::get().dirty_list_);
+    //log_printf("front: %p, %p\n", bufcache::get().dirty_list_.front(), &bufcache::get().dirty_list_);
     //}
     assert(write_ref_ == 1);
 

@@ -48,6 +48,7 @@ void ahcistate::push_buffer(int slot, void* buf, size_t sz) {
 //    `priority`: 0 is normal; 2 means high priority.
 void ahcistate::issue_ncq(int slot, idecommand cmd, size_t sector,
                           bool fua, int priority) {
+    cli();
     log_printf("issue ncq\n");
     assert(unsigned(slot) < unsigned(nslots_));
     assert(!(slots_outstanding_mask_ & (1U << slot)));
@@ -105,6 +106,7 @@ inline void ahcistate::acknowledge(int slot, int result) {
 
 int ahcistate::read_or_write(idecommand command, void* buf, size_t sz,
                              size_t off) {
+    //cli();
     // `sz` and `off` must be sector-aligned
     assert(sz % sectorsize == 0 && off % sectorsize == 0);
 
@@ -128,6 +130,7 @@ int ahcistate::read_or_write(idecommand command, void* buf, size_t sz,
     std::atomic<int> r = E_AGAIN;
     clear(0);
     push_buffer(0, buf, sz);
+    spinlock thingy;
     issue_ncq(0, command, off / sectorsize);
     slot_status_[0] = &r;
 
@@ -136,7 +139,7 @@ int ahcistate::read_or_write(idecommand command, void* buf, size_t sz,
     //log_printf("buf before second: %p\n", buf);
 
     // wait for response
-    //log_printf("about to wait for response\n");
+    log_printf("about to wait for response\n");
     spinlock thing;
     auto irqs2 = thing.lock();
     waiter().block_until(wq_, [&] () {
