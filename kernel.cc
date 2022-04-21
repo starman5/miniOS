@@ -175,6 +175,7 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
                         it.find(new_offset);
                         log_printf("%i\n", it.active());
                         it.find(new_offset);
+                        vn->vn_offset_ = new_offset;
                         it.insert(first_block, blocks_needed);
                     }
                 }

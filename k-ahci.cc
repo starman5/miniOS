@@ -106,6 +106,8 @@ inline void ahcistate::acknowledge(int slot, int result) {
 
 int ahcistate::read_or_write(idecommand command, void* buf, size_t sz,
                              size_t off) {
+
+    log_printf("read or write buf: %p, size: %i, off: %i\n", buf, sz, off);
     //cli();
     // `sz` and `off` must be sector-aligned
     assert(sz % sectorsize == 0 && off % sectorsize == 0);
@@ -131,6 +133,7 @@ int ahcistate::read_or_write(idecommand command, void* buf, size_t sz,
     clear(0);
     push_buffer(0, buf, sz);
     spinlock thingy;
+    log_printf("in row will issue ncq\n");
     issue_ncq(0, command, off / sectorsize);
     slot_status_[0] = &r;
 

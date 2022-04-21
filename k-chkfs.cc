@@ -196,6 +196,7 @@ void bcentry::put() {
 //    Obtains a write reference for this entry.
 
 void bcentry::get_write() {
+    log_printf("get write block number: %i\n", bn_);
     waiter().block_until(write_wq_, [&] () {
         return write_ref_ == 0;      
     });
