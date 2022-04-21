@@ -76,6 +76,8 @@ int disk_vop_read(vnode* vn, uintptr_t addr, int sz) {
     return nread;
 }
 
+bool is_indirect = false;
+
 int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
     log_printf("in disk_vop_write\n");
     // data will contain the inode*, which you can use to write
@@ -89,6 +91,7 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
     while (nwrite < sz) {
         log_printf("in while\n");
         log_printf("%i, %i\n", vn->vn_offset_, it.find(vn->vn_offset_).active());
+        log_printf("inode size: %i\n", it.inode()->size);
 
         if (bcentry* e = it.find(vn->vn_offset_).get_disk_entry()) {
             log_printf("in first if\n");
@@ -171,12 +174,14 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
                         unsigned int local_offset = it.offset();
                         log_printf("%i\n", local_offset);
                         unsigned int new_offset = round_up(local_offset, 4096);
-                        log_printf("%i\n", it.active());
+                        log_printf("%i, %i\n", it.offset(), it.active());
                         it.find(new_offset);
-                        log_printf("%i\n", it.active());
-                        it.find(new_offset);
-                        vn->vn_offset_ = new_offset;
+                        log_printf("%i, %i\n", it.offset(), it.active());
+                        //it.find(new_offset);
+                        //nwrite += new_offset - vn->vn_offset_;
+                        vn->vn_offset_ = (it.offset() - (nwrite));
                         it.insert(first_block, blocks_needed);
+                        is_indirect = true;
                     }
                 }
             }
@@ -191,7 +196,12 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
             e->put();
 
             nwrite += ncopy;
+            //vn->vn_offset_ += nwrite;
             vn->vn_offset_ += nwrite;
+            if (is_indirect) {
+                vn->vn_offset_ -= (nwrite - ncopy);
+            }
+            log_printf("vn_offset_: %i\n", vn->vn_offset_);
             if (ncopy == 0) {
                 break;
             }
