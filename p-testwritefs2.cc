@@ -233,7 +233,7 @@ void process_main() {
     for (int i = 0; i != 100; ++i) {
         dprintf(wf, "Chick%ddee\n", i);
         n = sys_write(wf, bigbuf, bbsz);
-        printf("%i\n", bbsz);
+        //printf("%i\n", bbsz);
         assert_eq(size_t(n), bbsz);
         if (i % 10 == 0) {
             printf(".");

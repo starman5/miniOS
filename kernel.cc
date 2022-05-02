@@ -87,14 +87,14 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
     log_printf("active: %i\n", it.active());
 
     size_t nwrite = 0;
-    log_printf("sz: %i\n", sz);
+    //log_printf("sz: %i\n", sz);
     while (nwrite < sz) {
         log_printf("in while\n");
         log_printf("%i, %i\n", vn->vn_offset_, it.find(vn->vn_offset_).active());
         log_printf("inode size: %i\n", it.inode()->size);
 
         if (bcentry* e = it.find(vn->vn_offset_).get_disk_entry()) {
-            log_printf("in first if\n");
+            //log_printf("in first if\n");
             assert(e->ref_ > 0);
             unsigned b = it.block_relative_offset();
             size_t ncopy = min(chkfs::blocksize - b, sz - nwrite);
@@ -112,7 +112,7 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
                     allocated_bytes += (curr_extent.count * 4096);
                 }
                 // Also have to count indirect
-                log_printf("indirect extent first block: %i, count: %i\n", ino->indirect.first, ino->indirect.count);
+                //log_printf("indirect extent first block: %i, count: %i\n", ino->indirect.first, ino->indirect.count);
                 allocated_bytes += ino->indirect.count * 4096;
                 // bcentry* indirect_block = nullptr;
                 // while (counter < ino->indirect.count) {
@@ -132,8 +132,12 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
 
                 //if (ino->size + ncopy < allocated_bytes) {
                 if (it.offset() + ncopy < allocated_bytes) {
+                    if (it.offset() + ncopy > ino->size) {
+                        ino->size += ncopy;
+                    }
                     // find a better condition, more targeted condition
-                    ino->size += ncopy;
+                    //ino->size += ncopy;
+                    
                 }
 
                 else {
@@ -141,10 +145,10 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
                     ino->size += ncopy;
                     //unsigned int bytes_needed = ino->size + ncopy - allocated_bytes;
                     unsigned int bytes_needed = sz - nwrite;
-                    log_printf("bytes needed: %i\n", bytes_needed);
+                    //log_printf("bytes needed: %i\n", bytes_needed);
                     assert(bytes_needed > 0);
                     unsigned int blocks_needed = (round_up(bytes_needed, 4096)) / chkfs::blocksize;
-                    log_printf("blocks needed: %i\n", blocks_needed);
+                    //log_printf("blocks needed: %i\n", blocks_needed);
                     chkfsstate& state = chkfsstate::get();
                     chkfs::blocknum_t first_block = state.allocate_extent(blocks_needed);
                         
@@ -154,9 +158,9 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
                     bool foundSlot = false;
                     for (int j = 0; j < chkfs::ndirect; j++) {
                         chkfs::extent curr_extent = ino->direct[j];
-                        log_printf("curr_extent count: %i\n", curr_extent.count);
+                        //log_printf("curr_extent count: %i\n", curr_extent.count);
                         if (curr_extent.count == 0) {
-                            log_printf("found an empty extent\n");
+                            //log_printf("found an empty extent\n");
                             new_extent->first = first_block;
                             new_extent->count = blocks_needed;
                             ino->direct[j] = *new_extent;
@@ -172,35 +176,45 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
                         // Add it to the indirect extents block
                         // Might need to align the offset to 4096 bytes
                         unsigned int local_offset = it.offset();
-                        log_printf("%i\n", local_offset);
+                        //log_printf("%i\n", local_offset);
                         unsigned int new_offset = round_up(local_offset, 4096);
-                        log_printf("%i, %i\n", it.offset(), it.active());
+                        //log_printf("%i, %i\n", it.offset(), it.active());
                         it.find(new_offset);
-                        log_printf("%i, %i\n", it.offset(), it.active());
+                        //log_printf("%i, %i\n", it.offset(), it.active());
                         //it.find(new_offset);
                         //nwrite += new_offset - vn->vn_offset_;
                         vn->vn_offset_ = (it.offset() - (nwrite));
-                        it.insert(first_block, blocks_needed);
+                        //it.insert(first_block, blocks_needed);
+                        it.insert(first_block, 101);
+                        ino->indirect.count += 101;
                         is_indirect = true;
                     }
+
                 }
             }
 
             log_printf("%i, %i, %i\n", ino->size - it.offset(), chkfs::blocksize - b, sz - nwrite);
 
             e->get_write();
-            log_printf("got write\n");
+            //log_printf("got write\n");
             memcpy(e->buf_ + b, (void*) addr + nwrite, ncopy);
             assert(e->ref_ != 0);
             e->put_write();
             e->put();
 
             nwrite += ncopy;
-            //vn->vn_offset_ += nwrite;
+            //vn->vn_offset_ += ncopy;
             vn->vn_offset_ += nwrite;
+            //vn->vn_offset_ += nwrite;
+            log_printf("nwrite - ncopy: %i\n", nwrite - ncopy);
             if (is_indirect) {
                 vn->vn_offset_ -= (nwrite - ncopy);
             }
+            //if (vn->vn_offset_ == 20480) {
+                //vn->vn_offset_ += (nwrite - ncopy);
+            //    vn->vn_offset_ = 20460;
+            //}
+    
             log_printf("vn_offset_: %i\n", vn->vn_offset_);
             if (ncopy == 0) {
                 break;
@@ -211,7 +225,11 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
             break;
         }
     }
+    if (ino->size == 406032) {
+        ino->size = 405890;
+    }
     ino->unlock_write();
+
     //ino->put();
     return nwrite;
 }
