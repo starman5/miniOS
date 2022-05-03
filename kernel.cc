@@ -1614,43 +1614,44 @@ int proc::syscall_clone(regstate* regs) {
         log_printf("Failed to allocate new struct proc\n");
         return E_NOENT;
     }
-
-    //Find the next available thread id (this is proc::id_)
-    int thread_id = 1;
-    for (; thread_id < NTHREAD; ++thread_id) {
-        if (!ptable[thread_id]) {
-            break;
+    {
+        spinlock_guard guard(ptable_lock);
+        //Find the next available thread id (this is proc::id_)
+        int thread_id = 1;
+        for (; thread_id < NTHREAD; ++thread_id) {
+            if (!ptable[thread_id]) {
+                break;
+            }
         }
+        if (thread_id == NTHREAD && ptable[thread_id]) {
+            kfree(thread);
+            return E_NOENT;
+        }
+        assert(thread);
+
+        // Copy the registers from the argument regs (where rdi, rsi, rdx, r12, r13, r14 contain args)
+        memcpy(thread->regs_, regs, sizeof(regstate));
+
+        // Associate the thread with the ptable (now containing threads, not true processes)
+        ptable[thread_id] = thread;
+
+        // Shared state among threads
+        thread->pid_ = pid_;
+        thread->parent_id_ = parent_id_;
+        thread->pagetable_ = pagetable_;
+        thread->recent_user_rip_ = recent_user_rip_;
+        thread->vntable_ptr = vntable_ptr;
+
+        // return 0 to the newly created thread
+        thread->regs_->reg_rax = 0;
+
+        // Schedule the thread
+        thread->pstate_ = ps_runnable;
+        thread->cpu_index_ = thread_id % ncpu;
+        cpus[thread->cpu_index_].enqueue(thread);
     }
-    if (thread_id == NTHREAD && ptable[thread_id]) {
-        kfree(thread);
-        return E_NOENT;
-    }
-    assert(thread);
 
-    // Copy the registers from the argument regs (where rdi, rsi, rdx, r12, r13, r14 contain args)
-    memcpy(thread->regs_, regs, sizeof(regstate));
-
-    // Associate the thread with the ptable (now containing threads, not true processes)
-    ptable[thread_id] = thread;
-
-    // Shared state among threads
-    thread->pid_ = pid_;
-    thread->parent_id_ = parent_id_;
-    thread->pagetable_ = pagetable_;
-    thread->recent_user_rip_ = recent_user_rip_;
-    thread->vntable_ptr = vntable_ptr;
-
-    // return 0 to the newly created thread
-    thread->regs_->reg_rax = 0;
-
-    // Schedule the thread
-    thread->pstate_ = ps_runnable;
-    thread->cpu_index_ = thread_id % ncpu;
-    cpus[thread->cpu_index_].enqueue(thread);
-
-
-
+    return thread->id_;
 }
 
 int proc::syscall_fork(regstate* regs) {

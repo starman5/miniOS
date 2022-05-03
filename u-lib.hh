@@ -74,14 +74,18 @@ __always_inline void access_memory(const void* ptr) {
 
 inline int sys_clone(int *function(void*), void* arg, char* stack_top) {
     // Save registers in callee saved registers
-    register uintptr_t function asm("r12") = reinterpret_cast<uintptr_t>(arg);
+    register uintptr_t function asm("r12") = reinterpret_cast<uintptr_t>(function);
     register uintptr_t arg asm("r13") = reinterpret_cast<uintptr_t>(arg);
-    register uintptr_t stack_top asm("r14") = reinterpret_cast<uintptr_t>(arg);
+    register uintptr_t stack_top asm("r14") = reinterpret_cast<uintptr_t>(stack_top);
     
+    // Trap into kernel to actually to syscall_clone stuff
     int ret_value = make_syscall(SYSCALL_CLONE, reinterpret_cast<uintptr_t>(stack_top));
 
+    // Set the %rsp to be stack_top
+    register uintptr_t stack_top asm("rsp") = reinterpret_cast<uintptr_t>(stack_top);
+
+    // If in the new thread, run the function
     if (ret_value == 0) {
-        // Call function
         function(arg);
     }
 
