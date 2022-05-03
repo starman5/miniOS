@@ -57,6 +57,29 @@ struct bbuffer {
 };
 
 
+struct real_proc {
+    enum pstate_t {
+        ps_real_blank = 100, ps_real_exited = 101, ps_real_exiting
+    };
+
+    pid_t pid_;
+    pid_t parent_id_ = 1;
+    x86_64_pagetable* pagetable_ = nullptr;    // Process's page table
+
+    list_links child_links_;
+    list<proc, &proc::thread_links_> thread_list;
+    list<real_proc, &real_proc::child_links_> children_;
+
+    pstate_t real_proc_state_ = ps_real_blank;
+    int exit_status_ = 1;
+
+    // vntable should be dynamically allocated on the heap
+    vnode* vntable_[MAX_FDS];
+    //vnode** vntable_;
+    spinlock vntable_lock_;
+
+
+}
 
 
 // Process descriptor type
@@ -66,24 +89,23 @@ struct __attribute__((aligned(4096))) proc {
         };
 
         // These four members must come first:
-        pid_t id_ = 0;                             // Process ID
-        regstate* regs_ = nullptr;                 // Process's current registers
-        yieldstate* yields_ = nullptr;             // Process's current yield state
-        std::atomic<int> pstate_ = ps_blank;       // Process state
+        pid_t id_ = 0;                             // Thread ID
+        regstate* regs_ = nullptr;                 // Thread's current registers
+        yieldstate* yields_ = nullptr;             // Thread's current yield state
+        std::atomic<int> pstate_ = ps_blank;       // Thread state, used for scheduling and stuff
+        pid_t pid_ = 0;                            // Real Process ID 
+        
         pid_t parent_id_ = 1;                      // Process' parent id 
 
         x86_64_pagetable* pagetable_ = nullptr;    // Process's page table
         uintptr_t recent_user_rip_ = 0;            // Most recent user-mode %rip
 
-        int exit_status_ = 1;                      // Process's exit status
+        int exit_status_ = 1;                      // Thread's exit status
         bool waited_ = false;
 
-        vnode* vntable_[MAX_FDS];
-        spinlock vntable_lock_;
+        vnode*** vntable_ptr = nullptr;            // pointer to the process wide vntable
 
         int cpu_index_;
-
-
 
         int canary_;
         
@@ -92,9 +114,7 @@ struct __attribute__((aligned(4096))) proc {
     #endif
 
         list_links runq_links_;
-        list_links child_links_;
-
-        list<proc, &proc::child_links_> children_;
+        list_links thread_links_;
 
 
         proc();
@@ -121,6 +141,7 @@ struct __attribute__((aligned(4096))) proc {
 
         inline bool resumable() const;
 
+        int syscall_clone(regstate* regs);
         int syscall_lseek(regstate* regs);
         int syscall_testkalloc(regstate* regs);
         int syscall_execv(regstate* regs);
@@ -147,8 +168,11 @@ struct __attribute__((aligned(4096))) proc {
 };
 
 #define NPROC 16
-extern proc* ptable[NPROC];
+#define NTHREAD 16
+extern proc* ptable[NTHREAD];
 extern spinlock ptable_lock;
+extern real_proc* real_ptable[NPROC];
+extern spinlock real_ptable_lock;
 #define PROCSTACK_SIZE 4096UL
 
 

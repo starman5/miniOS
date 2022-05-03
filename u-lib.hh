@@ -72,24 +72,24 @@ __always_inline void access_memory(const void* ptr) {
     asm volatile ("" : : "m" (*(const char*) ptr));
 }
 
-/*inline int sys_clone(*function(void*), (void*)arg, (void*)stack_top) {
+inline int sys_clone(int *function(void*), void* arg, char* stack_top) {
     // Save registers in callee saved registers
-    register uintptr_t function asm("r12") = reinterpret_cast<uintptr_t>(function);
+    register uintptr_t function asm("r12") = reinterpret_cast<uintptr_t>(arg);
     register uintptr_t arg asm("r13") = reinterpret_cast<uintptr_t>(arg);
-    register uintptr_t stack_top asm("r14") = reinterpret_cast<uintptr_t>(stack_top);
+    register uintptr_t stack_top asm("r14") = reinterpret_cast<uintptr_t>(arg);
     
     int ret_value = make_syscall(SYSCALL_CLONE, reinterpret_cast<uintptr_t>(stack_top));
 
-    if (ret_value > 0) {
+    if (ret_value == 0) {
         // Call function
-        function(*arg);
+        function(arg);
     }
 
     // exit the thread
     return make_syscall(SYSCALL_TEXIT);
 
     // return value is the only tricky thing here.  What info do we want in the return address
-}*/
+}
 
 // sys_map_console
 //      map console at specified address

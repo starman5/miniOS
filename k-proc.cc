@@ -3,8 +3,10 @@
 #include "k-vmiter.hh"
 #include "k-devices.hh"
 
-proc* ptable[NPROC];            // array of process descriptor pointers
-spinlock ptable_lock;           // protects `ptable`
+proc* ptable[NTHREAD];            // array of process descriptor pointers (really threads)
+real_proc* real_ptable[NPROC];    // array of actual process descriptor pointers
+spinlock ptable_lock;             // protects `ptable`
+spinlock real_ptable_lock;        // protects real_ptable
 
 // proc::proc()
 //    The constructor initializes the `proc` to empty.

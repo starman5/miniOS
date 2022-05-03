@@ -13,6 +13,7 @@
 #define MIN_ORDER       12
 #define MAX_ORDER       21
 
+
 // # timer interrupts so far on CPU 0
 std::atomic<unsigned long> ticks;
 wait_queue sleep_wq;
@@ -735,6 +736,9 @@ uintptr_t proc::syscall(regstate* regs) {
         break;                  // will not be reached
 
     case SYSCALL_GETPID:
+        return pid_;
+
+    case SYSCALL_GETTID:
         return id_;
     
     case SYSCALL_GETPPID:
@@ -1016,6 +1020,9 @@ uintptr_t proc::syscall(regstate* regs) {
 
     case SYSCALL_FORK:
         return syscall_fork(regs);
+
+    case SYSCALL_CLONE:
+        return syscall_clone(regs);
 
     case SYSCALL_READ:
         return syscall_read(regs);
@@ -1597,6 +1604,54 @@ int proc::syscall_dup2(regstate* regs) {
 // proc::syscall_fork(regs)
 //    Handle fork system call.
 //(void) regs;
+
+int proc::syscall_clone(regstate* regs) {
+    log_printf("in clone kernel code\n");
+
+    // Create a new struct proc (thread)
+    proc* thread = knew<proc>();
+    if (!thread) {
+        log_printf("Failed to allocate new struct proc\n");
+        return E_NOENT;
+    }
+
+    //Find the next available thread id (this is proc::id_)
+    int thread_id = 1;
+    for (; thread_id < NTHREAD; ++thread_id) {
+        if (!ptable[thread_id]) {
+            break;
+        }
+    }
+    if (thread_id == NTHREAD && ptable[thread_id]) {
+        kfree(thread);
+        return E_NOENT;
+    }
+    assert(thread);
+
+    // Copy the registers from the argument regs (where rdi, rsi, rdx, r12, r13, r14 contain args)
+    memcpy(thread->regs_, regs, sizeof(regstate));
+
+    // Associate the thread with the ptable (now containing threads, not true processes)
+    ptable[thread_id] = thread;
+
+    // Shared state among threads
+    thread->pid_ = pid_;
+    thread->parent_id_ = parent_id_;
+    thread->pagetable_ = pagetable_;
+    thread->recent_user_rip_ = recent_user_rip_;
+    thread->vntable_ptr = vntable_ptr;
+
+    // return 0 to the newly created thread
+    thread->regs_->reg_rax = 0;
+
+    // Schedule the thread
+    thread->pstate_ = ps_runnable;
+    thread->cpu_index_ = thread_id % ncpu;
+    cpus[thread->cpu_index_].enqueue(thread);
+
+
+
+}
 
 int proc::syscall_fork(regstate* regs) {
     log_printf("in fork\n");
