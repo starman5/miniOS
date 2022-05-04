@@ -905,42 +905,47 @@ uintptr_t proc::syscall(regstate* regs) {
     case SYSCALL_CLOSE: {
         log_printf("in sys_close\n");
         int fd = regs->reg_rdi;
-        auto irqs = this->vntable_lock_.lock();
+
+        auto ptableirqs = real_ptable_lock.lock();
+        real_proc* real_process = real_ptable[pid_];
+        real_ptable_lock.unlock(ptableirqs);
+
+        auto irqs = real_process->vntable_lock_.lock();
         log_printf("proc %i closing fd %i\n", this->id_, fd);
         log_printf("close: %p\n", bufcache::get().dirty_list_.front());
-        if (fd < 0 or fd >= MAX_FDS or !this->vntable_[fd]) {
+        if (fd < 0 or fd >= MAX_FDS or !real_process->vntable_[fd]) {
             log_printf("bad close\n");
-            this->vntable_lock_.unlock(irqs);
+            real_process->vntable_lock_.unlock(irqs);
             return E_BADF;
         }
 
-        chkfs::inode* inod = (chkfs::inode*) vntable_[fd]->vn_data_;
+        chkfs::inode* inod = (chkfs::inode*) real_process->vntable_[fd]->vn_data_;
         log_printf("closing block %i\n", inod->entry()->bn_);
-        log_printf("vnref: %i\n", vntable_[fd]->vn_refcount_);
+        log_printf("vnref: %i\n", real_process->vntable_[fd]->vn_refcount_);
         log_printf("hi\n");
-        assert(vntable_[fd]);
-        assert(vntable_[fd]->vn_ops_);
-        assert(vntable_[fd]->vn_ops_);
-        if (this->vntable_[fd]->vn_ops_->vop_write == pipe_write) {
-            assert((bbuffer*)this->vntable_[fd]->vn_data_);
+        assert(real_process->vntable_[fd]);
+        assert(real_process->vntable_[fd]->vn_ops_);
+        assert(real_process->vntable_[fd]->vn_ops_);
+        if (real_process->vntable_[fd]->vn_ops_->vop_write == pipe_write) {
+            assert((bbuffer*)real_process->vntable_[fd]->vn_data_);
             log_printf("CHANGetotrue\n");
-            ((bbuffer*)this->vntable_[fd]->vn_data_)->write_closed_ = true;
+            ((bbuffer*)real_process->vntable_[fd]->vn_data_)->write_closed_ = true;
         }
         log_printf("hiii\n");
-        log_printf("%p\n", this->vntable_[fd]->vn_data_);
-        if (this->vntable_[fd]->vn_data_ && this->vntable_[fd]->is_pipe) {
-            ((bbuffer*)this->vntable_[fd]->vn_data_)->bbuffer_wq_.wake_all();
+        log_printf("%p\n", real_process->vntable_[fd]->vn_data_);
+        if (real_process->vntable_[fd]->vn_data_ && real_process->vntable_[fd]->is_pipe) {
+            ((bbuffer*)real_process->vntable_[fd]->vn_data_)->bbuffer_wq_.wake_all();
         }
-        this->vntable_[fd]->vn_refcount_ -= 1;
-        if (vntable_[fd]->vn_refcount_ == 0) {
+        real_process->vntable_[fd]->vn_refcount_ -= 1;
+        if (real_process->vntable_[fd]->vn_refcount_ == 0) {
             log_printf("donsdga\n");
-            chkfs::inode* ino = (chkfs::inode*) vntable_[fd]->vn_data_;
+            chkfs::inode* ino = (chkfs::inode*) real_process->vntable_[fd]->vn_data_;
             //if (ino->entry()->ref_ > 0) {
             ino->put();
         }
-        this->vntable_[fd] = nullptr;
+        real_process->vntable_[fd] = nullptr;
         log_printf("here\n");
-        this->vntable_lock_.unlock(irqs);
+        real_process->vntable_lock_.unlock(irqs);
         log_printf("after close: %p\n", bufcache::get().dirty_list_.front());
         
         return 0;
