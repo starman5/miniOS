@@ -1203,28 +1203,6 @@ int proc::syscall_open(regstate* regs) {
         }
     }
 
-
-    // Look up pathname
-    // memfile m;
-    // memfile* initfs_ar = m.initfs;
-
-    // log_printf("didn't catch it\n");
-    // int initfs_index = m.initfs_lookup(pathname, ((flags & OF_CREATE) == OF_CREATE));
-    // if (initfs_index < 0) {
-    //     return initfs_index;
-    // }
-
-    // //memfile current_memfile = initfs_ar[initfs_index];
-    // memfile* current_memfile = knew<memfile>();
-    // current_memfile = &initfs_ar[initfs_index];
-    // log_printf("%s\n", current_memfile->data_);
-    
-    // if ((flags & OF_TRUNC) == OF_TRUNC) {
-    //     log_printf("truncating\n");
-    //     // set the file's length to zero
-    //     current_memfile->set_length(0);
-    // }
-
     auto ino = chkfsstate::get().lookup_inode(pathname);
     log_printf("break\n");
 
@@ -1388,18 +1366,15 @@ int proc::syscall_open(regstate* regs) {
         ino->unlock_write();
         bufcache::get().dirty_list_.push_back(ino->entry());
     }
+    
+    auto ptableirqs = real_ptable_lock.lock();
+    real_proc* real_process = real_ptable[pid_];
 
-    // create a vnode and do stuff
-    // vnode* disk_vnode = nullptr;
-    // disk_vnode = knew<vnode>();
-    // disk_vnode->vn_data_ = ino;
-    // disk_vnode->vn_ops_ = disk_vn_ops;
-
-    auto irqs = vntable_lock_.lock();
+    auto irqs = real_process->vntable_lock_.lock();
     bool existsSpace = false;
     int newfd;
     for (int i = 0; i < MAX_FDS; i++) {
-        if (!vntable_[i]) {
+        if (!real_process->vntable_[i]) {
             existsSpace = true;
             newfd = i;
             vnode* new_vnode = knew<vnode>();
@@ -1425,7 +1400,7 @@ int proc::syscall_open(regstate* regs) {
 
             new_vnode->vn_ops_ = new_vn_ops;
 
-            vntable_[i] = new_vnode;
+            real_process->vntable_[i] = new_vnode;
             //vntable_[i]->vn_refcount_ += 1;
             //log_printf("%s\n", ((*)vntable_[i]->vn_data_)->data_);
             //log_printf("%i\n", i);
@@ -1433,7 +1408,7 @@ int proc::syscall_open(regstate* regs) {
         }
     }
 
-    vntable_lock_.unlock(irqs);
+    real_process->vntable_lock_.unlock(irqs);
     
     if (!existsSpace) {
         log_printf("bad\n");
@@ -2044,79 +2019,35 @@ uintptr_t proc::syscall_read(regstate* regs) {
     int fd = regs->reg_rdi;
     uintptr_t addr = regs->reg_rsi;
     size_t sz = regs->reg_rdx;
-    //assert(vmiter(pagetable_, addr).present());
-    /*for (vmiter it(pagetable_, addr); it.va() < it.va() + sz; ++it) {
-        if (!(it.present())) {
-            log_printf("sdf\n");
-            return E_FAULT;
-        }
-    }*/
-
-    //log_printf("after accessing registers\n");
 
     // Your code here!
     // * Read from open file `fd` (reg_rdi), rather than `keyboardstate`.
     // * Validate the read buffer.
-        auto irqs = this->vntable_lock_.lock();
-        if (fd < 0 or fd >= MAX_FDS or !this->vntable_[fd]) {
-            log_printf("bad read!!!\n");
-            this->vntable_lock_.unlock(irqs);
-            return E_BADF;
-        }
+    auto ptableirqs = real_ptable_lock.lock();
+    real_proc* real_process = real_ptable[pid_];
+    real_ptable_lock.unlock(ptableirqs);
+
+    auto irqs = real_process->vntable_lock_.lock();
+    if (fd < 0 or fd >= MAX_FDS or !real_process->vntable_[fd]) {
+        log_printf("bad read!!!\n");
+        real_process->vntable_lock_.unlock(irqs);
+        return E_BADF;
+    }
     
-        vnode* readfile = this->vntable_[fd];
-        //log_printf("%p\n", readfile);
-        //log_printf("%p\n", (memfile*)readfile->vn_data_);
-        //log_printf("%s\n", ((memfile*)readfile->vn_data_)->data_);
-        log_printf("Read: id %i, fd: %i, sz: %i\n", this->id_, fd, sz);
+    vnode* readfile = real_process->vntable_[fd];
 
-        int (*read_func)(vnode* vn, uintptr_t addr, int sz) = readfile->vn_ops_->vop_read;
-        //assert(read_func);
-        if (!read_func) {
-            log_printf("!read_func\n");
-            this->vntable_lock_.unlock(irqs);
-            return E_BADF;
-        }
-        log_printf("after getting read_func\n");
-        this->vntable_lock_.unlock(irqs);
-        return read_func(readfile, addr, sz);
+    log_printf("Read: id %i, fd: %i, sz: %i\n", this->id_, fd, sz);
 
-    /*auto& kbd = keyboardstate::get();
-    auto irqs = kbd.lock_.lock();
-
-    // mark that we are now reading from the keyboard
-    // (so `q` should not power off)
-    if (kbd.state_ == kbd.boot) {
-        kbd.state_ = kbd.input;
+    int (*read_func)(vnode* vn, uintptr_t addr, int sz) = readfile->vn_ops_->vop_read;
+    //assert(read_func);
+    if (!read_func) {
+        log_printf("!read_func\n");
+        real_process->vntable_lock_.unlock(irqs);
+        return E_BADF;
     }
-
-    // yield until a line is available
-    // (special case: do not block if the user wants to read 0 bytes)
-    while (sz != 0 && kbd.eol_ == 0) {
-        kbd.lock_.unlock(irqs);
-        yield();
-        irqs = kbd.lock_.lock();
-    }
-
-    // read that line or lines
-    size_t n = 0;
-    while (kbd.eol_ != 0 && n < sz) {
-        if (kbd.buf_[kbd.pos_] == 0x04) {
-            // Ctrl-D means EOF
-            if (n == 0) {
-                kbd.consume(1);
-            }
-            break;
-        } else {
-            *reinterpret_cast<char*>(addr) = kbd.buf_[kbd.pos_];
-            ++addr;
-            ++n;
-            kbd.consume(1);
-        }
-    }
-
-    kbd.lock_.unlock(irqs);
-    return n;*/
+    log_printf("after getting read_func\n");
+    real_process->vntable_lock_.unlock(irqs);
+    return read_func(readfile, addr, sz);
 }
 
 uintptr_t proc::syscall_write(regstate* regs) {
