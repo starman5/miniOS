@@ -491,7 +491,12 @@ void kernel_start(const char* command) {
     // set up process descriptors
 
     for (pid_t i = 0; i < NPROC; i++) {
-        ptable[i] = nullptr;
+        real_ptable[i] = nullptr;
+    }
+
+    // Set ptable entries to nullptr as well
+    for (pid_t j = 0; j < NTHREAD; j++) {
+        ptable[j] = nullptr;
     }
 
     stdin_vnode = knew<vnode>();
@@ -534,38 +539,45 @@ void kernel_start(const char* command) {
 
     // Add file descriptors to the process' file descriptor table
     for (int i = 3; i < MAX_FDS; i++) {
-        ptable[2]->vntable_[i] = nullptr;
+        real_ptable[2]->vntable_[i] = nullptr;
     }
 
     // Add stdin, stdout, stderr to process' vnode table
-    ptable[2]->vntable_[0] = stdin_vnode;
-    ptable[2]->vntable_[1] = stdout_vnode;
-    ptable[2]->vntable_[2] = stderr_vnode;
+    real_ptable[2]->vntable_[0] = stdin_vnode;
+    real_ptable[2]->vntable_[1] = stdout_vnode;
+    real_ptable[2]->vntable_[2] = stderr_vnode;
 
     // start running processes
     cpus[0].schedule(nullptr);
 }
 
 void setup_init_child() {
-    //{
-    //    spinlock_guard guard(ptable_lock);
-        ptable[1]->children_.push_back(ptable[2]);
-    //}
+    real_ptable[1]->children_.push_back(real_ptable[2]);
 }
 
 void init_first_process() {
+    // Init first process needs to initialize a new real_proc and a new proc
+    
     log_printf("in init_first_process\n");
-    proc* p_init = nullptr;
 
+    // Initialize a real proc
+    real_proc* real_p_init = nullptr;
+    real_p_init = knew<real_proc>();
+    real_p_init->pid_ = 1;
+    real_p_init->pagetable_ = early_pagetable;
+    real_ptable[1] = real_p_init;
+
+    // Initialize a proc
+    proc* p_init = nullptr;
     p_init = knew<proc>();
     p_init->init_kernel(1, run_init);
-    //{
-    //    spinlock_guard guard(ptable_lock);
-        ptable[1] = p_init;
-    //}
+    p_init->pid_ = 1;
+    ptable[1] = p_init;
+
+    // Add more information to the real proc
+    real_p_init->thread_list_.push_back(p_init);
   
-    //log_printf("about to schedule init_first_process on cpu 0.  id = %i, parent = %i\n", p_init->id_, p_init->parent_id_);
-    // Smart to enqueue on cpu 0 because that will always be available, even at the very very beginning
+    // put the thread p_init on the runqueue
     log_printf("end init_first_process\n");
     cpus[0].enqueue(p_init);
 }
@@ -1019,6 +1031,7 @@ int proc::syscall_lseek(regstate* regs) {
     auto ptableirqs = real_ptable_lock.lock();
     real_proc* real_process = real_ptable[pid_];
     real_ptable_lock.unlock(ptableirqs);
+
     chkfs::inode* ino = (chkfs::inode*) real_process->vntable_[fd]->vn_data_;
     //bcentry* e = ino->entry();
     if (lseek_tag == LSEEK_SET) {
@@ -1733,7 +1746,7 @@ int proc::syscall_fork(regstate* regs) {
         // TODO: what should i set pstate_ to for the real_proc?
 
         // Set up the thread list and child list
-        p->thread_list.push_back(th);
+        p->thread_list_.push_back(th);
         real_ptable[parent_pid_]->children_.push_back(p);
 
         // Copy the parent real_proc's fdtable to the child real_proc's fdtable
