@@ -1016,22 +1016,25 @@ int proc::syscall_lseek(regstate* regs) {
     int off = regs->reg_rsi;
     int lseek_tag = regs->reg_rdx;
 
-    chkfs::inode* ino = (chkfs::inode*) vntable_[fd]->vn_data_;
+    auto ptableirqs = real_ptable_lock.lock();
+    real_proc* real_process = real_ptable[pid_];
+    real_ptable_lock.unlock(ptableirqs);
+    chkfs::inode* ino = (chkfs::inode*) real_process->vntable_[fd]->vn_data_;
     //bcentry* e = ino->entry();
     if (lseek_tag == LSEEK_SET) {
-        vntable_[fd]->vn_offset_ = off;
+        real_process->vntable_[fd]->vn_offset_ = off;
         return off;
     }
     else if (lseek_tag == LSEEK_CUR) {
-        vntable_[fd]->vn_offset_ += off;
-        return vntable_[fd]->vn_offset_;
+        real_process->vntable_[fd]->vn_offset_ += off;
+        return real_process->vntable_[fd]->vn_offset_;
     }
     else if (lseek_tag == LSEEK_SIZE) {
         return ino->size;
     }
     else {
-        vntable_[fd]->vn_offset_ = ino->size + off;
-        return vntable_[fd]->vn_offset_;
+        real_process->vntable_[fd]->vn_offset_ = ino->size + off;
+        return real_process->vntable_[fd]->vn_offset_;
     }
 }
 
