@@ -1864,35 +1864,36 @@ int proc::syscall_exit(regstate* regs) {
 int* proc::check_exited(pid_t pid, bool condition) {
             assert(pid == 0);
             bool zombies_exist = false;
+            real_proc* real_process = real_ptable[pid_];
             if (this->children_.front()) {
-                proc* first_child = this->children_.pop_front();
-                this->children_.push_back(first_child);
-                proc* child = this->children_.pop_front();
+                real_proc* first_child = real_process->children_.pop_front();
+                real_process->children_.push_back(first_child);
+                real_proc* child = real_process->children_.pop_front();
                 while (child != first_child) {
                     if (child->pstate_ == ps_exited) {
                         //log_printf("id %i, ps_exited\n", child->id_);
                         zombies_exist = true;
-                        pid = child->id_;
+                        pid = child->pid_;
                         if (!condition) {
-                            this->children_.push_back(child);
+                            real_process->children_.push_back(child);
                         }
                         break;
                     }
-                    this->children_.push_back(child);
-                    child = this->children_.pop_front();
+                    real_process->children_.push_back(child);
+                    child = real_process->children_.pop_front();
                 }
                 if (child == first_child) {
                     if (child->pstate_ == ps_exited) {
                         //log_printf("zombies is true\n");
                         zombies_exist = true;
-                        pid = child->id_;
+                        pid = child->pid_;
                         if (!condition) {
-                            this->children_.push_back(child);
+                            real_process->children_.push_back(child);
                         }
                     }
                     else {
                         //log_printf("restore\n");
-                        this->children_.push_back(child);
+                        real_process->children_.push_back(child);
                     }
                 }
             }
@@ -1908,16 +1909,17 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
     {
         //log_printf("waitpid grabbed lock\n");
         spinlock_guard guard(ptable_lock);
+        spinlock_guard guard(real_ptable_lock);
 
             // Specifying a pid
             if (pid != 0) {
-                if (ptable[pid] && ptable[pid]->pstate_ == ps_exited) {
+                if (real_ptable[pid] && real_ptable[pid]->pstate_ == proc::ps_exited) {
                     //log_printf("ptable pid and ps_exited\n");
-                    this->children_.erase(ptable[pid]);
+                    real_ptable[pid_]->children_.erase(real_ptable[pid]);
                 }
 
                 else {
-                    if (ptable[pid]) {
+                    if (real_ptable[pid]) {
                         //log_printf("not ps_exited\n");
                         if (options == W_NOHANG) {
                             //log_printf("end waitpid\n");
@@ -1945,21 +1947,21 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                 //log_printf("Not specifying a pid\n");
 
                 // Print out children of the proces that is waiting, for debugging purposes
-                if (this->children_.front()) {
-                    proc* first_child = this->children_.pop_front();
+                if (real_ptable[pid_]->children_.front()) {
+                    real_proc* first_child = real_ptable[pid_]->children_.pop_front();
                     //log_printf("child id: %i\n", first_child->id_);
-                    this->children_.push_back(first_child);
-                    proc* child = this->children_.pop_front();
+                    real_ptable[pid_]->children_.push_back(first_child);
+                    real_proc* child = real_ptable[pid_]->children_.pop_front();
                     while (child != first_child) {
                         //log_printf("child id: %i\n", child->id_);
-                        this->children_.push_back(child);
-                        child = this->children_.pop_front();
+                        real_ptable[pid_]->children_.push_back(child);
+                        child = real_ptable[pid_]->children_.pop_front();
                     }
                     if (child == first_child) {
-                        this->children_.push_back(child);
+                        real_ptable[pid_]->children_.push_back(child);
                     }
                 }
-                if (this->children_.front()) {
+                if (real_ptable[pid_]->children_.front()) {
                     int* zombies_exist = check_exited(pid, true);
 
                     if (zombies_exist[0] == 0) {
