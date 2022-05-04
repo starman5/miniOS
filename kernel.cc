@@ -1497,18 +1497,22 @@ int proc::syscall_dup2(regstate* regs) {
     log_printf("in dup2\n");
     int oldfd = regs->reg_rdi;
     int newfd = regs->reg_rsi;
-    auto irqs = this->vntable_lock_.lock();
+    auto ptableirqs = real_ptable_lock.lock();
+    real_proc* real_process = real_ptable[pid_];
+    real_ptable_lock.unlock(ptableirqs);
+
+    auto irqs = real_process->vntable_lock_.lock();
     log_printf("dup2 on oldfd %i, newfd %i\n", oldfd, newfd);
-    if (newfd < 0 or newfd > MAX_FDS or oldfd < 0 or oldfd > MAX_FDS or !this->vntable_[oldfd]) {
-        this->vntable_lock_.unlock(irqs);
+    if (newfd < 0 or newfd > MAX_FDS or oldfd < 0 or oldfd > MAX_FDS or !real_process->vntable_[oldfd]) {
+        real_process->vntable_lock_.unlock(irqs);
         return E_BADF;
     }
 
     // At the newfd index in the system wide fd table should be the same vnode as that of the oldfd index
-    vnode* old_vnode = this->vntable_[oldfd];
-    this->vntable_[newfd] = old_vnode;
+    vnode* old_vnode = real_process->vntable_[oldfd];
+    real_process->vntable_[newfd] = old_vnode;
     log_printf("dup2 system_vn_table[newfd]: %p\n", old_vnode);
-    this->vntable_lock_.unlock(irqs);
+    real_process->vntable_lock_.unlock(irqs);
 
     return newfd;
 }
