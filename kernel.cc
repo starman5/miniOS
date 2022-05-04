@@ -1422,10 +1422,14 @@ int proc::syscall_open(regstate* regs) {
 
 uintptr_t proc::syscall_pipe(regstate* regs) {
     log_printf("in syscall pipe\n");
-    auto irqs = this->vntable_lock_.lock();
-    assert(this->vntable_[0]);
-    assert(this->vntable_[1]);
-    assert(this->vntable_[2]);
+    auto ptableirqs = real_ptable_lock.lock();
+    real_proc* real_process = real_ptable[pid_];
+    real_ptable_lock.unlock(ptableirqs);
+
+    auto irqs = real_process->vntable_lock_.lock();
+    assert(real_process->vntable_[0]);
+    assert(real_process->vntable_[1]);
+    assert(real_process->vntable_[2]);
 
     bbuffer* new_buffer = knew<bbuffer>();
     vnode* readend_vnode = knew<vnode>();
@@ -1435,15 +1439,15 @@ uintptr_t proc::syscall_pipe(regstate* regs) {
     int readfd;
     bool existsreadfd = false;
     for (int i = 0; i < MAX_FDS; i++) {
-        if (!this->vntable_[i]) {
+        if (!real_process->vntable_[i]) {
             readfd = i;
-            this->vntable_[i] = readend_vnode;
+            real_process->vntable_[i] = readend_vnode;
             existsreadfd = true;
             break;
         }
     }
     if (!existsreadfd) { 
-        this->vntable_lock_.unlock(irqs);
+        real_process->vntable_lock_.unlock(irqs);
         return E_MFILE;
     }
 
@@ -1451,35 +1455,35 @@ uintptr_t proc::syscall_pipe(regstate* regs) {
     int writefd;
     int existswritefd = false;
     for (int j = 0; j < MAX_FDS; j++) {
-        if (!this->vntable_[j]) {
+        if (!real_process->vntable_[j]) {
             writefd = j;
-            this->vntable_[j] = writeend_vnode;
+            real_process->vntable_[j] = writeend_vnode;
             existswritefd = true;
             break;
         }
     }
     if (!existswritefd) {
-        this->vntable_lock_.unlock(irqs);
+        real_process->vntable_lock_.unlock(irqs);
         return E_MFILE;
     }
     log_printf("writefd: %i\n", writefd);
-    this->vntable_lock_.unlock(irqs);
+    real_process->vntable_lock_.unlock(irqs);
 
     readend_vnode->vn_data_ = new_buffer;
     readend_vnode->vn_ops_ = readend_pipe_vn_ops;
     readend_vnode->other_end = writefd;
     readend_vnode->is_pipe = true;
-    auto irqs2 = this->vntable_lock_.lock();
-    this->vntable_[readfd] = readend_vnode;
-    this->vntable_lock_.unlock(irqs2);
+    auto irqs2 = real_process->vntable_lock_.lock();
+    real_process->vntable_[readfd] = readend_vnode;
+    real_process->vntable_lock_.unlock(irqs2);
 
     writeend_vnode->vn_data_ = new_buffer;
     writeend_vnode->vn_ops_ = writeend_pipe_vn_ops;
     writeend_vnode->other_end = readfd;
     writeend_vnode->is_pipe = true;
-    auto irqs3 = this->vntable_lock_.lock();
-    this->vntable_[writefd] = writeend_vnode;
-    this->vntable_lock_.unlock(irqs3);
+    auto irqs3 = real_process->vntable_lock_.lock();
+    real_process->vntable_[writefd] = writeend_vnode;
+    real_process->vntable_lock_.unlock(irqs3);
 
     // Return the two fds concatenated.  Write end comes before read end
     uintptr_t returnValue = ((uintptr_t)(writefd) << 32) + (uintptr_t) readfd;
