@@ -848,80 +848,11 @@ uintptr_t proc::syscall(regstate* regs) {
 
     }
 
-    case SYSCALL_EXIT: {
+    case SYSCALL_EXIT:
         // Remove the current process from the process table
         // Free all memory associated with the current process
             //ptable must be protected by lock
-        {
-            log_printf("----- sys_exit on process %i\n", id_);
-            spinlock_guard guard(ptable_lock);
-            log_printf("ptlock\n");
-            assert(ptable[this->id_] != nullptr);
-
-            //log_printf("before first child\n");
-            /*if (this->children_.front()) {
-                proc* first_child = this->children_.pop_front();
-                first_child->parent_id_ = 1;
-                this->children_.push_back(first_child);
-                //log_printf("after first child\n");
-            
-                proc* child = this->children_.pop_front();
-                while (child != first_child) {
-                    child->parent_id_ = 1;
-                    this->children_.push_back(child);
-                    child = this->children_.pop_front();
-                }
-            }*/
-
-            if (this->children_.front()) {
-                proc* child = this->children_.pop_front();
-                while (child) {
-                    child->parent_pid_ = 1;
-                    ptable[1]->children_.push_back(child);
-                    child = this->children_.pop_front();
-                }
-            }
-
-            //ptable[this->id_] = nullptr;
-
-            //log_printf("early pagetable: %p\n", early_pagetable);
-            
-            set_pagetable(early_pagetable);
-            
-            //log_printf("successfully set_pagetable to %p\n", early_pagetable);
-            //log_printf("pagetable_: %p\n", pagetable_);
-            
-            //log_printf("Process' pagetable: %p\n", this->pagetable_);
-
-            for (vmiter it(pagetable_, 0); it.low(); it.next()) {
-                if (it.user() && it.va() != CONSOLE_ADDR) {
-                    //kfree(it.kptr());
-                    it.kfree_page();
-                }
-            }
-            log_printf("out of vmiter\n");
-
-            assert(pagetable_ != early_pagetable);
-
-            for (ptiter it(pagetable_); it.low(); it.next()) {
-                it.kfree_ptp(); 
-            }
-            log_printf("out of ptiter\n");
-
-            kfree(pagetable_);
-
-            pagetable_ = early_pagetable;
-
-        }
-
-        //assert(!ptable[this->id_]);
-        this->pstate_ = ps_exited;
-        this->exit_status_ = regs->reg_rdi;
-        //yield_noreturn();
-        log_printf("outside lock\n");
-        yield_noreturn();
-
-    }
+        return syscall_exit(regs);
 
     case SYSCALL_MSLEEP: {
         int ticksoriginal = ticks;
@@ -1617,9 +1548,11 @@ int proc::syscall_texit(regstate* regs) {
     associated_process->thread_list_.push_back(back_thread);
 
     if (!other_threads) {
-        syscall_exit();
+        syscall_exit(regs);
     }
     else {
+        // Go into the scheduler, where the proc is freed, but
+        // the pagetable and everything associated with the real_proc are not freed
         yield_noreturn();
     }
 }
@@ -1834,6 +1767,99 @@ int proc::syscall_fork(regstate* regs) {
 // proc::syscall_read(regs), proc::syscall_write(regs),
 // proc::syscall_readdiskfile(regs)
 //    Handle read and write system calls.
+
+int proc::syscall_exit(regstate* regs) {
+        {
+            log_printf("----- sys_exit on process %i\n", id_);
+            spinlock_guard guard(ptable_lock);
+            log_printf("ptlock\n");
+            assert(ptable[this->id_] != nullptr);
+
+            // For every child process, reparent it to have parent process 1
+            if (real_ptable[pid_]->children_.front()) {
+                real_proc* real_child = real_ptable[pid_]->children_.pop_front();
+                while (real_child) {
+                    real_child->parent_pid_ = 1;
+                    real_ptable[1]->children_.push_back(real_child);
+                    real_child = real_ptable[pid_]->children_.pop_front();
+                }
+            }
+
+            // TODO: exit every thread associated with this real_proc.
+            //      Once every thread has exited, then continue with 
+            //      Freeing pagetable, etc
+        
+            proc* current_thread = real_ptable[pid_]->thread_list_.pop_back();
+            int calling_count = 0;
+            while (calling_count < 2) {
+                // Exit the calling thread last
+                if (current_thread == this) {
+                    calling_count += 1;
+                    real_ptable[pid_]->thread_list_.push_back(this);
+                }
+
+                current_thread->exiting_ = true;
+                real_ptable[pid_]->thread_list_.push_back(current_thread);
+                current_thread = real_ptable[pid_]->thread_list_.pop_back();
+            }
+
+            // What until every thread has exited fully
+            wait_queue threads_exit_wq;
+            waiter().block_until(threads_exit_wq, [&] () {
+                // check to make sure every thread has exited fully
+                all_exited = true;
+                proc* current_thread = real_ptable[pid_]->thread_list_.pop_back();
+                int calling_count = 0;
+                while (current_thread && calling_count < 2) {
+                    if (current_thread == this) {
+                        calling_count += 1;
+                        real_ptable[pid_]->thread_list.push_back(this);
+                    }
+                    if (ptable[current_thread->id_]) {
+                        all_exited = false;
+                        break;
+                    }
+                    current_thread = real_ptable[pid_]->thread_list_.pop_back();
+                }
+                return all_exited;
+            });
+
+            // At this point all other threads in the process have exited
+
+            set_pagetable(early_pagetable);
+
+            // Free all the mappings in the exiting process' pagetable
+            for (vmiter it(pagetable_, 0); it.low(); it.next()) {
+                if (it.user() && it.va() != CONSOLE_ADDR) {
+                    //kfree(it.kptr());
+                    it.kfree_page();
+                }
+            }
+
+            assert(pagetable_ != early_pagetable);
+
+            // Continue freeing pagetable stuff
+            for (ptiter it(pagetable_); it.low(); it.next()) {
+                it.kfree_ptp(); 
+            }
+            log_printf("out of ptiter\n");
+
+            // Free the pagetable itself
+            kfree(pagetable_);
+
+            pagetable_ = early_pagetable;
+
+        }
+
+        // Update the process' pstate_ and exit status
+        real_ptable[pid_]->pstate_ = proc::ps_exited;
+        real_ptable[pid_]->exit_status_ = regs->reg_rdi;
+        this->exit_status_ = regs->reg_rdi;
+        //this->pstate_ = ps_exited;
+        //this->exit_status_ = regs->reg_rdi;
+        
+        yield_noreturn();
+}
 
 int* proc::check_exited(pid_t pid, bool condition) {
             assert(pid == 0);

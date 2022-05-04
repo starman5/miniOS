@@ -87,6 +87,13 @@ void cpustate::schedule(proc* yielding_from) {
         kfree(yielding_from);
     }
 
+    if (yielding_from->exiting_ == true) {
+        log_printf("freeing struct proc from waiting");
+        ptable[yielding_from->id_] = nullptr;
+        kfree(yielding_from);
+        threads_exit_wq.wake_all();
+    }
+
     // initialize idle task
     if (!idle_task_) {
         init_idle_task();

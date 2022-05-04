@@ -86,6 +86,9 @@ inline void waiter::wake() {
 template <typename F>
 inline void waiter::block_until(wait_queue& wq, F predicate) {
     while (true) {
+        if (this->p_->exiting_) {
+            wake();
+        }
         //log_printf("in loop\n");
         prepare(wq);
         //log_printf("after prepare\n");

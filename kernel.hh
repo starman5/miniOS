@@ -141,6 +141,7 @@ struct __attribute__((aligned(4096))) proc {
 
         inline bool resumable() const;
 
+        int syscall_exit(regstate* regs);
         int syscall_texit(regstate* regs);
         int syscall_clone(regstate* regs);
         int syscall_lseek(regstate* regs);
@@ -174,6 +175,7 @@ extern proc* ptable[NTHREAD];
 extern spinlock ptable_lock;
 extern real_proc* real_ptable[NPROC];
 extern spinlock real_ptable_lock;
+extern wait_queue threads_exit_wq;
 #define PROCSTACK_SIZE 4096UL
 
 
