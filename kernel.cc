@@ -2127,59 +2127,37 @@ uintptr_t proc::syscall_write(regstate* regs) {
     uintptr_t addr = regs->reg_rsi;
     size_t sz = regs->reg_rdx;
 
-    //log_printf("Write, id: %i, fd = %i, sz = %i\n", this->id_, fd, sz);
-    //assert(vmiter(pagetable_, addr).present());
-    /*for (vmiter it(pagetable_, addr); it.va() < it.va() + sz; ++it) {
-        if (!(it.present())) {
-            log_printf("asdf\n");
-            return E_FAULT;
-        }
-    }*/
-    // Your code here!
-    // * Write to open file `fd` (reg_rdi), rather than `consolestate`.
-    // * Validate the write buffer.
-    // auto irqs = this->fdtable_lock_.lock();
-        auto irqs = this->vntable_lock_.lock();
-        //log_printf("fd lock\n");
-        if (fd < 0 or fd >= MAX_FDS or !this->vntable_[fd]) {
-            log_printf("bad write!!!\n");
-            this->vntable_lock_.unlock(irqs);
-            return E_BADF;
-        }
 
-    //log_printf("before vntable_lock\n");
-    //log_printf("vn lock\n");
-    
-        vnode* writefile = this->vntable_[fd];
-        //log_printf("syscall_write system_vn_table[fd]: %p\n", writefile);
-        //log_printf("%p\n", writefile->vn_ops_);
-        auto write_func = writefile->vn_ops_->vop_write;
-        if (!write_func) {
-            log_printf("!write_func\n");
-            this->vntable_lock_.unlock(irqs);
-            return E_BADF;
-        }
+    auto ptableirqs = real_ptable_lock.lock();
+    real_proc* real_process = real_ptable[pid_];
+    real_ptable_lock.unlock(ptableirqs);
 
-        if (writefile->is_pipe && writefile->other_end == -1) {
-            this->vntable_lock_.unlock(irqs);
-            return E_PIPE;
-        }
-        this->vntable_lock_.unlock(irqs);
-        log_printf("end write\n");
-
-        return write_func(writefile, addr, sz);
-    //}
-
-    /*auto& csl = consolestate::get();
-    spinlock_guard guard(csl.lock_);
-    size_t n = 0;
-    while (n < sz) {
-        int ch = *reinterpret_cast<const char*>(addr);
-        ++addr;
-        ++n;
-        console_printf(0x0F00, "%c", ch);
+    auto irqs = real_process->vntable_lock_.lock();
+    //log_printf("fd lock\n");
+    if (fd < 0 or fd >= MAX_FDS or !real_process->vntable_[fd]) {
+        log_printf("bad write!!!\n");
+        real_process->vntable_lock_.unlock(irqs);
+        return E_BADF;
     }
-    return n;*/
+    
+    vnode* writefile = real_process->vntable_[fd];
+    //log_printf("syscall_write system_vn_table[fd]: %p\n", writefile);
+    //log_printf("%p\n", writefile->vn_ops_);
+    auto write_func = writefile->vn_ops_->vop_write;
+    if (!write_func) {
+        log_printf("!write_func\n");
+        real_process->vntable_lock_.unlock(irqs);
+        return E_BADF;
+    }
+
+    if (writefile->is_pipe && writefile->other_end == -1) {
+        real_process->vntable_lock_.unlock(irqs);
+        return E_PIPE;
+    }
+    real_process->vntable_lock_.unlock(irqs);
+    log_printf("end write\n");
+
+    return write_func(writefile, addr, sz);
 }
 
 uintptr_t proc::syscall_readdiskfile(regstate* regs) {
