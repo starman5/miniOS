@@ -63,11 +63,11 @@ struct real_proc {
     };
 
     pid_t pid_;
-    pid_t parent_id_ = 1;
+    pid_t parent_pid_ = 1;
     x86_64_pagetable* pagetable_ = nullptr;    // Process's page table
 
     list_links child_links_;
-    list<proc, &proc::thread_links_> thread_list;
+    list<proc, &proc::thread_links_> thread_list_;
     list<real_proc, &real_proc::child_links_> children_;
 
     pstate_t real_proc_state_ = ps_real_blank;
@@ -95,7 +95,7 @@ struct __attribute__((aligned(4096))) proc {
         std::atomic<int> pstate_ = ps_blank;       // Thread state, used for scheduling and stuff
         pid_t pid_ = 0;                            // Real Process ID 
         
-        pid_t parent_id_ = 1;                      // Process' parent id 
+        pid_t parent_pid_ = 1;                      // Process' parent pid 
 
         x86_64_pagetable* pagetable_ = nullptr;    // Process's page table
         uintptr_t recent_user_rip_ = 0;            // Most recent user-mode %rip
@@ -103,11 +103,11 @@ struct __attribute__((aligned(4096))) proc {
         int exit_status_ = 1;                      // Thread's exit status
         bool waited_ = false;
 
-        vnode*** vntable_ptr = nullptr;            // pointer to the process wide vntable
-
         int cpu_index_;
 
         int canary_;
+
+        bool exiting_;
         
     #if HAVE_SANITIZERS
         int sanitizer_status_ = 0;
@@ -141,6 +141,7 @@ struct __attribute__((aligned(4096))) proc {
 
         inline bool resumable() const;
 
+        int syscall_texit(regstate* regs);
         int syscall_clone(regstate* regs);
         int syscall_lseek(regstate* regs);
         int syscall_testkalloc(regstate* regs);

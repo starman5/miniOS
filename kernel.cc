@@ -603,7 +603,7 @@ void boot_process_start(pid_t pid, const char* name) {
     proc* p = knew<proc>();
     p->init_user(pid, ld.pagetable_);
     p->regs_->reg_rip = ld.entry_rip_;
-    log_printf("id: %i, parent_id: %i\n", p->id_, p->parent_id_);
+    log_printf("id: %i, parent_pid: %i\n", p->id_, p->parent_pid_);
 
     void* stkpg = kalloc(PAGESIZE);
     assert(stkpg);
@@ -742,7 +742,7 @@ uintptr_t proc::syscall(regstate* regs) {
         return id_;
     
     case SYSCALL_GETPPID:
-        return parent_id_;
+        return parent_pid_;
 
     case SYSCALL_YIELD:
         yield();
@@ -876,7 +876,7 @@ uintptr_t proc::syscall(regstate* regs) {
             if (this->children_.front()) {
                 proc* child = this->children_.pop_front();
                 while (child) {
-                    child->parent_id_ = 1;
+                    child->parent_pid_ = 1;
                     ptable[1]->children_.push_back(child);
                     child = this->children_.pop_front();
                 }
@@ -1014,6 +1014,9 @@ uintptr_t proc::syscall(regstate* regs) {
         
         return 0;
     }
+
+    case SYSCALL_TEXIT:
+        return syscall_texit(regs);
 
     case SYSCALL_DUP2:
         return syscall_dup2(regs);
@@ -1421,7 +1424,6 @@ int proc::syscall_open(regstate* regs) {
             log_printf("%i\n", it2block);
 
 
-
             // There is no block associated with this inode
 
             bcentry* et = it2.get_disk_entry();
@@ -1605,6 +1607,23 @@ int proc::syscall_dup2(regstate* regs) {
 //    Handle fork system call.
 //(void) regs;
 
+int proc::syscall_texit(regstate* regs) {
+    // Check if there are other threads in the real_proc
+    auto irqs = real_ptable_lock.lock();
+    real_proc* associated_process = real_ptable[pid_];
+    real_ptable_lock.unlock(irqs);
+    proc* back_thread = associated_process->thread_list_.pop_back();
+    bool other_threads = (associated_process->thread_list_.front());
+    associated_process->thread_list_.push_back(back_thread);
+
+    if (!other_threads) {
+        syscall_exit();
+    }
+    else {
+        yield_noreturn();
+    }
+}
+
 int proc::syscall_clone(regstate* regs) {
     log_printf("in clone kernel code\n");
 
@@ -1637,10 +1656,9 @@ int proc::syscall_clone(regstate* regs) {
 
         // Shared state among threads
         thread->pid_ = pid_;
-        thread->parent_id_ = parent_id_;
+        thread->parent_pid_ = parent_pid_;
         thread->pagetable_ = pagetable_;
         thread->recent_user_rip_ = recent_user_rip_;
-        thread->vntable_ptr = vntable_ptr;
 
         // return 0 to the newly created thread
         thread->regs_->reg_rax = 0;
@@ -1657,62 +1675,58 @@ int proc::syscall_clone(regstate* regs) {
 int proc::syscall_fork(regstate* regs) {
     log_printf("in fork\n");
     // Find the next available pid by looping through the ones already used
-    pid_t parent_id = this->id_;
-    auto irqs = this->vntable_lock_.lock();
-    log_printf("in fork vntable lock\n");
-    vnode** vntable = this->vntable_;
-    this->vntable_lock_.unlock(irqs);
-    //log_printf("section 1\n");
+    pid_t parent_pid = pid_;
 
-    proc* p = knew<proc>();
-    if (p == nullptr) {
-        log_printf("fork failure\n");
-        return -1;
+    vnode** vntable = nullptr;
+    {
+        spinlock_guard guard(real_ptable_lock);
+        spinlock_guard guard(real_ptable[pid_]->vntable_lock_);
+        vntable = real_ptable[pid_]->vntable_;
     }
-    //log_printf("a\n");
+
+    // Allocate a new thread
+    proc* th = knew<proc>();
+    if (!th) {
+        log_printf("Failed to allocate a new thread for a new process\n");
+        return E_NOENT;
+    }
     
     x86_64_pagetable* child_pagetable = kalloc_pagetable();
-    if (child_pagetable == nullptr) {
-        log_printf("fork failure\n");
-        kfree(p);
-        return -1;
+    if (!child_pagetable) {
+        log_printf("Unable to allocate a new pagetable for fork\n");
+        kfree(th);
+        return E_NOENT;
     }
-    //log_printf("b\n");
-    int i = 1;
-    //log_printf("hi\n");
+
+    int thread_number = 1;
     {
-        //log_printf("in\n");
         spinlock_guard guard(ptable_lock);
         //log_printf("a");
-        for (; i < NPROC; i++) {
-            //log_printf("here\n");
-            
-                if (ptable[i] == nullptr) {
-                    //log_printf("created p %i\n", i);
-                    break;
-                }
+        for (; thread_number < NTHREAD; thread_number++) {    
+            if (!ptable[thread_number]) {
+                break;
             }
-        //log_printf("i: %i, nproc: %i\n", i, NPROC);
-        if (i == NPROC) {
-            //log_printf("fork failure\n");
-            kfree(p);
-            return -1;
         }
-        //log_printf("c\n");
-        assert(p);
-        p->init_user((pid_t) i, child_pagetable);
+        if (thread_number == NTHREAD && (ptable[thread_number])) {
+            log_printf("Too many threads in thread table\n");
+            kfree(th);
+            return E_NOENT;
+        }
+
+        assert(th);
+        th->init_user((pid_t) thread_number, child_pagetable);
     
-        //log_printf("sectino 2\n");
+        // Copying over pagetable mappings
         for (vmiter parentiter = vmiter(this, 0);
             parentiter.low();
             parentiter.next()) {
             
-            vmiter childiter = vmiter(p, parentiter.va());
+            vmiter childiter = vmiter(th, parentiter.va());
 
             if (parentiter.pa() == CONSOLE_ADDR) {
                 if (childiter.try_map(parentiter.pa(), parentiter.perm()) == -1) {
                     log_printf("fork failure\n");
-                    kfree(p);
+                    kfree(th);
                     return -1;
                 }
             }
@@ -1721,12 +1735,12 @@ int proc::syscall_fork(regstate* regs) {
                 void* addr = kalloc(PAGESIZE);
                 if (addr == nullptr) {
                     log_printf("fork failure\n");
-                    kfree(p);
+                    kfree(th);
                     return -1;
                 }
                 if (childiter.try_map(addr, parentiter.perm()) == -1) {
                     log_printf("fork failure\n");
-                    kfree(p);
+                    kfree(th);
                     return -1;
                 }
                 memcpy(addr, (const void*) parentiter.va(), PAGESIZE);
@@ -1734,15 +1748,17 @@ int proc::syscall_fork(regstate* regs) {
             }
         }
     
-        memcpy(p->regs_, regs, sizeof(regstate));
-        //log_printf("after memcpy\n");
+        // Copy over the registers from the argument regs
+        memcpy(th->regs_, regs, sizeof(regstate));
 
-        ptable[i] = p;
+        ptable[thread_number] = th;
 
-        p->regs_->reg_rax = 0;
-        p->parent_id_ = parent_id;
+        // Return 0 to the new thread
+        th->regs_->reg_rax = 0;
+        
+        th->parent_pid_ = parent_pid;
 
-        auto irqs2 = this->vntable_lock_.lock();
+        /*auto irqs2 = this->vntable_lock_.lock();
         for (int ix = 0; ix < MAX_FDS; ix++) {
             if (vntable[ix]) {
                 vntable[ix]->vn_refcount_ += 1;
@@ -1750,11 +1766,11 @@ int proc::syscall_fork(regstate* regs) {
             p->vntable_[ix] = vntable[ix];
         }
         log_printf("fork end vntable lock\n");
-        this->vntable_lock_.unlock(irqs2);
+        this->vntable_lock_.unlock(irqs2);*/
 
         //log_printf("about to push back child\n");
-        assert(ptable[parent_id]);
-        ptable[parent_id]->children_.push_back(p);
+        assert(real_ptable[parent_pid_]);
+        ptable[parent_pid_]->children_.push_back(p);
 
         assert(ptable[i]);
         ptable[i]->pstate_ = ps_runnable;
@@ -1763,7 +1779,54 @@ int proc::syscall_fork(regstate* regs) {
     
     }
 
-    return i;
+    // Create a new real proc
+    real_proc* p = knew<real_proc>();
+    if (!p) {
+        log_printf("Couldn't allocate a new real_proc\n");
+        return E_NOENT;
+    }
+
+    int process_number = 1;
+    {
+        spinlock_guard guard(real_ptable_lock);
+
+        // Find an open entry in real_ptable, to put in the new real_proc
+        for (; process_number < NPROC; process_number++) {
+            if (!real_ptable[process_number]) {
+                break;
+            }
+        }
+        if (process_number == NPROC && real_ptable[process_number]) {
+            log_printf("real_ptable is full\n");
+            return E_NOENT;
+        }
+        assert(p);
+
+        p->pid_ = process_number;
+        p->parent_pid_ = parent_pid;
+        p->pagetable_ = child_pagetable;
+
+        // TODO: what should i set pstate_ to for the real_proc?
+
+        // Set up the thread list and child list
+        p->thread_list.push_back(th);
+        real_ptable[parent_pid_]->children_.push_back(p);
+
+        // Copy the parent real_proc's fdtable to the child real_proc's fdtable
+        auto irqs2 = real_ptable[pid_]->vntable_lock_.lock();
+        for (int ix = 0; ix < MAX_FDS; ix++) {
+            if (real_ptable[pid_]->vntable_[ix]) {
+                real_ptable[pid_]->vntable_[ix]->vn_refcount_ += 1;
+            }
+            p->vntable_[ix] = real_ptable[pid_]->vntable_[ix];
+        }
+        log_printf("fork end vntable lock\n");
+        real_ptable[pid_]->vntable_lock_.unlock(irqs2);
+
+        real_ptable[process_number] = p;
+    }
+
+    return pid_;
 
 }
 
