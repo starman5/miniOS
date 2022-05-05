@@ -565,7 +565,6 @@ void init_first_process() {
     real_p_init = knew<real_proc>();
     real_p_init->pid_ = 1;
     real_p_init->pagetable_ = early_pagetable;
-    real_ptable[1] = real_p_init;
 
     // Initialize a proc
     proc* p_init = nullptr;
@@ -576,6 +575,8 @@ void init_first_process() {
 
     // Add more information to the real proc
     real_p_init->thread_list_.push_back(p_init);
+
+    real_ptable[1] = real_p_init;
   
     // put the thread p_init on the runqueue
     log_printf("end init_first_process\n");
@@ -585,7 +586,7 @@ void init_first_process() {
 void run_init() {
     while (true) {
         //spinlock_guard guard(ptable_lock);
-        if (!ptable[1]->children_.front()) {
+        if (!real_ptable[1]->children_.front()) {
             log_printf("halting\n");
             process_halt();
         }
@@ -1616,8 +1617,8 @@ int proc::syscall_fork(regstate* regs) {
 
     vnode** vntable = nullptr;
     {
-        spinlock_guard guard(real_ptable_lock);
-        spinlock_guard guard(real_ptable[pid_]->vntable_lock_);
+        spinlock_guard ptableguard(real_ptable_lock);
+        spinlock_guard vntableguard(real_ptable[pid_]->vntable_lock_);
         vntable = real_ptable[pid_]->vntable_;
     }
 
@@ -1695,25 +1696,13 @@ int proc::syscall_fork(regstate* regs) {
         
         th->parent_pid_ = parent_pid;
 
-        /*auto irqs2 = this->vntable_lock_.lock();
-        for (int ix = 0; ix < MAX_FDS; ix++) {
-            if (vntable[ix]) {
-                vntable[ix]->vn_refcount_ += 1;
-            }
-            p->vntable_[ix] = vntable[ix];
-        }
-        log_printf("fork end vntable lock\n");
-        this->vntable_lock_.unlock(irqs2);*/
-
-        //log_printf("about to push back child\n");
         assert(real_ptable[parent_pid_]);
-        ptable[parent_pid_]->children_.push_back(p);
 
         assert(ptable[i]);
         ptable[i]->pstate_ = ps_runnable;
-        p->cpu_index_ = i % ncpu;
-        cpus[p->cpu_index_].enqueue(p);
-    
+        real_ptable[i]->pstate_ = ps_runnable;
+        th->cpu_index_ = i % ncpu;
+        cpus[th->cpu_index_].enqueue(th);
     }
 
     // Create a new real proc

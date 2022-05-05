@@ -57,31 +57,6 @@ struct bbuffer {
 };
 
 
-struct real_proc {
-    enum pstate_t {
-        ps_real_blank = 100, ps_real_exited = 101, ps_real_exiting
-    };
-
-    pid_t pid_;
-    pid_t parent_pid_ = 1;
-    x86_64_pagetable* pagetable_ = nullptr;    // Process's page table
-
-    list_links child_links_;
-    list<proc, &proc::thread_links_> thread_list_;
-    list<real_proc, &real_proc::child_links_> children_;
-
-    pstate_t real_proc_state_ = ps_real_blank;
-    int exit_status_ = 1;
-
-    // vntable should be dynamically allocated on the heap
-    vnode* vntable_[MAX_FDS];
-    //vnode** vntable_;
-    spinlock vntable_lock_;
-
-
-}
-
-
 // Process descriptor type
 struct __attribute__((aligned(4096))) proc {
         enum pstate_t {
@@ -167,6 +142,28 @@ struct __attribute__((aligned(4096))) proc {
     private:
         static int load_segment(const elf_program& ph, proc_loader& ld);
 
+};
+
+struct real_proc {
+    enum pstate_t {
+        ps_real_blank = 100, ps_real_exited = 101, ps_real_exiting
+    };
+
+    pid_t pid_;
+    pid_t parent_pid_ = 1;
+    x86_64_pagetable* pagetable_ = nullptr;    // Process's page table
+
+    list_links child_links_;
+    list<proc, &proc::thread_links_> thread_list_;
+    list<real_proc, &real_proc::child_links_> children_;
+
+    pstate_t real_proc_state_ = ps_real_blank;
+    int exit_status_ = 1;
+
+    // vntable should be dynamically allocated on the heap
+    vnode* vntable_[MAX_FDS];
+    //vnode** vntable_;
+    spinlock vntable_lock_;
 };
 
 #define NPROC 16
