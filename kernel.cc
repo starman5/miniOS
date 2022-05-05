@@ -26,6 +26,25 @@ static void run_init();
 static void setup_init_child();
 static void process_info();
 static void thread_info();
+static void display_threads(pid_t pid);
+
+void display_threads(pid_t pid) {
+    real_proc* real_process = real_ptable[pid];
+    log_printf("threads for proc %i\n", pid);
+    proc* first_thread = real_process->thread_list_.pop_back();
+    proc* current_thread = first_thread;
+    bool after = false;
+    while (current_thread) {
+        if (current_thread == first_thread && after) {
+            real_process->thread_list_.push_front(current_thread);
+        }
+        after = true;
+        log_printf("id: %i, pid: %i\n", current_thread->id_, current_thread->pid_);
+        real_process->thread_list_.push_front(current_thread);
+        current_thread = real_process->thread_list_.pop_back();
+    }
+    log_printf("done displaying threads\n");
+}
 
 void process_info() {
     // real_ptable_lock must be held when calling this function
@@ -952,16 +971,17 @@ uintptr_t proc::syscall(regstate* regs) {
         
         log_printf("in sleep\n");
         // use ticks atomic variable
+        log_printf("regs: %p\n", regs);
         unsigned long wakeup_time = ticks + (regs->reg_rdi + 9) / 10;
         /*while (long(wakeup_time - ticks) > 0) {
             this->yield();
         }*/
-        //log_printf("about to block\n");
+        log_printf("about to block\n");
         waiter().block_until(sleep_wq, [&] () {
             return (long(wakeup_time - ticks) <= 0);
         });
         //log_printf("difference: %i, expected: %i\n", ticks - ticksoriginal, regs->reg_rdi);
-        //log_printf("after sleep\n");
+        log_printf("after sleep\n");
 
         return 0;
     }
@@ -1592,6 +1612,7 @@ uintptr_t proc::syscall_pipe(regstate* regs) {
     log_printf("%i\n", returnValue);
     log_printf("%i\n", returnValue >> 32);
     //open_fds_lock.unlock(irqs);
+    log_printf("end pipe\n");
     return returnValue;
 }
 
@@ -1624,6 +1645,7 @@ int proc::syscall_dup2(regstate* regs) {
 //(void) regs;
 
 int proc::syscall_texit(regstate* regs) {
+    log_printf("in syscall_texit\n");
     // Check if there are other threads in the real_proc
     auto irqs = real_ptable_lock.lock();
     real_proc* associated_process = real_ptable[pid_];
@@ -1633,6 +1655,8 @@ int proc::syscall_texit(regstate* regs) {
     associated_process->thread_list_.push_back(back_thread);
 
     if (!other_threads) {
+        log_printf("going into syscall exit\n");
+        log_printf("regs: %p\n", regs);
         syscall_exit(regs);
     }
     else {
@@ -1867,15 +1891,16 @@ int proc::syscall_fork(regstate* regs) {
 
 int proc::syscall_exit(regstate* regs) {
         //{
-            log_printf("----- sys_exit on process %i\n", id_);
+            log_printf("----- sys_exit on thread %i\n", id_);
             auto ptableirqs = ptable_lock.lock();
             auto realptableirqs = real_ptable_lock.lock();
             log_printf("ptlock\n");
-            assert(ptable[this->id_] != nullptr);
-            process_info();
-            thread_info();
+            assert(ptable[id_] != nullptr);
+            //process_info();
+            //thread_info();
 
             // For every child process, reparent it to have parent process 1
+            log_printf("real_ptable[pid_]: %p\n", real_ptable[pid_]);
             if (real_ptable[pid_]->children_.front()) {
                 real_proc* real_child = real_ptable[pid_]->children_.pop_front();
                 while (real_child) {
@@ -1892,13 +1917,17 @@ int proc::syscall_exit(regstate* regs) {
             assert(real_ptable[pid_]->thread_list_.back());
             proc* current_thread = real_ptable[pid_]->thread_list_.pop_back();
             int calling_count = 0;
+            display_threads(pid_);
             while (calling_count < 2) {
                 // Exit the calling thread last
                 if (current_thread == this) {
+                    log_printf("increment\n");
                     calling_count += 1;
                     real_ptable[pid_]->thread_list_.push_back(this);
                 }
 
+                log_printf("current_thread: %p\n", current_thread);
+                log_printf("real_ptable[pid_]: %p\n", real_ptable[pid_]);
                 current_thread->exiting_ = true;
                 real_ptable[pid_]->thread_list_.push_back(current_thread);
                 current_thread = real_ptable[pid_]->thread_list_.pop_back();
