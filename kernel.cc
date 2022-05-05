@@ -1671,10 +1671,10 @@ int proc::syscall_clone(regstate* regs) {
 
         log_printf("thread: %p, thread->regs: %p, regs: %p\n", thread, thread->regs_, regs);
         // Copy the registers from the argument regs (where rdi, rsi, rdx, r12, r13, r14 contain args)
-        regstate* new_regs = knew<regstate>();
-        // addr = reinterpret_cast<uintptr_t>(thread)
-        // thread->regs - reinterpret_cast<regstate*>(addr + PROCSTACK_SIZE) - 1
-        thread->regs_ = new_regs;
+        //regstate* new_regs = knew<regstate>();
+        uintptr_t addr = reinterpret_cast<uintptr_t>(thread);
+        thread->regs_ = reinterpret_cast<regstate*>(addr + PROCSTACK_SIZE) - 1;
+        //thread->regs_ = new_regs;
         memcpy(thread->regs_, regs, sizeof(regstate));
         thread->regs_->reg_rsi = thread->regs_->reg_rdi;
 
