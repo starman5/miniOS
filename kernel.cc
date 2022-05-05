@@ -1593,6 +1593,7 @@ int proc::syscall_clone(regstate* regs) {
         log_printf("Failed to allocate new struct proc\n");
         return E_NOENT;
     }
+        log_printf("ptable_lock: %i\n", ptable_lock.is_locked());
         auto ptableirqs = ptable_lock.lock();
         log_printf("able to grab lock\n");
         //Find the next available thread id (this is proc::id_)
@@ -1611,6 +1612,8 @@ int proc::syscall_clone(regstate* regs) {
 
         log_printf("thread: %p, thread->regs: %p, regs: %p\n", thread, thread->regs_, regs);
         // Copy the registers from the argument regs (where rdi, rsi, rdx, r12, r13, r14 contain args)
+        regstate* new_regs = knew<regstate>();
+        thread->regs_ = new_regs;
         memcpy(thread->regs_, regs, sizeof(regstate));
 
         // Associate the thread with the ptable (now containing threads, not true processes)
@@ -1711,6 +1714,7 @@ int proc::syscall_fork(regstate* regs) {
         }
     
         // Copy over the registers from the argument regs
+        log_printf("th->regs_: %p\n", th->regs_);
         memcpy(th->regs_, regs, sizeof(regstate));
 
         ptable[thread_number] = th;
@@ -1931,35 +1935,35 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
     //log_printf("in waitpid\n");
     {
         //log_printf("waitpid grabbed lock\n");
-        spinlock_guard ptableguard(ptable_lock);
+        //spinlock_guard ptableguard(ptable_lock);
         spinlock_guard realptableguard(real_ptable_lock);
 
             // Specifying a pid
             if (pid != 0) {
                 if (real_ptable[pid] && real_ptable[pid]->pstate_ == proc::ps_exited) {
-                    //log_printf("ptable pid and ps_exited\n");
+                    log_printf("ptable pid and ps_exited\n");
                     real_ptable[pid_]->children_.erase(real_ptable[pid]);
                 }
 
                 else {
                     if (real_ptable[pid]) {
-                        //log_printf("not ps_exited\n");
+                        log_printf("not ps_exited\n");
                         if (options == W_NOHANG) {
                             //log_printf("end waitpid\n");
                             return E_AGAIN;
                         }
                         else {
-                            //log_printf("ptable[pid] before goto: %p\n", ptable[pid]);
+                            log_printf("ptable[pid] before goto: %p\n", ptable[pid]);
                             // block until its ps_exited, then call proc::syscall_waitpid
                             goto block;
                         }
                     }
                     else {
-                        //log_printf("not ptable\n");
+                        log_printf("not ptable\n");
                         //log_printf("end waitpid\n");
                         return E_CHILD;
                     }
-                    //log_printf("pid not in ptable or not exited\n");
+                    log_printf("pid not in ptable or not exited\n");
                     //log_printf("in waitpid\n");
                     return E_AGAIN;
                 }
@@ -2013,10 +2017,12 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
             }
 
                             
-            // remove pid from ptable (set to nullptr) and from childrej
+            // remove pid from real_ptable (set to nullptr) and from childrej
             //      Check how an available pid is looked for to make sure
+
+            // Don't need to do this for threads in ptable because this was already done in exit
             ptable[pid]->waited_ = true;
-            ptable[pid] = nullptr;
+            real_ptable[pid] = nullptr;
             log_printf("end waitpid no error, not unlocked\n");
                             
             // Put the exit status and the pid in a register
