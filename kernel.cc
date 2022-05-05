@@ -17,6 +17,7 @@
 // # timer interrupts so far on CPU 0
 std::atomic<unsigned long> ticks;
 wait_queue sleep_wq;
+wait_queue threads_exit_wq;
 
 static void tick();
 static void boot_process_start(pid_t pid, const char* program_name);
@@ -1698,10 +1699,8 @@ int proc::syscall_fork(regstate* regs) {
 
         assert(real_ptable[parent_pid_]);
 
-        assert(ptable[i]);
-        ptable[i]->pstate_ = ps_runnable;
-        real_ptable[i]->pstate_ = ps_runnable;
-        th->cpu_index_ = i % ncpu;
+        assert(ptable[thread_number]);
+        th->cpu_index_ = thread_number % ncpu;
         cpus[th->cpu_index_].enqueue(th);
     }
 
@@ -1750,6 +1749,9 @@ int proc::syscall_fork(regstate* regs) {
         real_ptable[pid_]->vntable_lock_.unlock(irqs2);
 
         real_ptable[process_number] = p;
+
+        th->pstate_ = ps_runnable;
+        //p->real_proc_state_ = ps_runnable;
     }
 
     return pid_;
@@ -1797,16 +1799,15 @@ int proc::syscall_exit(regstate* regs) {
             }
 
             // What until every thread has exited fully
-            wait_queue threads_exit_wq;
             waiter().block_until(threads_exit_wq, [&] () {
                 // check to make sure every thread has exited fully
-                all_exited = true;
+                bool all_exited = true;
                 proc* current_thread = real_ptable[pid_]->thread_list_.pop_back();
                 int calling_count = 0;
                 while (current_thread && calling_count < 2) {
                     if (current_thread == this) {
                         calling_count += 1;
-                        real_ptable[pid_]->thread_list.push_back(this);
+                        real_ptable[pid_]->thread_list_.push_back(this);
                     }
                     if (ptable[current_thread->id_]) {
                         all_exited = false;
@@ -1857,8 +1858,10 @@ int proc::syscall_exit(regstate* regs) {
 int* proc::check_exited(pid_t pid, bool condition) {
             assert(pid == 0);
             bool zombies_exist = false;
+            auto ptableirqs = real_ptable_lock.lock();
             real_proc* real_process = real_ptable[pid_];
-            if (this->children_.front()) {
+            real_ptable_lock.unlock(ptableirqs);
+            if (real_process->children_.front()) {
                 real_proc* first_child = real_process->children_.pop_front();
                 real_process->children_.push_back(first_child);
                 real_proc* child = real_process->children_.pop_front();
@@ -1901,8 +1904,8 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
     //log_printf("in waitpid\n");
     {
         //log_printf("waitpid grabbed lock\n");
-        spinlock_guard guard(ptable_lock);
-        spinlock_guard guard(real_ptable_lock);
+        spinlock_guard ptableguard(ptable_lock);
+        spinlock_guard realptableguard(real_ptable_lock);
 
             // Specifying a pid
             if (pid != 0) {

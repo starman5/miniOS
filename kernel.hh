@@ -145,9 +145,9 @@ struct __attribute__((aligned(4096))) proc {
 };
 
 struct real_proc {
-    enum pstate_t {
-        ps_real_blank = 100, ps_real_exited = 101, ps_real_exiting
-    };
+    //enum pstate_t {
+    //    ps_real_blank = 100, ps_real_exited = 101, ps_real_exiting
+    //};
 
     pid_t pid_;
     pid_t parent_pid_ = 1;
@@ -157,7 +157,7 @@ struct real_proc {
     list<proc, &proc::thread_links_> thread_list_;
     list<real_proc, &real_proc::child_links_> children_;
 
-    pstate_t real_proc_state_ = ps_real_blank;
+    proc::pstate_t pstate_ = proc::ps_blank;
     int exit_status_ = 1;
 
     // vntable should be dynamically allocated on the heap

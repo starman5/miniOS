@@ -1,5 +1,6 @@
 #include "kernel.hh"
 #include "k-apic.hh"
+#include "k-wait.hh"
 
 cpustate cpus[MAXCPU];
 int ncpu;
