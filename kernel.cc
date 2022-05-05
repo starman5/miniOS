@@ -20,7 +20,7 @@ wait_queue sleep_wq;
 wait_queue threads_exit_wq;
 
 static void tick();
-static void boot_process_start(pid_t pid, const char* program_name);
+static void boot_process_start(pid_t pid, pid_t id, const char* program_name);
 static void init_first_process();
 static void run_init();
 static void setup_init_child();
@@ -486,6 +486,7 @@ int pipe_write(vnode* vn, uintptr_t buf, int sz) {
 //    string is an optional string passed from the boot loader.
 
 void kernel_start(const char* command) {
+    log_printf("in kernel start\n");
     init_hardware();
     consoletype = CONSOLE_NORMAL;
     console_clear();
@@ -534,7 +535,7 @@ void kernel_start(const char* command) {
 
     // start first user process
     log_printf("booting first chickadee user process\n");
-    boot_process_start(2, CHICKADEE_FIRST_PROCESS);
+    boot_process_start(2, 2, CHICKADEE_FIRST_PROCESS);
 
     setup_init_child();
 
@@ -553,6 +554,8 @@ void kernel_start(const char* command) {
 }
 
 void setup_init_child() {
+    log_printf("in setup init child\n");
+    log_printf("real_ptable[1]: %p, real_ptable[2]: %p\n", real_ptable[1], real_ptable[2]);
     real_ptable[1]->children_.push_back(real_ptable[2]);
 }
 
@@ -566,18 +569,20 @@ void init_first_process() {
     real_p_init = knew<real_proc>();
     real_p_init->pid_ = 1;
     real_p_init->pagetable_ = early_pagetable;
+    real_ptable[1] = real_p_init;
 
     // Initialize a proc
     proc* p_init = nullptr;
     p_init = knew<proc>();
     p_init->init_kernel(1, run_init);
     p_init->pid_ = 1;
+    // setting id is done by init_kernel
+    //p_init->id_ = 1;
     ptable[1] = p_init;
 
     // Add more information to the real proc
     real_p_init->thread_list_.push_back(p_init);
 
-    real_ptable[1] = real_p_init;
   
     // put the thread p_init on the runqueue
     log_printf("end init_first_process\n");
@@ -585,6 +590,7 @@ void init_first_process() {
 }
 
 void run_init() {
+    log_printf("in run init\n");
     while (true) {
         //spinlock_guard guard(ptable_lock);
         if (!real_ptable[1]->children_.front()) {
@@ -605,7 +611,7 @@ void run_init() {
 //    %rip and %rsp, gives it a stack page, and marks it as runnable.
 //    Only called at initial boot time.
 
-void boot_process_start(pid_t pid, const char* name) {
+void boot_process_start(pid_t pid, pid_t id, const char* name) {
     // look up process image in initfs
     log_printf("in boot process start\n");
     memfile_loader ld(memfile::initfs_lookup(name), kalloc_pagetable());
@@ -613,32 +619,42 @@ void boot_process_start(pid_t pid, const char* name) {
     int r = proc::load(ld);
     assert(r >= 0);
 
-    // allocate process, initialize memory
-    proc* p = knew<proc>();
-    p->init_user(pid, ld.pagetable_);
-    p->regs_->reg_rip = ld.entry_rip_;
-    log_printf("id: %i, parent_pid: %i\n", p->id_, p->parent_pid_);
+    // Allocate a new real process
+    real_proc* real_process = knew<real_proc>();
+    real_process->pid_ = pid;
+    real_process->pagetable_ = ld.pagetable_;
+    {
+        spinlock_guard realprocessguard(real_ptable_lock);
+        real_ptable[pid] = real_process;
+    }
+
+    // allocate thread, initialize memory
+    proc* th = knew<proc>();
+    th->init_user(id, ld.pagetable_);
+    th->regs_->reg_rip = ld.entry_rip_;
+    th->pid_ = pid;
+    log_printf("id: %i, parent_pid: %i\n", th->id_, th->parent_pid_);
 
     void* stkpg = kalloc(PAGESIZE);
     assert(stkpg);
-    vmiter(p, MEMSIZE_VIRTUAL - PAGESIZE).map(stkpg, PTE_PWU);
+    vmiter(th, MEMSIZE_VIRTUAL - PAGESIZE).map(stkpg, PTE_PWU);
     //uintptr_t console_page = 47104 - (47104 % 4096);
-    vmiter(p, ktext2pa(console)).try_map(ktext2pa(console), PTE_PWU);
+    vmiter(th, ktext2pa(console)).try_map(ktext2pa(console), PTE_PWU);
 
-    p->regs_->reg_rsp = MEMSIZE_VIRTUAL;
+    th->regs_->reg_rsp = MEMSIZE_VIRTUAL;
 
-    // add to process table (requires lock in case another CPU is already
+    // add to thread table (requires lock in case another CPU is already
     // running processes)
     {
         spinlock_guard guard(ptable_lock);
-        assert(!ptable[pid]);
-        ptable[pid] = p;
+        assert(!ptable[id]);
+        ptable[id] = th;
     }
 
     // add to run queue
     log_printf("end boot process start\n");
-    p->cpu_index_ = pid % ncpu;
-    cpus[p->cpu_index_].enqueue(p);
+    th->cpu_index_ = id % ncpu;
+    cpus[th->cpu_index_].enqueue(th);
 }
 
 
@@ -753,6 +769,7 @@ uintptr_t proc::syscall(regstate* regs) {
         return pid_;
 
     case SYSCALL_GETTID:
+        log_printf("gettid: %i\n", id_);
         return id_;
     
     case SYSCALL_GETPPID:
@@ -1616,12 +1633,12 @@ int proc::syscall_fork(regstate* regs) {
     // Find the next available pid by looping through the ones already used
     pid_t parent_pid = pid_;
 
-    vnode** vntable = nullptr;
-    {
-        spinlock_guard ptableguard(real_ptable_lock);
-        spinlock_guard vntableguard(real_ptable[pid_]->vntable_lock_);
-        vntable = real_ptable[pid_]->vntable_;
-    }
+    //vnode** vntable = nullptr;
+    //{
+        //spinlock_guard ptableguard(real_ptable_lock);
+        //spinlock_guard vntableguard(real_ptable[pid_]->vntable_lock_);
+        //vntable = real_ptable[pid_]->vntable_;
+    //}
 
     // Allocate a new thread
     proc* th = knew<proc>();
@@ -1727,6 +1744,7 @@ int proc::syscall_fork(regstate* regs) {
         }
         assert(p);
 
+        log_printf("p: %p\n", p);
         p->pid_ = process_number;
         p->parent_pid_ = parent_pid;
         p->pagetable_ = child_pagetable;
@@ -1735,9 +1753,11 @@ int proc::syscall_fork(regstate* regs) {
 
         // Set up the thread list and child list
         p->thread_list_.push_back(th);
+        log_printf("real_ptable[parent_pid_]: %p\n", real_ptable[parent_pid_]);
         real_ptable[parent_pid_]->children_.push_back(p);
 
         // Copy the parent real_proc's fdtable to the child real_proc's fdtable
+        log_printf("pid: %i, real_ptable[pid_]: %p\n", pid_, real_ptable[p->pid_]);
         auto irqs2 = real_ptable[pid_]->vntable_lock_.lock();
         for (int ix = 0; ix < MAX_FDS; ix++) {
             if (real_ptable[pid_]->vntable_[ix]) {
@@ -1753,7 +1773,7 @@ int proc::syscall_fork(regstate* regs) {
         th->pstate_ = ps_runnable;
         //p->real_proc_state_ = ps_runnable;
     }
-
+    log_printf("end of fork\n");
     return pid_;
 
 }
