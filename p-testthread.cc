@@ -22,6 +22,7 @@ static int thread1a(void* x) {
 
     // wait for phase 1
     while (phase != 1) {
+        //message("yielding\n");
         sys_yield();
     }
     assert_memeq(shared, "Message to child\n", 17);

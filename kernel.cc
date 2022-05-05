@@ -24,6 +24,30 @@ static void boot_process_start(pid_t pid, pid_t id, const char* program_name);
 static void init_first_process();
 static void run_init();
 static void setup_init_child();
+static void process_info();
+static void thread_info();
+
+void process_info() {
+    // real_ptable_lock must be held when calling this function
+    //auto irqs = real_ptable_lock.lock();
+    for (int i = 1; i < NPROC; i++) {
+        if (real_ptable[i]) {
+        log_printf("index: %i, pid: %i, parent_pid: %i, pagetable: %p, pstate: %i\n", i, real_ptable[i]->pid_, real_ptable[i]->parent_pid_, real_ptable[i]->pagetable_, real_ptable[i]->pstate_);
+        }
+    }
+    //real_ptable_lock.unlock(irqs);
+}
+
+void thread_info() {
+    // ptable_lock must be held when calling this function
+    //auto irqs = ptable_lock.lock();
+    for (int i = 0; i < NTHREAD; i++) {
+        if (ptable[i]) {
+        log_printf("index: %i, id: %i, pid: %i, pagetable: %p, exiting: %i, cpu_index: %i\n", i, ptable[i]->id_, ptable[i]->pid_, ptable[i]->pagetable_, ptable[i]->exiting_, ptable[i]->cpu_index_);
+        }
+    }
+    //ptable_lock.unlock(irqs);
+}
 
 
 int disk_vop_read(vnode* vn, uintptr_t addr, int sz) {
@@ -557,6 +581,14 @@ void setup_init_child() {
     log_printf("in setup init child\n");
     log_printf("real_ptable[1]: %p, real_ptable[2]: %p\n", real_ptable[1], real_ptable[2]);
     real_ptable[1]->children_.push_back(real_ptable[2]);
+    log_printf("after setup_init_child:\n");
+    auto irqs = real_ptable_lock.lock();
+    process_info();
+    real_ptable_lock.unlock(irqs);
+
+    auto irqs2 = ptable_lock.lock();
+    thread_info();
+    ptable_lock.unlock(irqs2);
 }
 
 void init_first_process() {
@@ -585,7 +617,15 @@ void init_first_process() {
 
   
     // put the thread p_init on the runqueue
-    log_printf("end init_first_process\n");
+    log_printf("after init_first_process\n");
+    auto irqs = real_ptable_lock.lock();
+    process_info();
+    real_ptable_lock.unlock(irqs);
+
+    auto irqs2 = ptable_lock.lock();
+    thread_info();
+    ptable_lock.unlock(irqs2);
+
     cpus[0].enqueue(p_init);
 }
 
@@ -658,6 +698,10 @@ void boot_process_start(pid_t pid, pid_t id, const char* name) {
     // add to run queue
     log_printf("end boot process start\n");
     th->cpu_index_ = id % ncpu;
+    auto irqs3 = real_ptable_lock.lock();
+    process_info();
+    real_ptable_lock.unlock(irqs3);
+    thread_info();
     cpus[th->cpu_index_].enqueue(th);
 }
 
@@ -779,9 +823,23 @@ uintptr_t proc::syscall(regstate* regs) {
     case SYSCALL_GETPPID:
         return parent_pid_;
 
-    case SYSCALL_YIELD:
+    case SYSCALL_YIELD: {
+        int i = 1;
+        log_printf("threads:\n");
+        while (ptable[i]) {
+            log_printf("%i\n", i);
+            i += 1;
+        }
+        log_printf("ptable[0]: %p, ptable[1]: %p\n", ptable[0], ptable[1]);
+        int j = 1;
+        log_printf("processes:\n");
+        while (real_ptable[j]) {
+            log_printf("%i\n", j);
+            j += 1;
+        }
         yield();
         return 0;
+    }
 
     case SYSCALL_PAGE_ALLOC: {
         log_printf("syscall page alloc\n");
@@ -1728,6 +1786,9 @@ int proc::syscall_fork(regstate* regs) {
 
         assert(ptable[thread_number]);
         th->cpu_index_ = thread_number % ncpu;
+        log_printf("after fork\n");
+        process_info();
+        thread_info();
         cpus[th->cpu_index_].enqueue(th);
     }
 
