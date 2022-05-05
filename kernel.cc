@@ -623,10 +623,12 @@ void boot_process_start(pid_t pid, pid_t id, const char* name) {
     real_proc* real_process = knew<real_proc>();
     real_process->pid_ = pid;
     real_process->pagetable_ = ld.pagetable_;
-    {
-        spinlock_guard realprocessguard(real_ptable_lock);
-        real_ptable[pid] = real_process;
-    }
+    //{
+    //    spinlock_guard realprocessguard(real_ptable_lock);
+    auto real_irqs = real_ptable_lock.lock();
+    real_ptable[pid] = real_process;
+    real_ptable_lock.unlock(real_irqs);
+    //}
 
     // allocate thread, initialize memory
     proc* th = knew<proc>();
@@ -645,11 +647,13 @@ void boot_process_start(pid_t pid, pid_t id, const char* name) {
 
     // add to thread table (requires lock in case another CPU is already
     // running processes)
-    {
-        spinlock_guard guard(ptable_lock);
-        assert(!ptable[id]);
-        ptable[id] = th;
-    }
+    //{
+    //    spinlock_guard guard(ptable_lock);
+    auto ptableirqs = ptable_lock.lock();
+    assert(!ptable[id]);
+    ptable[id] = th;
+    ptable_lock.unlock(ptableirqs);
+    //}
 
     // add to run queue
     log_printf("end boot process start\n");
@@ -1589,8 +1593,8 @@ int proc::syscall_clone(regstate* regs) {
         log_printf("Failed to allocate new struct proc\n");
         return E_NOENT;
     }
-    {
-        spinlock_guard guard(ptable_lock);
+        auto ptableirqs = ptable_lock.lock();
+        log_printf("able to grab lock\n");
         //Find the next available thread id (this is proc::id_)
         int thread_id = 1;
         for (; thread_id < NTHREAD; ++thread_id) {
@@ -1600,10 +1604,12 @@ int proc::syscall_clone(regstate* regs) {
         }
         if (thread_id == NTHREAD && ptable[thread_id]) {
             kfree(thread);
+            ptable_lock.unlock(ptableirqs);
             return E_NOENT;
         }
         assert(thread);
 
+        log_printf("thread: %p, thread->regs: %p, regs: %p\n", thread, thread->regs_, regs);
         // Copy the registers from the argument regs (where rdi, rsi, rdx, r12, r13, r14 contain args)
         memcpy(thread->regs_, regs, sizeof(regstate));
 
@@ -1623,7 +1629,7 @@ int proc::syscall_clone(regstate* regs) {
         thread->pstate_ = ps_runnable;
         thread->cpu_index_ = thread_id % ncpu;
         cpus[thread->cpu_index_].enqueue(thread);
-    }
+        ptable_lock.unlock(ptableirqs);
 
     return thread->id_;
 }
@@ -1774,6 +1780,7 @@ int proc::syscall_fork(regstate* regs) {
         //p->real_proc_state_ = ps_runnable;
     }
     log_printf("end of fork\n");
+    log_printf("realptablelock: %i, ptablelock: %i\n", real_ptable_lock.is_locked(), ptable_lock.is_locked());
     return pid_;
 
 }
