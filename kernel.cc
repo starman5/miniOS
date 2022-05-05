@@ -1667,6 +1667,7 @@ int proc::syscall_clone(regstate* regs) {
             return E_NOENT;
         }
         assert(thread);
+        thread->id_ = thread_id;
 
         log_printf("thread: %p, thread->regs: %p, regs: %p\n", thread, thread->regs_, regs);
         // Copy the registers from the argument regs (where rdi, rsi, rdx, r12, r13, r14 contain args)
@@ -1689,6 +1690,10 @@ int proc::syscall_clone(regstate* regs) {
         // Schedule the thread
         thread->pstate_ = ps_runnable;
         thread->cpu_index_ = thread_id % ncpu;
+        thread_info();
+        auto irqs4 = real_ptable_lock.lock();
+        process_info();
+        real_ptable_lock.unlock(irqs4);
         cpus[thread->cpu_index_].enqueue(thread);
         ptable_lock.unlock(ptableirqs);
 
@@ -1786,9 +1791,6 @@ int proc::syscall_fork(regstate* regs) {
 
         assert(ptable[thread_number]);
         th->cpu_index_ = thread_number % ncpu;
-        log_printf("after fork\n");
-        process_info();
-        thread_info();
         cpus[th->cpu_index_].enqueue(th);
     }
 
@@ -1817,8 +1819,10 @@ int proc::syscall_fork(regstate* regs) {
 
         log_printf("p: %p\n", p);
         p->pid_ = process_number;
+        th->pid_ = process_number;
         p->parent_pid_ = parent_pid;
         p->pagetable_ = child_pagetable;
+        real_ptable[process_number] = p;
 
         // TODO: what should i set pstate_ to for the real_proc?
 
@@ -1839,12 +1843,14 @@ int proc::syscall_fork(regstate* regs) {
         log_printf("fork end vntable lock\n");
         real_ptable[pid_]->vntable_lock_.unlock(irqs2);
 
-        real_ptable[process_number] = p;
+        //real_ptable[process_number] = p;
 
         th->pstate_ = ps_runnable;
         //p->real_proc_state_ = ps_runnable;
     }
-    log_printf("end of fork\n");
+    log_printf("after fork\n");
+    process_info();
+    thread_info();
     log_printf("realptablelock: %i, ptablelock: %i\n", real_ptable_lock.is_locked(), ptable_lock.is_locked());
     return pid_;
 
