@@ -75,22 +75,24 @@ void assert_fail(const char* file, int line, const char* msg,
 pid_t sys_clone(int (*function)(void*), void* arg, char* stack_top) {
     // Save registers in callee saved registers
     register uintptr_t r12 asm("r12") = reinterpret_cast<uintptr_t>(function);
-    register uintptr_t r13 asm("r13") = reinterpret_cast<uintptr_t>(arg);
-    register uintptr_t r14 asm("r14") = reinterpret_cast<uintptr_t>(stack_top);
+    register int (*fn)(void*) asm("r13") = function;
+    //register uintptr_t r14 asm("r14") = reinterpret_cast<uintptr_t>(stack_top);
     
     // Trap into kernel to actually to syscall_clone stuff
     int ret_value = make_syscall(SYSCALL_CLONE, reinterpret_cast<uintptr_t>(stack_top));
 
-    // Set the %rsp to be stack_top
-    register uintptr_t rsp asm("rsp") = reinterpret_cast<uintptr_t>(stack_top);
-
     // If in the new thread, run the function
     if (ret_value == 0) {
+        //register uintptr_t rsp asm("rsp") = reinterpret_cast<uintptr_t>(stack_top);
         function(arg);
+        make_syscall(SYSCALL_TEXIT);
+        // need to take in a status as well.  The function gives a status.  He has a wrapper function
+        //sys_texit(function(arg))
     }
 
     // exit the thread
-    return make_syscall(SYSCALL_TEXIT);
+    //return make_syscall(SYSCALL_TEXIT);
+    return ret_value;
 
     // return value is the only tricky thing here
 }

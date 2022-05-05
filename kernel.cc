@@ -1672,8 +1672,11 @@ int proc::syscall_clone(regstate* regs) {
         log_printf("thread: %p, thread->regs: %p, regs: %p\n", thread, thread->regs_, regs);
         // Copy the registers from the argument regs (where rdi, rsi, rdx, r12, r13, r14 contain args)
         regstate* new_regs = knew<regstate>();
+        // addr = reinterpret_cast<uintptr_t>(thread)
+        // thread->regs - reinterpret_cast<regstate*>(addr + PROCSTACK_SIZE) - 1
         thread->regs_ = new_regs;
         memcpy(thread->regs_, regs, sizeof(regstate));
+        thread->regs_->reg_rsi = thread->regs_->reg_rdi;
 
         // Associate the thread with the ptable (now containing threads, not true processes)
         ptable[thread_id] = thread;
@@ -1697,6 +1700,7 @@ int proc::syscall_clone(regstate* regs) {
         cpus[thread->cpu_index_].enqueue(thread);
         ptable_lock.unlock(ptableirqs);
 
+    log_printf("before returning\n");
     return thread->id_;
 }
 
@@ -1862,11 +1866,14 @@ int proc::syscall_fork(regstate* regs) {
 //    Handle read and write system calls.
 
 int proc::syscall_exit(regstate* regs) {
-        {
+        //{
             log_printf("----- sys_exit on process %i\n", id_);
-            spinlock_guard guard(ptable_lock);
+            auto ptableirqs = ptable_lock.lock();
+            auto realptableirqs = real_ptable_lock.lock();
             log_printf("ptlock\n");
             assert(ptable[this->id_] != nullptr);
+            process_info();
+            thread_info();
 
             // For every child process, reparent it to have parent process 1
             if (real_ptable[pid_]->children_.front()) {
@@ -1882,6 +1889,7 @@ int proc::syscall_exit(regstate* regs) {
             //      Once every thread has exited, then continue with 
             //      Freeing pagetable, etc
         
+            assert(real_ptable[pid_]->thread_list_.back());
             proc* current_thread = real_ptable[pid_]->thread_list_.pop_back();
             int calling_count = 0;
             while (calling_count < 2) {
@@ -1895,6 +1903,7 @@ int proc::syscall_exit(regstate* regs) {
                 real_ptable[pid_]->thread_list_.push_back(current_thread);
                 current_thread = real_ptable[pid_]->thread_list_.pop_back();
             }
+            log_printf("before block_until\n");
 
             // What until every thread has exited fully
             waiter().block_until(threads_exit_wq, [&] () {
@@ -1941,7 +1950,9 @@ int proc::syscall_exit(regstate* regs) {
 
             pagetable_ = early_pagetable;
 
-        }
+            real_ptable_lock.unlock(realptableirqs);
+            ptable_lock.unlock(ptableirqs);
+            
 
         // Update the process' pstate_ and exit status
         real_ptable[pid_]->pstate_ = proc::ps_exited;
@@ -1949,6 +1960,7 @@ int proc::syscall_exit(regstate* regs) {
         this->exit_status_ = regs->reg_rdi;
         //this->pstate_ = ps_exited;
         //this->exit_status_ = regs->reg_rdi;
+        log_printf("end of exit\n");
         
         yield_noreturn();
 }
@@ -2003,7 +2015,7 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
     {
         //log_printf("waitpid grabbed lock\n");
         //spinlock_guard ptableguard(ptable_lock);
-        spinlock_guard realptableguard(real_ptable_lock);
+        //spinlock_guard realptableguard(real_ptable_lock);
 
             // Specifying a pid
             if (pid != 0) {
