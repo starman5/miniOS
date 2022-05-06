@@ -1958,16 +1958,26 @@ int proc::syscall_exit(regstate* regs) {
             log_printf("before block_until\n");
 
             // What until every thread has exited fully
-            waiter().block_until(threads_exit_wq, [&] () {
-                // check to make sure every thread has exited fully
+            real_ptable_lock.unlock(realptableirqs);
+            ptable_lock.unlock(ptableirqs);
+
+            waiter w;
+            w.p_ = this;
+            w.block_until(threads_exit_wq, [&] () {
+                log_printf("in predicate\n");
+                // check to make sure every other thread has exited fully
                 bool all_exited = true;
                 proc* current_thread = real_ptable[pid_]->thread_list_.pop_back();
                 int calling_count = 0;
                 while (current_thread && calling_count < 2) {
                     if (current_thread == this) {
+                        log_printf("calling count += 1");
                         calling_count += 1;
                         real_ptable[pid_]->thread_list_.push_back(this);
+                        current_thread = real_ptable[pid_]->thread_list_.pop_back();
+                        continue;
                     }
+                    
                     if (ptable[current_thread->id_]) {
                         all_exited = false;
                         break;
@@ -1976,6 +1986,8 @@ int proc::syscall_exit(regstate* regs) {
                 }
                 return all_exited;
             });
+
+            log_printf("after exit block until\n");
 
             // At this point all other threads in the process have exited
 
@@ -2002,12 +2014,13 @@ int proc::syscall_exit(regstate* regs) {
 
             pagetable_ = early_pagetable;
 
-            real_ptable_lock.unlock(realptableirqs);
-            ptable_lock.unlock(ptableirqs);
+            //real_ptable_lock.unlock(realptableirqs);
+            //ptable_lock.unlock(ptableirqs);
             
 
         // Update the process' pstate_ and exit status
         real_ptable[pid_]->pstate_ = proc::ps_exited;
+        pstate_ = ps_exited;
         real_ptable[pid_]->exit_status_ = regs->reg_rdi;
         this->exit_status_ = regs->reg_rdi;
         //this->pstate_ = ps_exited;

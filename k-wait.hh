@@ -18,6 +18,7 @@ inline waiter::~waiter() {
 }
 
 inline void waiter::prepare(wait_queue& wq) {
+    log_printf("in prepare\n");
     // your code here
     p_ = current();
     //log_printf("p_: %p\n", current());
@@ -85,7 +86,9 @@ inline void waiter::wake() {
 //    Block on `wq` until `predicate()` returns true.
 template <typename F>
 inline void waiter::block_until(wait_queue& wq, F predicate) {
+    log_printf("in block until\n");
     while (true) {
+        log_printf("this->p_: %p\n", this->p_);
         if (this->p_->exiting_) {
             wake();
         }
