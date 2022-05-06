@@ -29,18 +29,20 @@ void process_main() {
             //printf("egain\n");
             sys_yield();
         }
+        printf("%i\n", ch);
         assert_gt(ch, 0);
 
-        // size_t idx = 0;
-        // while (idx != arraysize(order) && children[idx] != ch) {
-        //     ++idx;
-        // }
-        // //printf("after assertion\n");
-        // assert(idx < arraysize(order));
-        // children[idx] = 0;
+        size_t idx = 0;
+        while (idx != arraysize(order) && children[idx] != ch) {
+            printf("children[idx]: %i, ch: %i\n", children[idx], ch);
+            ++idx;
+        }
+        //printf("after assertion\n");
+        assert(idx < arraysize(order));
+        children[idx] = 0;
 
-        // console_printf("%d @%lu: exit status %d\n", ch, idx, status);
-        // assert_eq(order[idx], status);
+        console_printf("%d @%lu: exit status %d\n", ch, idx, status);
+        assert_eq(order[idx], status);
     }
     //assert_eq(sys_waitpid(0, nullptr, W_NOHANG), E_CHILD);
     printf("waitpid(0, W_NOHANG) tests succeed.\n");

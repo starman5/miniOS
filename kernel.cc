@@ -1947,7 +1947,7 @@ int proc::syscall_fork(regstate* regs) {
     //process_info();
     //thread_info();
     //log_printf("realptablelock: %i, ptablelock: %i\n", real_ptable_lock.is_locked(), ptable_lock.is_locked());
-    return pid_;
+    return p->pid_;
 
 }
 
