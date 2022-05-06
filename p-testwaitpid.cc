@@ -21,7 +21,7 @@ void process_main() {
     printf("waitpid(0, W_NOHANG) tests...\n");
     pid_t children[arraysize(order)];
     make_children(children);
-    printf("after make\n");
+    //printf("after make\n");
     for (size_t i = 0; i != arraysize(order); ++i) {
         pid_t ch;
         int status = 0;
