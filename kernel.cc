@@ -982,7 +982,9 @@ uintptr_t proc::syscall(regstate* regs) {
             this->yield();
         }*/
         log_printf("about to block\n");
-        waiter().block_until(sleep_wq, [&] () {
+        waiter w;
+        w.p_ = this;
+        w.block_until(sleep_wq, [&] () {
             return (long(wakeup_time - ticks) <= 0);
         });
         //log_printf("difference: %i, expected: %i\n", ticks - ticksoriginal, regs->reg_rdi);
@@ -2026,10 +2028,10 @@ int proc::syscall_exit(regstate* regs) {
         //this->pstate_ = ps_exited;
         //this->exit_status_ = regs->reg_rdi;
         log_printf("end of exit\n");
-        process_info();
-        thread_info();
+        //process_info();
+        //thread_info();
         log_printf("init has children? %i\n", (real_ptable[1]->children_.front() != nullptr));
-        log_printf("?: %i\n", (real_ptable[2] && real_ptable[2]->pstate_ == proc::ps_exited));
+        log_printf("?: %i\n", (ptable[2]->waited_ && ptable[2]->pstate_ == proc::ps_exited));
         
         yield_noreturn();
 }
@@ -2076,6 +2078,7 @@ int* proc::check_exited(pid_t pid, bool condition) {
                     }
                 }
             }
+            log_printf("after check: %i\n", real_process->children_.front());
             static int return_value[2];
             return_value[0] = zombies_exist;
             return_value[1] = pid;
@@ -2157,7 +2160,7 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                 }
 
                 else {
-                    //log_printf("There are no children\n");
+                    log_printf("There are no children\n");
                     //log_printf("end waitpid\n");
                     return E_CHILD;
                 }

@@ -1,6 +1,5 @@
 #include "kernel.hh"
 #include "k-apic.hh"
-#include "k-wait.hh"
 
 cpustate cpus[MAXCPU];
 int ncpu;
@@ -62,10 +61,9 @@ void cpustate::disable_irq(int irqno) {
 //    `p` must be resumable (or not runnable).
 
 void cpustate::enqueue(proc* p) {
-    log_printf("%i\n", spinlock_depth_);
     spinlock_guard guard(runq_lock_);
     if (current_ != p && !p->runq_links_.is_linked()) {
-       assert(p->resumable() || p->pstate_ != proc::ps_runnable);
+        assert(p->resumable() || p->pstate_ != proc::ps_runnable);
         runq_.push_back(p);
     }
 }
@@ -77,14 +75,11 @@ void cpustate::enqueue(proc* p) {
 //    run `yielding_from` unless no other runnable process exists.
 
 void cpustate::schedule(proc* yielding_from) {
-    //log_printf("in scheduler\n");
     assert(contains(rdrsp()));     // running on CPU stack
     assert(is_cli());              // interrupts are currently disabled
     assert(spinlock_depth_ == 0);  // no spinlocks are held
 
-    log_printf("yielding_from id: %i, pid: %i\n", yielding_from->id_, yielding_from->pid_);
-    log_printf("?: %i\n", (real_ptable[2]->waited == true && real_ptable[2]->pstate_ == proc::ps_exited));
-    if (yielding_from->pstate_ == proc::ps_exited && yielding_from->waited_ == true) {
+    if (yielding_from->pstate_ == proc::ps_exited && yielding_from->waited_) {
         log_printf("freeing struct proc\n");
         // free the stuff
         kfree(yielding_from);
@@ -94,17 +89,8 @@ void cpustate::schedule(proc* yielding_from) {
     if (!idle_task_) {
         init_idle_task();
     }
-
-    // if (yielding_from->exiting_ == true && idle_task_ && yielding_from != idle_task_) {
-    //     log_printf("freeing struct proc from exiting");
-    //     ptable[yielding_from->id_] = nullptr;
-    //     kfree(yielding_from);
-    //     threads_exit_wq.wake_all();
-    // }
-
     // don't immediately re-run idle task
     if (current_ == idle_task_) {
-        //log_printf("current = idle task\n");
         yielding_from = idle_task_;
     }
 
@@ -120,12 +106,7 @@ void cpustate::schedule(proc* yielding_from) {
         // re-enqueue old current if necessary
         proc* prev = current_;
         if (prev && prev->pstate_ == proc::ps_runnable) {
-            //assert(!(prev->regs_ && prev->yields_));            // at most one at a time
-            //assert(!prev->regs_ || contains(prev->regs_));      // `regs_` points within this
-            //assert(!prev->yields_ || contains(prev->yields_));  // same for `yields_`
             assert(prev->resumable());
-            //bool thing = prev->resumable();
-            //assert(thing);
             assert(!prev->runq_links_.is_linked());
             runq_.push_back(prev);
         }
@@ -139,7 +120,6 @@ void cpustate::schedule(proc* yielding_from) {
     }
 
     // run `current_`
-    //log_printf("running: %i\n", current_->id_);
     set_pagetable(current_->pagetable_);
     current_->resume(); // does not return
 }
@@ -160,9 +140,7 @@ void idle() {
 }
 
 void cpustate::init_idle_task() {
-    log_printf("in init idle task\n");
     assert(!idle_task_);
     idle_task_ = knew<proc>();
     idle_task_->init_kernel(-1, idle);
-    idle_task_->exiting_ = false;
 }
