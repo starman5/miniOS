@@ -31,7 +31,6 @@ static void display_children(pid_t pid);
 static void num_children(pid_t pid);
 
 void num_children(pid_t pid) {
-    for (int i = 0; i < 10; i++) {
     int count = 1;
     if (real_ptable[pid]->children_.front()) {
         //log_printf("displaying children:\n");
@@ -53,7 +52,6 @@ void num_children(pid_t pid) {
                     log_printf("no children\n");
                 }
         log_printf("num children: %i\n", count);
-    }
 
 }
 
@@ -900,17 +898,22 @@ uintptr_t proc::syscall(regstate* regs) {
     case SYSCALL_YIELD: {
         int i = 1;
         log_printf("threads:\n");
-        while (ptable[i]) {
+        while (i < NTHREAD) {
+            if (ptable[i]) {
             log_printf("%i\n", i);
+            }
             i += 1;
         }
         log_printf("ptable[0]: %p, ptable[1]: %p\n", ptable[0], ptable[1]);
         int j = 1;
         log_printf("processes:\n");
-        while (real_ptable[j]) {
+        while (j < NPROC) {
+            if (real_ptable[j]) {
             log_printf("%i\n", j);
+            }
             j += 1;
         }
+        log_printf("real_ptable 3, 4: %p, %p, %p, %p\n", real_ptable[3], real_ptable[4], real_ptable[5], real_ptable[6]);
         yield();
         return 0;
     }
@@ -1909,7 +1912,9 @@ int proc::syscall_fork(regstate* regs) {
         th->pid_ = process_number;
         p->parent_pid_ = parent_pid;
         p->pagetable_ = child_pagetable;
+        //log_printf("process number: %i\n", process_number);
         real_ptable[process_number] = p;
+        //log_printf("real_ptable[%i]: %p\n", process_number, real_ptable[process_number]);
 
         // TODO: what should i set pstate_ to for the real_proc?
 
@@ -1954,7 +1959,7 @@ int proc::syscall_fork(regstate* regs) {
 int proc::syscall_exit(regstate* regs) {
         //{
             log_printf("----- sys_exit on thread %i\n", id_);
-            num_children(pid_);
+            num_children(2);
             auto ptableirqs = ptable_lock.lock();
             auto realptableirqs = real_ptable_lock.lock();
             //log_printf("ptlock\n");
@@ -1981,6 +1986,7 @@ int proc::syscall_exit(regstate* regs) {
             //      Freeing pagetable, etc
         
             assert(real_ptable[pid_]->thread_list_.back());
+            log_printf("before loop tlist: %p\n", real_ptable[pid_]->thread_list_.back());
             proc* first_thread = real_ptable[pid_]->thread_list_.pop_back();
             proc* current_thread = first_thread;
             bool after = false;
@@ -1988,7 +1994,7 @@ int proc::syscall_exit(regstate* regs) {
             //display_threads(pid_);
             while (true) {
                 if (current_thread == first_thread && after) {
-                    //log_printf("same as first thread\n");
+                    log_printf("same as first thread\n");
                     real_ptable[pid_]->thread_list_.push_front(current_thread);
                     break;
                 }
@@ -2014,6 +2020,7 @@ int proc::syscall_exit(regstate* regs) {
                 real_ptable[pid_]->thread_list_.push_front(current_thread);
                 current_thread = real_ptable[pid_]->thread_list_.pop_back();
             }
+            log_printf("before loop tlist: %p\n", real_ptable[pid_]->thread_list_.back());
             //log_printf("before block_until\n");
 
             // What until every thread has exited fully
@@ -2036,12 +2043,18 @@ int proc::syscall_exit(regstate* regs) {
                         current_thread = real_ptable[pid_]->thread_list_.pop_back();
                         continue;
                     }
+
+                    //ptable[current_tread->id_] = nullptr;
+                    // set ptable[current_thread->id_] to nullptr in the scheduler
                     
                     if (ptable[current_thread->id_]) {
                         all_exited = false;
                         break;
                     }
                     current_thread = real_ptable[pid_]->thread_list_.pop_back();
+                }
+                if (current_thread == this) {
+                    real_ptable[pid_]->thread_list_.push_back(this);
                 }
                 return all_exited;
             });
@@ -2149,7 +2162,7 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
     log_printf("in waitpid\n");
     //num_children(pid_);
     //display_children(pid_);
-    //{
+    {
         //log_printf("waitpid grabbed lock\n");
         //spinlock_guard ptableguard(ptable_lock);
         //spinlock_guard realptableguard(real_ptable_lock);
@@ -2238,14 +2251,24 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
             //      Check how an available pid is looked for to make sure
 
             // Don't need to do this for threads in ptable because this was already done in exit
-            ptable[pid]->waited_ = true;
+            // BUT need to do it for the calling thread
+            proc* the_thread = real_ptable[pid]->thread_list_.pop_back();
+            assert(the_thread);
+            //assert(real_ptable[pid]->thread_list_.back());
+            //real_ptable[pid]->thread_list_.pop_back()->waited_ = true;
+            log_printf("thread list waitpid: %p\n", real_ptable[pid]->thread_list_.back());
+            //ptable[real_ptable[pid]->thread_list_.pop_back()->id_] = nullptr;
+            ptable[the_thread->id_]->waited_ = true;
             real_ptable[pid] = nullptr;
+            ptable[the_thread->id_] = nullptr;
+            
             //log_printf("end waitpid no error, not unlocked\n");
                             
             // Put the exit status and the pid in a register
-        //}
+        }
     
     //log_printf("end of waitpid no error\n");
+    log_printf("pid retvalue: %i\n", pid);
 
     return pid;
 
