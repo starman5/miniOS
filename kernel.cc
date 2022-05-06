@@ -2019,30 +2019,36 @@ int proc::syscall_exit(regstate* regs) {
             
 
         // Update the process' pstate_ and exit status
-        real_ptable[pid_]->pstate_ = proc::ps_exited;
+        real_ptable[pid_]->pstate_ = ps_exited;
         pstate_ = ps_exited;
         real_ptable[pid_]->exit_status_ = regs->reg_rdi;
         this->exit_status_ = regs->reg_rdi;
         //this->pstate_ = ps_exited;
         //this->exit_status_ = regs->reg_rdi;
         log_printf("end of exit\n");
+        process_info();
+        thread_info();
+        log_printf("init has children? %i\n", (real_ptable[1]->children_.front() != nullptr));
         
         yield_noreturn();
 }
 
 int* proc::check_exited(pid_t pid, bool condition) {
+    log_printf("in check exited\n");
             assert(pid == 0);
             bool zombies_exist = false;
             auto ptableirqs = real_ptable_lock.lock();
             real_proc* real_process = real_ptable[pid_];
             real_ptable_lock.unlock(ptableirqs);
             if (real_process->children_.front()) {
+                log_printf("front\n");
                 real_proc* first_child = real_process->children_.pop_front();
                 real_process->children_.push_back(first_child);
                 real_proc* child = real_process->children_.pop_front();
                 while (child != first_child) {
+                    log_printf("checking exited pid: %i\n", child->pid_)
                     if (child->pstate_ == ps_exited) {
-                        //log_printf("id %i, ps_exited\n", child->id_);
+                        log_printf("pid %i, ps_exited\n", child->pid_);
                         zombies_exist = true;
                         pid = child->pid_;
                         if (!condition) {
@@ -2077,7 +2083,7 @@ int* proc::check_exited(pid_t pid, bool condition) {
 
 int proc::syscall_waitpid(pid_t pid, int* status, int options) {
     log_printf("in waitpid\n");
-    {
+    //{
         //log_printf("waitpid grabbed lock\n");
         //spinlock_guard ptableguard(ptable_lock);
         //spinlock_guard realptableguard(real_ptable_lock);
@@ -2120,11 +2126,11 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                 // Print out children of the proces that is waiting, for debugging purposes
                 if (real_ptable[pid_]->children_.front()) {
                     real_proc* first_child = real_ptable[pid_]->children_.pop_front();
-                    //log_printf("child id: %i\n", first_child->id_);
+                    log_printf("child id: %i\n", first_child->pid_);
                     real_ptable[pid_]->children_.push_back(first_child);
                     real_proc* child = real_ptable[pid_]->children_.pop_front();
                     while (child != first_child) {
-                        //log_printf("child id: %i\n", child->id_);
+                        log_printf("child id: %i\n", child->pid_);
                         real_ptable[pid_]->children_.push_back(child);
                         child = real_ptable[pid_]->children_.pop_front();
                     }
@@ -2136,7 +2142,7 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                     int* zombies_exist = check_exited(pid, true);
 
                     if (zombies_exist[0] == 0) {
-                        //log_printf("nothing to wait for\n");
+                        log_printf("nothing to wait for\n");
                         if (options == W_NOHANG) {
                             //log_printf("end waitpid\n");
                             return E_AGAIN;
@@ -2170,7 +2176,7 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
             log_printf("end waitpid no error, not unlocked\n");
                             
             // Put the exit status and the pid in a register
-        }
+        //}
     
     log_printf("end of waitpid no error\n");
 
