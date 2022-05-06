@@ -82,7 +82,9 @@ void cpustate::schedule(proc* yielding_from) {
     assert(is_cli());              // interrupts are currently disabled
     assert(spinlock_depth_ == 0);  // no spinlocks are held
 
-    if (yielding_from->pstate_ == proc::ps_exited && yielding_from->waited_) {
+    log_printf("yielding_from id: %i, pid: %i\n", yielding_from->id_, yielding_from->pid_);
+    log_printf("?: %i\n", (real_ptable[2]->waited == true && real_ptable[2]->pstate_ == proc::ps_exited));
+    if (yielding_from->pstate_ == proc::ps_exited && yielding_from->waited_ == true) {
         log_printf("freeing struct proc\n");
         // free the stuff
         kfree(yielding_from);
@@ -102,6 +104,7 @@ void cpustate::schedule(proc* yielding_from) {
 
     // don't immediately re-run idle task
     if (current_ == idle_task_) {
+        //log_printf("current = idle task\n");
         yielding_from = idle_task_;
     }
 

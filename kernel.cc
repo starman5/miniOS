@@ -2029,12 +2029,13 @@ int proc::syscall_exit(regstate* regs) {
         process_info();
         thread_info();
         log_printf("init has children? %i\n", (real_ptable[1]->children_.front() != nullptr));
+        log_printf("?: %i\n", (real_ptable[2] && real_ptable[2]->pstate_ == proc::ps_exited));
         
         yield_noreturn();
 }
 
 int* proc::check_exited(pid_t pid, bool condition) {
-    log_printf("in check exited\n");
+            log_printf("in check exited\n");
             assert(pid == 0);
             bool zombies_exist = false;
             auto ptableirqs = real_ptable_lock.lock();
@@ -2046,7 +2047,7 @@ int* proc::check_exited(pid_t pid, bool condition) {
                 real_process->children_.push_back(first_child);
                 real_proc* child = real_process->children_.pop_front();
                 while (child != first_child) {
-                    log_printf("checking exited pid: %i\n", child->pid_)
+                    log_printf("checking exited pid: %i\n", child->pid_);
                     if (child->pstate_ == ps_exited) {
                         log_printf("pid %i, ps_exited\n", child->pid_);
                         zombies_exist = true;
@@ -2060,8 +2061,9 @@ int* proc::check_exited(pid_t pid, bool condition) {
                     child = real_process->children_.pop_front();
                 }
                 if (child == first_child) {
+                    log_printf("checking exited pid: %i\n", child->pid_);
                     if (child->pstate_ == ps_exited) {
-                        //log_printf("zombies is true\n");
+                        log_printf("zombies is true\n");
                         zombies_exist = true;
                         pid = child->pid_;
                         if (!condition) {
@@ -2077,7 +2079,7 @@ int* proc::check_exited(pid_t pid, bool condition) {
             static int return_value[2];
             return_value[0] = zombies_exist;
             return_value[1] = pid;
-            //log_printf("zombies_exist: %i, pid: %i\n", zombies_exist, pid);
+            log_printf("zombies_exist: %i, pid: %i\n", zombies_exist, pid);
             return return_value;
 }
 
@@ -2163,7 +2165,8 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
             
             if (status) {
                 *status = ptable[pid]->exit_status_;
-                //log_printf("after exit status set\n");
+                log_printf("after exit status set\n");
+                log_printf("status: %i\n", ptable[pid]->exit_status_);
             }
 
                             
