@@ -8,7 +8,7 @@ static void make_children(pid_t* children) {
     for (size_t i = 0; i != arraysize(order); ++i) {
         pid_t p = sys_fork();
         if (p == 0) {
-            sys_msleep(order[i] * 100);
+            //sys_msleep(order[i] * 100);
             printf("about to exit\n");
             sys_exit(order[i]);
         }

@@ -602,11 +602,11 @@ void setup_init_child() {
     real_ptable[1]->children_.push_back(real_ptable[2]);
     log_printf("after setup_init_child:\n");
     auto irqs = real_ptable_lock.lock();
-    process_info();
+    //process_info();
     real_ptable_lock.unlock(irqs);
 
     auto irqs2 = ptable_lock.lock();
-    thread_info();
+    //thread_info();
     ptable_lock.unlock(irqs2);
 }
 
@@ -638,11 +638,11 @@ void init_first_process() {
     // put the thread p_init on the runqueue
     log_printf("after init_first_process\n");
     auto irqs = real_ptable_lock.lock();
-    process_info();
+    //process_info();
     real_ptable_lock.unlock(irqs);
 
     auto irqs2 = ptable_lock.lock();
-    thread_info();
+    //thread_info();
     ptable_lock.unlock(irqs2);
 
     cpus[0].enqueue(p_init);
@@ -682,6 +682,7 @@ void boot_process_start(pid_t pid, pid_t id, const char* name) {
     real_proc* real_process = knew<real_proc>();
     real_process->pid_ = pid;
     real_process->pagetable_ = ld.pagetable_;
+    real_process->parent_pid_ = 1;
     //{
     //    spinlock_guard realprocessguard(real_ptable_lock);
     auto real_irqs = real_ptable_lock.lock();
@@ -694,7 +695,10 @@ void boot_process_start(pid_t pid, pid_t id, const char* name) {
     th->init_user(id, ld.pagetable_);
     th->regs_->reg_rip = ld.entry_rip_;
     th->pid_ = pid;
+    th->parent_pid_ = 1;
     log_printf("id: %i, parent_pid: %i\n", th->id_, th->parent_pid_);
+
+    real_process->thread_list_.push_back(th);
 
     void* stkpg = kalloc(PAGESIZE);
     assert(stkpg);
@@ -718,9 +722,9 @@ void boot_process_start(pid_t pid, pid_t id, const char* name) {
     log_printf("end boot process start\n");
     th->cpu_index_ = id % ncpu;
     auto irqs3 = real_ptable_lock.lock();
-    process_info();
+    //process_info();
     real_ptable_lock.unlock(irqs3);
-    thread_info();
+    //thread_info();
     cpus[th->cpu_index_].enqueue(th);
 }
 
@@ -810,6 +814,7 @@ void proc::exception(regstate* regs) {
 //    process in `%rax`.
 
 uintptr_t proc::syscall(regstate* regs) {
+    log_printf("regs: %p\n", regs);
     log_printf("proc %d: syscall %ld @%p\n", id_, regs->reg_rax, regs->reg_rip);
 
     // Record most recent user-mode %rip.
@@ -1717,14 +1722,16 @@ int proc::syscall_clone(regstate* regs) {
         // Schedule the thread
         thread->pstate_ = ps_runnable;
         thread->cpu_index_ = thread_id % ncpu;
-        thread_info();
+        //thread_info();
+        ptable_lock.unlock(ptableirqs);
         auto irqs4 = real_ptable_lock.lock();
-        process_info();
+        real_ptable[thread->pid_]->thread_list_.push_back(thread);
+        //process_info();
         real_ptable_lock.unlock(irqs4);
         cpus[thread->cpu_index_].enqueue(thread);
-        ptable_lock.unlock(ptableirqs);
 
     log_printf("before returning\n");
+
     return thread->id_;
 }
 
@@ -1877,8 +1884,8 @@ int proc::syscall_fork(regstate* regs) {
         //p->real_proc_state_ = ps_runnable;
     }
     log_printf("after fork\n");
-    process_info();
-    thread_info();
+    //process_info();
+    //thread_info();
     log_printf("realptablelock: %i, ptablelock: %i\n", real_ptable_lock.is_locked(), ptable_lock.is_locked());
     return pid_;
 
@@ -1915,21 +1922,37 @@ int proc::syscall_exit(regstate* regs) {
             //      Freeing pagetable, etc
         
             assert(real_ptable[pid_]->thread_list_.back());
-            proc* current_thread = real_ptable[pid_]->thread_list_.pop_back();
-            int calling_count = 0;
-            display_threads(pid_);
-            while (calling_count < 2) {
+            proc* first_thread = real_ptable[pid_]->thread_list_.pop_back();
+            proc* current_thread = first_thread;
+            bool after = false;
+            //int calling_count = 0;
+            //display_threads(pid_);
+            while (true) {
+                if (current_thread == first_thread && after) {
+                    log_printf("same as first thread\n");
+                    real_ptable[pid_]->thread_list_.push_front(current_thread);
+                    break;
+                }
+                
+                after = true;
                 // Exit the calling thread last
                 if (current_thread == this) {
-                    log_printf("increment\n");
-                    calling_count += 1;
-                    real_ptable[pid_]->thread_list_.push_back(this);
+                    log_printf("current thread\n");
+                    //calling_count += 1;
+                    // if (calling_count == 2) {
+                    //     real_ptable[pid_]->thread_list_.push_back(this);
+                    //     break;
+                    // }
+                    real_ptable[pid_]->thread_list_.push_front(current_thread);
+                    current_thread = real_ptable[pid_]->thread_list_.pop_back();
+                    log_printf("after current thread\n");
+                    continue;
                 }
 
                 log_printf("current_thread: %p\n", current_thread);
                 log_printf("real_ptable[pid_]: %p\n", real_ptable[pid_]);
                 current_thread->exiting_ = true;
-                real_ptable[pid_]->thread_list_.push_back(current_thread);
+                real_ptable[pid_]->thread_list_.push_front(current_thread);
                 current_thread = real_ptable[pid_]->thread_list_.pop_back();
             }
             log_printf("before block_until\n");
@@ -2040,7 +2063,7 @@ int* proc::check_exited(pid_t pid, bool condition) {
 }
 
 int proc::syscall_waitpid(pid_t pid, int* status, int options) {
-    //log_printf("in waitpid\n");
+    log_printf("in waitpid\n");
     {
         //log_printf("waitpid grabbed lock\n");
         //spinlock_guard ptableguard(ptable_lock);

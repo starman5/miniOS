@@ -65,7 +65,7 @@ void cpustate::enqueue(proc* p) {
     log_printf("%i\n", spinlock_depth_);
     spinlock_guard guard(runq_lock_);
     if (current_ != p && !p->runq_links_.is_linked()) {
-        assert(p->resumable() || p->pstate_ != proc::ps_runnable);
+       assert(p->resumable() || p->pstate_ != proc::ps_runnable);
         runq_.push_back(p);
     }
 }
@@ -117,7 +117,12 @@ void cpustate::schedule(proc* yielding_from) {
         // re-enqueue old current if necessary
         proc* prev = current_;
         if (prev && prev->pstate_ == proc::ps_runnable) {
+            //assert(!(prev->regs_ && prev->yields_));            // at most one at a time
+            //assert(!prev->regs_ || contains(prev->regs_));      // `regs_` points within this
+            //assert(!prev->yields_ || contains(prev->yields_));  // same for `yields_`
             assert(prev->resumable());
+            //bool thing = prev->resumable();
+            //assert(thing);
             assert(!prev->runq_links_.is_linked());
             runq_.push_back(prev);
         }

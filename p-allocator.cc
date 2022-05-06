@@ -16,8 +16,8 @@ void process_main() {
     }
 
     // Fork three new copies. (But ignore failures.)
-    //(void) sys_fork();
-    //(void) sys_fork();
+    (void) sys_fork();
+    (void) sys_fork();
 
     pid_t p = sys_getpid();
     srand(p);
