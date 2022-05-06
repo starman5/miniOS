@@ -362,7 +362,7 @@ int error_vprintf(int cpos, int color, const char* format, va_list val) {
     auto& kbd = keyboardstate::get();
     kbd.state_ = kbd.fail;
     while (true) {
-        log_printf("pleaseee\n");
+        //log_printf("pleaseee\n");
         kbd.handle_interrupt();
     }
 }

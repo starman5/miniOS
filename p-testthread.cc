@@ -37,7 +37,7 @@ static int thread1a(void* x) {
         sys_yield();
     }
 
-    // read from pipe, write to pipe
+    //read from pipe, write to pipe
     char buf[100];
     memset(buf, 0, sizeof(buf));
     ssize_t n = sys_read(pfd[0], buf, sizeof(buf));
@@ -48,6 +48,8 @@ static int thread1a(void* x) {
     message("piping to main");
     n = sys_write(pfd[1], "Hi", 2);
     assert_eq(n, 2);
+    printf("thing\n");
+    message("hii\n");
 
     sys_texit(0);
 }

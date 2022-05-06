@@ -106,6 +106,13 @@ void cpustate::schedule(proc* yielding_from) {
         // re-enqueue old current if necessary
         proc* prev = current_;
         if (prev && prev->pstate_ == proc::ps_runnable) {
+            if (!prev->resumable()) {
+                log_printf("prev: %i\n", prev->id_);
+                log_printf("yielding from: %i\n", yielding_from->id_);
+                log_printf("regs: %p\n", prev->regs_);
+                log_printf("yields: %p\n", prev->yields_);
+                log_printf("pid: %i, id: %i, pagetable: %p\n", prev->pid_, prev->id_, prev->pagetable_);
+            }
             assert(prev->resumable());
             assert(!prev->runq_links_.is_linked());
             runq_.push_back(prev);

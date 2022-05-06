@@ -647,15 +647,16 @@ void kernel_start(const char* command) {
 void setup_init_child() {
     log_printf("in setup init child\n");
     log_printf("real_ptable[1]: %p, real_ptable[2]: %p\n", real_ptable[1], real_ptable[2]);
+    log_printf("regs: %p\n", ptable[2]->regs_);
     real_ptable[1]->children_.push_back(real_ptable[2]);
     log_printf("after setup_init_child:\n");
-    auto irqs = real_ptable_lock.lock();
+    //auto irqs = real_ptable_lock.lock();
     //process_info();
-    real_ptable_lock.unlock(irqs);
+    //real_ptable_lock.unlock(irqs);
 
-    auto irqs2 = ptable_lock.lock();
+    //auto irqs2 = ptable_lock.lock();
     //thread_info();
-    ptable_lock.unlock(irqs2);
+    //ptable_lock.unlock(irqs2);
 }
 
 void init_first_process() {
@@ -756,6 +757,7 @@ void boot_process_start(pid_t pid, pid_t id, const char* name) {
 
     th->regs_->reg_rsp = MEMSIZE_VIRTUAL;
 
+    log_printf("boot process start regs: %i, %p\n", th->id_, th->regs_);
     // add to thread table (requires lock in case another CPU is already
     // running processes)
     //{
@@ -862,7 +864,8 @@ void proc::exception(regstate* regs) {
 //    process in `%rax`.
 
 uintptr_t proc::syscall(regstate* regs) {
-    log_printf("regs: %p\n", regs);
+    log_printf("syscall regs: %p\n", this->regs_);
+    log_printf("ptable[2]->regs_: %p\n", ptable[2]->regs_);
     log_printf("proc %d: syscall %ld @%p\n", id_, regs->reg_rax, regs->reg_rip);
 
     // Record most recent user-mode %rip.
@@ -1706,6 +1709,7 @@ int proc::syscall_dup2(regstate* regs) {
 
 int proc::syscall_texit(regstate* regs) {
     log_printf("in syscall_texit\n");
+    log_printf("texit regs: %p\n", regs_);
     // Check if there are other threads in the real_proc
     auto irqs = real_ptable_lock.lock();
     real_proc* associated_process = real_ptable[pid_];
@@ -1713,13 +1717,18 @@ int proc::syscall_texit(regstate* regs) {
     proc* back_thread = associated_process->thread_list_.pop_back();
     bool other_threads = (associated_process->thread_list_.front());
     associated_process->thread_list_.push_back(back_thread);
+    //log_printf("other threads: %i\n", other_threads)
 
     if (!other_threads) {
         log_printf("going into syscall exit\n");
-        log_printf("regs: %p\n", regs);
+        log_printf("regs: %p\n", regs_);
         syscall_exit(regs);
     }
     else {
+        //process_info();
+        //thread_info();
+        pstate_ = ps_exited;
+        ptable[id_] = nullptr;
         // Go into the scheduler, where the proc is freed, but
         // the pagetable and everything associated with the real_proc are not freed
         yield_noreturn();
@@ -1728,6 +1737,7 @@ int proc::syscall_texit(regstate* regs) {
 
 int proc::syscall_clone(regstate* regs) {
     log_printf("in clone kernel code\n");
+    log_printf("clone regs: %p\n", this->regs_);
 
     // Create a new struct proc (thread)
     proc* thread = knew<proc>();
@@ -1753,7 +1763,7 @@ int proc::syscall_clone(regstate* regs) {
         assert(thread);
         thread->id_ = thread_id;
 
-        log_printf("thread: %p, thread->regs: %p, regs: %p\n", thread, thread->regs_, regs);
+        //log_printf("thread: %p, thread->regs: %p, regs: %p\n", thread, thread->regs_, regs);
         // Copy the registers from the argument regs (where rdi, rsi, rdx, r12, r13, r14 contain args)
         //regstate* new_regs = knew<regstate>();
         uintptr_t addr = reinterpret_cast<uintptr_t>(thread);
@@ -1783,6 +1793,7 @@ int proc::syscall_clone(regstate* regs) {
         real_ptable[thread->pid_]->thread_list_.push_back(thread);
         //process_info();
         real_ptable_lock.unlock(irqs4);
+        log_printf("thread->regs: %p\n", thread->regs_);
         cpus[thread->cpu_index_].enqueue(thread);
 
     log_printf("before returning\n");
@@ -1869,7 +1880,10 @@ int proc::syscall_fork(regstate* regs) {
     
         // Copy over the registers from the argument regs
         //log_printf("th->regs_: %p\n", th->regs_);
+        uintptr_t addr = reinterpret_cast<uintptr_t>(th);
+        th->regs_ = reinterpret_cast<regstate*>(addr + PROCSTACK_SIZE) - 1;
         memcpy(th->regs_, regs, sizeof(regstate));
+        log_printf("fork regs_: %p\n", regs_);
 
         ptable[thread_number] = th;
 
@@ -2104,6 +2118,7 @@ int proc::syscall_exit(regstate* regs) {
         //log_printf("init has children? %i\n", (real_ptable[1]->children_.front() != nullptr));
         //log_printf("?: %i\n", (ptable[2]->waited_ && ptable[2]->pstate_ == proc::ps_exited));
         //num_children(pid_);
+        log_printf("after exit regs: %p\n", regs_);
         
         yield_noreturn();
 }
