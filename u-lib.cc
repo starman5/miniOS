@@ -84,8 +84,8 @@ pid_t sys_clone(int (*function)(void*), void* arg, char* stack_top) {
     // If in the new thread, run the function
     if (ret_value == 0) {
         //register uintptr_t rsp asm("rsp") = reinterpret_cast<uintptr_t>(stack_top);
-        function(arg);
-        make_syscall(SYSCALL_TEXIT);
+        int thing = function(arg);
+        make_syscall(SYSCALL_TEXIT, reinterpret_cast<int>(thing));
         // need to take in a status as well.  The function gives a status.  He has a wrapper function
         //sys_texit(function(arg))
     }
