@@ -1734,11 +1734,11 @@ int proc::syscall_texit(regstate* regs) {
     else {
         //process_info();
         //thread_info();
-        pstate_ = ps_exited;
         real_ptable[pid_]->thread_list_.erase(this);
         associated_process->thread_list_lock_.unlock(threadirqs);
         ptable[id_] = nullptr;
         exiting_ = true;
+        pstate_ = ps_exited;
         // Go into the scheduler, where the proc is freed, but
         // the pagetable and everything associated with the real_proc are not freed
         yield_noreturn();
@@ -2054,7 +2054,8 @@ int proc::syscall_exit(regstate* regs) {
                 //log_printf("current_thread: %p\n", current_thread);
                 //log_printf("real_ptable[pid_]: %p\n", real_ptable[pid_]);
                 current_thread->exiting_ = true;
-                current_thread->pstate_ = ps_exited;
+                //current_thread->go_ = true;
+                //current_thread->pstate_ = ps_exited;
                 real_ptable[pid_]->thread_list_.push_front(current_thread);
                 current_thread = real_ptable[pid_]->thread_list_.pop_back();
             }

@@ -84,7 +84,14 @@ void cpustate::schedule(proc* yielding_from) {
     // }
     assert(spinlock_depth_ == 0);  // no spinlocks are held
 
+    if (!yielding_from) {
+        log_printf("y is nullptr\n");
+    }
+    if (yielding_from) {
+        log_printf("y: %i\n", yielding_from->id_);
+    }
     if (yielding_from->pstate_ == proc::ps_exited && (yielding_from->waited_ || yielding_from->exiting_)) {
+        log_printf("go: %i\n", yielding_from->go_);
         log_printf("freeing struct proc\n");
         // free the stuff
         //kfree(yielding_from);
@@ -107,6 +114,10 @@ void cpustate::schedule(proc* yielding_from) {
         //if (yielding_from->exiting_) {
         //    threads_exit_wq.wake_all();
         //}
+    }
+    if (yielding_from && yielding_from->exiting_ == true && ptable[yielding_from->id_]) {
+        ptable[yielding_from->id_] = nullptr;
+        threads_exit_wq.wake_all();
     }
 
     // initialize idle task

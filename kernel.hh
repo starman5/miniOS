@@ -83,6 +83,8 @@ struct __attribute__((aligned(4096))) proc {
         int canary_;
 
         bool exiting_ = false;
+
+        bool go_ = false;
         
     #if HAVE_SANITIZERS
         int sanitizer_status_ = 0;
