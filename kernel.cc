@@ -1090,14 +1090,17 @@ uintptr_t proc::syscall(regstate* regs) {
         auto irqs = real_process->vntable_lock_.lock();
         log_printf("proc %i closing fd %i\n", this->id_, fd);
         log_printf("close: %p\n", bufcache::get().dirty_list_.front());
+        if (real_process->vntable_[fd]->is_pipe) {
+            log_printf("is pipe\n");
+        }
         if (fd < 0 or fd >= MAX_FDS or !real_process->vntable_[fd]) {
             log_printf("bad close\n");
             real_process->vntable_lock_.unlock(irqs);
             return E_BADF;
         }
-
+        log_printf("got here\n");
         chkfs::inode* inod = (chkfs::inode*) real_process->vntable_[fd]->vn_data_;
-        log_printf("closing block %i\n", inod->entry()->bn_);
+        //log_printf("closing block %i\n", inod->entry()->bn_);
         log_printf("vnref: %i\n", real_process->vntable_[fd]->vn_refcount_);
         log_printf("hi\n");
         assert(real_process->vntable_[fd]);
@@ -2070,7 +2073,7 @@ int proc::syscall_exit(regstate* regs) {
             waiter w;
             w.p_ = this;
             w.block_until(threads_exit_wq, [&] () {
-                //log_printf("in predicate\n");
+                log_printf("in predicate\n");
                 // check to make sure every other thread has exited fully
                 bool all_exited = true;
                 proc* current_thread = real_ptable[pid_]->thread_list_.pop_back();
@@ -2212,6 +2215,7 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
 
             // Specifying a pid
             if (pid != 0) {
+                log_printf("real_ptable[pid]: %p\n", real_ptable[pid]);
                 if (real_ptable[pid] && real_ptable[pid]->pstate_ == proc::ps_exited) {
                     //log_printf("ptable pid and ps_exited\n");
                     real_ptable[pid_]->children_.erase(real_ptable[pid]);
@@ -2260,6 +2264,7 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                         real_ptable[pid_]->children_.push_back(child);
                     }
                 }*/
+                log_printf("real_ptable[pid_]: %p\n", real_ptable[pid_]);
                 if (real_ptable[pid_]->children_.front()) {
                     int* zombies_exist = check_exited(pid, true);
 

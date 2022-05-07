@@ -18,7 +18,7 @@ inline waiter::~waiter() {
 }
 
 inline void waiter::prepare(wait_queue& wq) {
-    //log_printf("in prepare\n");
+    log_printf("in prepare\n");
     // your code here
     p_ = current();
     //log_printf("p_: %p\n", current());
