@@ -2229,7 +2229,7 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                             return E_AGAIN;
                         }
                         else {
-                            //log_printf("ptable[pid] before goto: %p\n", ptable[pid]);
+                            log_printf("ptable[pid] before goto: %p\n", ptable[pid]);
                             // block until its ps_exited, then call proc::syscall_waitpid
                             goto block;
                         }
@@ -2287,8 +2287,9 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                     return E_CHILD;
                 }
             }
-            
+            log_printf("status: %p\n", status);
             if (status) {
+                log_printf("exit status ptablepid: %p\n", ptable[pid]);
                 *status = ptable[pid]->exit_status_;
                 //log_printf("after exit status set\n");
                 //log_printf("status: %i\n", ptable[pid]->exit_status_);
@@ -2300,6 +2301,7 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
 
             // Don't need to do this for threads in ptable because this was already done in exit
             // BUT need to do it for the calling thread
+            log_printf("real_ptablepid: %p\n", real_ptable[pid]);
             proc* the_thread = real_ptable[pid]->thread_list_.pop_back();
             assert(the_thread);
             //assert(real_ptable[pid]->thread_list_.back());

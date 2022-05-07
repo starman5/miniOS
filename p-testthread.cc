@@ -207,6 +207,7 @@ void process_main() {
         test3();
     }
     status = 0;
+    message("before waitpid\n");
     ch = sys_waitpid(p, &status);
     assert_eq(ch, p);
     assert_eq(status, 161);
