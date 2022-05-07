@@ -1739,7 +1739,7 @@ int proc::syscall_texit(regstate* regs) {
         pstate_ = ps_exited;
         real_ptable[pid_]->thread_list_.erase(this);
         associated_process->thread_list_lock_.unlock(threadirqs);
-        ptable[id_] = nullptr;
+        //ptable[id_] = nullptr;
         exiting_ = true;
         // Go into the scheduler, where the proc is freed, but
         // the pagetable and everything associated with the real_proc are not freed
@@ -2059,6 +2059,8 @@ int proc::syscall_exit(regstate* regs) {
                 real_ptable[pid_]->thread_list_.push_front(current_thread);
                 current_thread = real_ptable[pid_]->thread_list_.pop_back();
             }
+            this->exiting_ = true;
+            this->pstate_ = ps_exited;
             //real_ptable[pid_]->thread_list_lock_.unlock(threadirqs);
             log_printf("before loop tlist: %p\n", real_ptable[pid_]->thread_list_.back());
             //log_printf("before block_until\n");
@@ -2072,13 +2074,15 @@ int proc::syscall_exit(regstate* regs) {
             // A thread is "marked" as fully exiting if it is no longer in the ptable
             waiter w;
             w.p_ = this;
+            log_printf("this->exiting_: %i\n", this->exiting_);
             w.block_until(threads_exit_wq, [&] () {
                 log_printf("in predicate\n");
                 // check to make sure every other thread has exited fully
                 bool all_exited = true;
                 proc* current_thread = real_ptable[pid_]->thread_list_.pop_back();
+                log_printf("current_thread: %p\n", current_thread);
                 int calling_count = 0;
-                while (current_thread && calling_count < 2) {
+                while (calling_count < 2) {
                     if (current_thread == this) {
                         //log_printf("calling count += 1");
                         calling_count += 1;
@@ -2095,6 +2099,7 @@ int proc::syscall_exit(regstate* regs) {
                         real_ptable[pid_]->thread_list_.push_front(current_thread);
                         break;
                     }
+                    real_ptable[pid_]->thread_list_.push_front(current_thread);
                     current_thread = real_ptable[pid_]->thread_list_.pop_back();
                 }
                 if (current_thread == this) {
@@ -2205,7 +2210,7 @@ int* proc::check_exited(pid_t pid, bool condition) {
 }
 
 int proc::syscall_waitpid(pid_t pid, int* status, int options) {
-    log_printf("in waitpid\n");
+    log_printf("in waitpid, pid = %i\n", pid);
     //num_children(pid_);
     //display_children(pid_);
     {
@@ -2302,15 +2307,22 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
             // Don't need to do this for threads in ptable because this was already done in exit
             // BUT need to do it for the calling thread
             log_printf("real_ptablepid: %p\n", real_ptable[pid]);
-            proc* the_thread = real_ptable[pid]->thread_list_.pop_back();
-            assert(the_thread);
+            //proc* the_thread = real_ptable[pid]->thread_list_.pop_back();
+            //assert(the_thread);
             //assert(real_ptable[pid]->thread_list_.back());
             //real_ptable[pid]->thread_list_.pop_back()->waited_ = true;
-            log_printf("thread list waitpid: %p\n", real_ptable[pid]->thread_list_.back());
+            //log_printf("thread list waitpid: %p\n", real_ptable[pid]->thread_list_.back());
             //ptable[real_ptable[pid]->thread_list_.pop_back()->id_] = nullptr;
-            ptable[the_thread->id_]->waited_ = true;
+            //ptable[the_thread->id_]->waited_ = true;
+            // Set every thread waited_ to true and simultaneously remove them from thread_list_
+            proc* current_thread = real_ptable[pid]->thread_list_.pop_back();
+            while (current_thread) {
+                current_thread->waited_ = true;
+                ptable[current_thread->id_] = nullptr;
+                current_thread = real_ptable[pid]->thread_list_.pop_back();
+            }
             real_ptable[pid] = nullptr;
-            ptable[the_thread->id_] = nullptr;
+            //ptable[the_thread->id_] = nullptr;
             
             //log_printf("end waitpid no error, not unlocked\n");
                             

@@ -90,10 +90,12 @@ void cpustate::schedule(proc* yielding_from) {
         //kfree(yielding_from);
 
         if (yielding_from->exiting_) {
-            auto irqs = ptable_lock.lock();
-            ptable[yielding_from->id_] = nullptr;
-            ptable_lock.unlock(irqs);
-            kfree(yielding_from);
+            //auto irqs = ptable_lock.lock();
+            if (yielding_from->waited_) {
+                ptable[yielding_from->id_] = nullptr;
+                // ptable_lock.unlock(irqs);
+                kfree(yielding_from);
+            }
             threads_exit_wq.wake_all();
         }
         
