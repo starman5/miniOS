@@ -122,7 +122,7 @@ bool bcentry::load(irqstate& irqs, bcentry_clean_function cleaner) {
             //log_printf("about to bc wakeall\n");
             bc.read_wq_.wake_all();
         } else if (estate_ == es_loading) {
-            //log_printf("es_loading\n");
+            log_printf("es_loading\n");
             waiter().block_until(bc.read_wq_, [&] () {
                     return estate_ != es_loading;
                 }, lock_, irqs);

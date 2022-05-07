@@ -537,6 +537,7 @@ int pipe_read(vnode* vn, uintptr_t buf, int sz) {
     //}
     auto irqs = pipe_buffer->bbuffer_lock.lock();
     waiter w;
+    //w.p_ = this;
     int thing;
     log_printf("here\n");
     //log_printf("%p\n", w.wq_);
@@ -1554,6 +1555,7 @@ int proc::syscall_open(regstate* regs) {
     
     auto ptableirqs = real_ptable_lock.lock();
     real_proc* real_process = real_ptable[pid_];
+    real_ptable_lock.unlock(ptableirqs);
 
     auto irqs = real_process->vntable_lock_.lock();
     bool existsSpace = false;
@@ -2008,7 +2010,7 @@ int proc::syscall_exit(regstate* regs) {
             // TODO: exit every thread associated with this real_proc.
             //      Once every thread has exited, then continue with 
             //      Freeing pagetable, etc
-            auto threadirqs = real_ptable[pid_]->thread_list_lock_.lock();
+            //auto threadirqs = real_ptable[pid_]->thread_list_lock_.lock();
             assert(real_ptable[pid_]->thread_list_.back());
             log_printf("before loop tlist: %p\n", real_ptable[pid_]->thread_list_.back());
             proc* first_thread = real_ptable[pid_]->thread_list_.pop_back();
@@ -2054,7 +2056,7 @@ int proc::syscall_exit(regstate* regs) {
                 real_ptable[pid_]->thread_list_.push_front(current_thread);
                 current_thread = real_ptable[pid_]->thread_list_.pop_back();
             }
-            real_ptable[pid_]->thread_list_lock_.unlock(threadirqs);
+            //real_ptable[pid_]->thread_list_lock_.unlock(threadirqs);
             log_printf("before loop tlist: %p\n", real_ptable[pid_]->thread_list_.back());
             //log_printf("before block_until\n");
 

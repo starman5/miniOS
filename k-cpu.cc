@@ -78,6 +78,10 @@ void cpustate::enqueue(proc* p) {
 void cpustate::schedule(proc* yielding_from) {
     assert(contains(rdrsp()));     // running on CPU stack
     assert(is_cli());              // interrupts are currently disabled
+    // if (yielding_from && real_ptable[yielding_from->pid_]) {
+    // assert(!real_ptable[yielding_from->pid_]->thread_list_lock_.is_locked());
+    // assert(!real_ptable[yielding_from->pid_]->vntable_lock_.is_locked());
+    // }
     assert(spinlock_depth_ == 0);  // no spinlocks are held
 
     if (yielding_from->pstate_ == proc::ps_exited && (yielding_from->waited_ || yielding_from->exiting_)) {

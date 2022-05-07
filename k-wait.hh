@@ -89,7 +89,7 @@ inline void waiter::block_until(wait_queue& wq, F predicate) {
     //log_printf("in block until\n");
     while (true) {
         //log_printf("this->p_: %p\n", this->p_);
-        if (this->p_->exiting_) {
+        if (this->p_ && this->p_->exiting_) {
             wake();
         }
         //log_printf("in loop\n");
