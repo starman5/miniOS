@@ -1714,21 +1714,28 @@ int proc::syscall_texit(regstate* regs) {
     auto irqs = real_ptable_lock.lock();
     real_proc* associated_process = real_ptable[pid_];
     real_ptable_lock.unlock(irqs);
+    auto threadirqs = associated_process->thread_list_lock_.lock();
+    log_printf("associated_process->thread_list_: %p\n", associated_process->thread_list_.back());
     proc* back_thread = associated_process->thread_list_.pop_back();
     bool other_threads = (associated_process->thread_list_.front());
     associated_process->thread_list_.push_back(back_thread);
     //log_printf("other threads: %i\n", other_threads)
 
     if (!other_threads) {
+        // The current thread is the only thread in the process
         log_printf("going into syscall exit\n");
         log_printf("regs: %p\n", regs_);
+        associated_process->thread_list_lock_.unlock(threadirqs);
         syscall_exit(regs);
     }
     else {
         //process_info();
         //thread_info();
         pstate_ = ps_exited;
+        real_ptable[pid_]->thread_list_.erase(this);
+        associated_process->thread_list_lock_.unlock(threadirqs);
         ptable[id_] = nullptr;
+        exiting_ = true;
         // Go into the scheduler, where the proc is freed, but
         // the pagetable and everything associated with the real_proc are not freed
         yield_noreturn();
@@ -1790,7 +1797,9 @@ int proc::syscall_clone(regstate* regs) {
         //thread_info();
         ptable_lock.unlock(ptableirqs);
         auto irqs4 = real_ptable_lock.lock();
+        auto threadirqs = real_ptable[thread->pid_]->thread_list_lock_.lock();
         real_ptable[thread->pid_]->thread_list_.push_back(thread);
+        real_ptable[thread->pid_]->thread_list_lock_.unlock(threadirqs);
         //process_info();
         real_ptable_lock.unlock(irqs4);
         log_printf("thread->regs: %p\n", thread->regs_);
@@ -1931,9 +1940,10 @@ int proc::syscall_fork(regstate* regs) {
         //log_printf("real_ptable[%i]: %p\n", process_number, real_ptable[process_number]);
 
         // TODO: what should i set pstate_ to for the real_proc?
-
+        auto threadirqs = p->thread_list_lock_.lock();
         // Set up the thread list and child list
         p->thread_list_.push_back(th);
+        p->thread_list_lock_.unlock(threadirqs);
         //log_printf("real_ptable[parent_pid_]: %p\n", real_ptable[parent_pid_]);
         real_ptable[parent_pid]->children_.push_back(p);
 
@@ -1998,7 +2008,7 @@ int proc::syscall_exit(regstate* regs) {
             // TODO: exit every thread associated with this real_proc.
             //      Once every thread has exited, then continue with 
             //      Freeing pagetable, etc
-        
+            auto threadirqs = real_ptable[pid_]->thread_list_lock_.lock();
             assert(real_ptable[pid_]->thread_list_.back());
             log_printf("before loop tlist: %p\n", real_ptable[pid_]->thread_list_.back());
             proc* first_thread = real_ptable[pid_]->thread_list_.pop_back();
@@ -2006,6 +2016,15 @@ int proc::syscall_exit(regstate* regs) {
             bool after = false;
             //int calling_count = 0;
             //display_threads(pid_);
+            
+            // All this loop does is set every thread except for the current one to exiting_ = true
+            // What I need to do is in the scheduler set ptable[thread->id_] to nullptr and kfree(thread)
+            // and set pstate_ to ps_exited
+
+            // In scheduler:
+            //  free the proc, set ptable[id] to nullptr, set pstate_ to ps_exited
+            //
+            //
             while (true) {
                 if (current_thread == first_thread && after) {
                     log_printf("same as first thread\n");
@@ -2031,9 +2050,11 @@ int proc::syscall_exit(regstate* regs) {
                 //log_printf("current_thread: %p\n", current_thread);
                 //log_printf("real_ptable[pid_]: %p\n", real_ptable[pid_]);
                 current_thread->exiting_ = true;
+                current_thread->pstate_ = ps_exited;
                 real_ptable[pid_]->thread_list_.push_front(current_thread);
                 current_thread = real_ptable[pid_]->thread_list_.pop_back();
             }
+            real_ptable[pid_]->thread_list_lock_.unlock(threadirqs);
             log_printf("before loop tlist: %p\n", real_ptable[pid_]->thread_list_.back());
             //log_printf("before block_until\n");
 
@@ -2041,6 +2062,9 @@ int proc::syscall_exit(regstate* regs) {
             real_ptable_lock.unlock(realptableirqs);
             ptable_lock.unlock(ptableirqs);
 
+
+            // What this block of code does is it waits for every thread other than the calling thread to exit
+            // A thread is "marked" as fully exiting if it is no longer in the ptable
             waiter w;
             w.p_ = this;
             w.block_until(threads_exit_wq, [&] () {
@@ -2053,7 +2077,7 @@ int proc::syscall_exit(regstate* regs) {
                     if (current_thread == this) {
                         //log_printf("calling count += 1");
                         calling_count += 1;
-                        real_ptable[pid_]->thread_list_.push_back(this);
+                        real_ptable[pid_]->thread_list_.push_front(this);
                         current_thread = real_ptable[pid_]->thread_list_.pop_back();
                         continue;
                     }
@@ -2063,12 +2087,13 @@ int proc::syscall_exit(regstate* regs) {
                     
                     if (ptable[current_thread->id_]) {
                         all_exited = false;
+                        real_ptable[pid_]->thread_list_.push_front(current_thread);
                         break;
                     }
                     current_thread = real_ptable[pid_]->thread_list_.pop_back();
                 }
                 if (current_thread == this) {
-                    real_ptable[pid_]->thread_list_.push_back(this);
+                    real_ptable[pid_]->thread_list_.push_front(this);
                 }
                 return all_exited;
             });
@@ -2076,6 +2101,7 @@ int proc::syscall_exit(regstate* regs) {
             //log_printf("after exit block until\n");
 
             // At this point all other threads in the process have exited
+            // They have been freed, are no longer in the ptable, and shouldn't be in the thread_list_ anymore
 
             set_pagetable(early_pagetable);
 

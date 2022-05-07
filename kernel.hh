@@ -155,6 +155,7 @@ struct real_proc {
 
     list_links child_links_;
     list<proc, &proc::thread_links_> thread_list_;
+    spinlock thread_list_lock_;
     list<real_proc, &real_proc::child_links_> children_;
 
     proc::pstate_t pstate_ = proc::ps_blank;

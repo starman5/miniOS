@@ -1,5 +1,6 @@
 #include "kernel.hh"
 #include "k-apic.hh"
+#include "k-wait.hh"
 
 cpustate cpus[MAXCPU];
 int ncpu;
@@ -79,10 +80,15 @@ void cpustate::schedule(proc* yielding_from) {
     assert(is_cli());              // interrupts are currently disabled
     assert(spinlock_depth_ == 0);  // no spinlocks are held
 
-    if (yielding_from->pstate_ == proc::ps_exited && yielding_from->waited_) {
+    if (yielding_from->pstate_ == proc::ps_exited && (yielding_from->waited_ || yielding_from->exiting_)) {
         log_printf("freeing struct proc\n");
         // free the stuff
         kfree(yielding_from);
+
+        if (yielding_from->exiting_) {
+            ptable[yielding_from->id_] = nullptr;
+            threads_exit_wq.wake_all();
+        }
     }
 
     // initialize idle task

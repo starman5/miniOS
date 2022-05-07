@@ -188,6 +188,7 @@ void process_main() {
     ch = sys_waitpid(p, &status);
     assert_eq(ch, p);
     assert_eq(status, 161);
+    message("past here\n");
 
     // check that `thread2a` really exited; if it did not, then
     // the read end of the pipe will still be open (because `thread2a`
