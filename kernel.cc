@@ -692,9 +692,9 @@ void init_first_process() {
   
     // put the thread p_init on the runqueue
     log_printf("after init_first_process\n");
-    auto irqs = real_ptable_lock.lock();
+    //auto irqs = real_ptable_lock.lock();
     //process_info();
-    real_ptable_lock.unlock(irqs);
+    //real_ptable_lock.unlock(irqs);
 
     auto irqs2 = ptable_lock.lock();
     //thread_info();
@@ -2111,13 +2111,14 @@ int proc::syscall_exit(regstate* regs) {
             waiter w;
             w.p_ = this;
             w.block_until(threads_exit_wq, [&] () {
-                //log_printf("in predicate\n");
+                log_printf("in predicate\n");
                 //log_printf("this pid: %i, id: %i\n", pid_, id_);
                 // check to make sure every other thread has exited fully
                 bool all_exited = true;
                 proc* current_thread = real_ptable[pid_]->thread_list_.pop_back();
                 int calling_count = 0;
                 while (current_thread && calling_count < 2) {
+                    log_printf("%p\n", real_ptable[pid_]);
                     if (current_thread == this) {
                         //log_printf("calling count += 1");
                         calling_count += 1;

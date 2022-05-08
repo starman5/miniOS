@@ -84,12 +84,12 @@ void cpustate::schedule(proc* yielding_from) {
     // }
     assert(spinlock_depth_ == 0);  // no spinlocks are held
 
-    if (!yielding_from) {
-        log_printf("y is nullptr\n");
-    }
-    if (yielding_from) {
-        log_printf("y: %i\n", yielding_from->id_);
-    }
+    // if (!yielding_from) {
+    //     log_printf("y is nullptr\n");
+    // }
+    // if (yielding_from) {
+    //     log_printf("y: %i\n", yielding_from->id_);
+    // }
     if (yielding_from->pstate_ == proc::ps_exited && (yielding_from->waited_ || yielding_from->exiting_)) {
         log_printf("go: %i\n", yielding_from->go_);
         log_printf("freeing struct proc\n");
@@ -99,10 +99,10 @@ void cpustate::schedule(proc* yielding_from) {
         if (yielding_from->exiting_) {
             log_printf("exiting true\n");
             //auto irqs = ptable_lock.lock();
-            ptable[yielding_from->id_] = nullptr;
             //ptable_lock.unlock(irqs);
             //kfree(yielding_from);
             threads_exit_wq.wake_all();
+            ptable[yielding_from->id_] = nullptr;
         }
         
         if (yielding_from) {
@@ -162,7 +162,16 @@ void cpustate::schedule(proc* yielding_from) {
     }
 
     // run `current_`
-    set_pagetable(current_->pagetable_);
+    // auto irqs = real_ptable_lock.lock();
+    // if (real_ptable[current_->pid_]) {
+    //     auto pagetableirqs = real_ptable[current_->pid_]->pagetable_lock_.lock();
+    //     set_pagetable(current_->pagetable_);
+    //     real_ptable[current_->pid_]->pagetable_lock_.unlock(pagetableirqs);
+    // }
+    // else {
+        set_pagetable(current_->pagetable_);
+    //}
+    //real_ptable_lock.unlock(irqs);
     current_->resume(); // does not return
 }
 
