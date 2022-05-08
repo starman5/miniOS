@@ -1387,6 +1387,7 @@ int proc::syscall_open(regstate* regs) {
         return E_FAULT;
     }
 
+    
     log_printf("%p\n", pathname);
     if (!vmiter(pagetable_, (uintptr_t)pathname).present() or !vmiter(pagetable_, (uintptr_t)pathname).user()) {
         log_printf("not valid\n");
