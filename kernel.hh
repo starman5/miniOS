@@ -155,6 +155,7 @@ struct real_proc {
     pid_t pid_;
     pid_t parent_pid_ = 1;
     x86_64_pagetable* pagetable_ = nullptr;    // Process's page table
+    spinlock pagetable_lock_;                  // Per-process pagetable lock
 
     list_links child_links_;
     list<proc, &proc::thread_links_> thread_list_;

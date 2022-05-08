@@ -1389,8 +1389,13 @@ int proc::syscall_open(regstate* regs) {
 
     
     log_printf("%p\n", pathname);
+    auto firstirqs = real_ptable_lock.lock();
+    real_proc* real_p = real_ptable[pid_];
+    auto pagetableirqs = real_p->pagetable_lock_.lock();
     if (!vmiter(pagetable_, (uintptr_t)pathname).present() or !vmiter(pagetable_, (uintptr_t)pathname).user()) {
         log_printf("not valid\n");
+        real_p->pagetable_lock_.unlock(pagetableirqs);
+        real_ptable_lock.unlock(firstirqs);
         return E_FAULT;
     }
 
@@ -1398,12 +1403,17 @@ int proc::syscall_open(regstate* regs) {
 
     for (vmiter it(pagetable_, (uintptr_t) pathname); it.va() != 0; it++) {
         if (!it.present() or !it.user()) {
+            real_p->pagetable_lock_.unlock(pagetableirqs);
+            real_ptable_lock.unlock(firstirqs);
             return E_FAULT;
         }
         if (*((char*)it.va()) == '\0') {
             break;
         }
     }
+
+    real_p->pagetable_lock_.unlock(pagetableirqs);
+    real_ptable_lock.unlock(firstirqs);
 
     auto ino = chkfsstate::get().lookup_inode(pathname);
     log_printf("break\n");
@@ -1804,7 +1814,7 @@ int proc::syscall_clone(regstate* regs) {
         // Shared state among threads
         thread->pid_ = pid_;
         thread->parent_pid_ = parent_pid_;
-        thread->pagetable_ = pagetable_;
+        //thread->pagetable_ = pagetable_;
         thread->recent_user_rip_ = recent_user_rip_;
 
         // return 0 to the newly created thread
@@ -1819,6 +1829,11 @@ int proc::syscall_clone(regstate* regs) {
         auto threadirqs = real_ptable[thread->pid_]->thread_list_lock_.lock();
         real_ptable[thread->pid_]->thread_list_.push_back(thread);
         real_ptable[thread->pid_]->thread_list_lock_.unlock(threadirqs);
+
+        auto pagetableirqs = real_ptable[thread->pid_]->pagetable_lock_.lock();
+        thread->pagetable_ = pagetable_;
+        real_ptable[thread->pid_]->pagetable_lock_.unlock(pagetableirqs);
+
         real_ptable[thread->pid_]->pstate_ = ps_runnable;
         //process_info();
         real_ptable_lock.unlock(irqs4);
@@ -1954,7 +1969,10 @@ int proc::syscall_fork(regstate* regs) {
         p->pid_ = process_number;
         th->pid_ = process_number;
         p->parent_pid_ = parent_pid;
+        auto pagetableirqs = p->pagetable_lock_.lock();
         p->pagetable_ = child_pagetable;
+        th->pagetable_ = child_pagetable;
+        p->pagetable_lock_.unlock(pagetableirqs);
         //log_printf("process number: %i\n", process_number);
         real_ptable[process_number] = p;
         //log_printf("real_ptable[%i]: %p\n", process_number, real_ptable[process_number]);
@@ -2162,6 +2180,9 @@ int proc::syscall_exit(regstate* regs) {
             // At this point all other threads in the process have exited
             // They have been freed, are no longer in the ptable, and shouldn't be in the thread_list_ anymore
 
+            auto irqs8 = real_ptable_lock.lock();
+            real_proc* real = real_ptable[pid_];
+            auto pagetableirqs = real->pagetable_lock_.lock();
             set_pagetable(early_pagetable);
 
             // Free all the mappings in the exiting process' pagetable
@@ -2184,6 +2205,10 @@ int proc::syscall_exit(regstate* regs) {
             kfree(pagetable_);
 
             pagetable_ = early_pagetable;
+
+            real->pagetable_lock_.unlock(pagetableirqs);
+            real_ptable_lock.unlock(irqs8);
+
             //real_ptable[pid_]->children_.push_back(nullptr);
 
             //real_ptable_lock.unlock(realptableirqs);
@@ -2779,6 +2804,9 @@ static void memshow() {
     spinlock_guard guard(ptable_lock);
 
     int search = 0;
+    auto irqs8 = real_ptable_lock.lock();
+    real_proc* real = real_ptable[ptable[showing]->pid_];
+    auto pagetableirqs = real->pagetable_lock_.lock();
     while ((!ptable[showing]
             || !ptable[showing]->pagetable_
             || ptable[showing]->pagetable_ == early_pagetable)
@@ -2786,6 +2814,8 @@ static void memshow() {
         showing = (showing + 1) % NPROC;
         ++search;
     }
+    real->pagetable_lock_.unlock(pagetableirqs);
+    real_ptable_lock.unlock(irqs8);
 
     console_memviewer(ptable[showing]);
     if (!ptable[showing]) {
