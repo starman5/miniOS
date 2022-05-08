@@ -115,9 +115,9 @@ void cpustate::schedule(proc* yielding_from) {
         //    threads_exit_wq.wake_all();
         //}
     }
-    if (yielding_from && yielding_from->exiting_ == true && ptable[yielding_from->id_]) {
+    if (yielding_from && yielding_from->exiting_ == true) {
         ptable[yielding_from->id_] = nullptr;
-        threads_exit_wq.wake_all();
+        threads_exit_wq
     }
 
     // initialize idle task

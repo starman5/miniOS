@@ -13,11 +13,16 @@
 #define MIN_ORDER       12
 #define MAX_ORDER       21
 
+// Futex operations
+#define FUTEX_WAIT      101
+#define FUTEX_WAKE      102
+
 
 // # timer interrupts so far on CPU 0
 std::atomic<unsigned long> ticks;
 wait_queue sleep_wq;
 wait_queue threads_exit_wq;
+wait_queue futex_wq;
 
 static void tick();
 static void boot_process_start(pid_t pid, pid_t id, const char* program_name);
@@ -144,7 +149,7 @@ int disk_vop_read(vnode* vn, uintptr_t addr, int sz) {
             //}
             log_printf("ncopy: %i, %i, %i, %i\n", ncopy, ino->size - it.offset(), chkfs::blocksize - b, sz - nread);
             memcpy((void*)addr + nread, e->buf_ + b, ncopy);
-            assert(e->ref_ != 0);
+            //assert(e->ref_ != 0);
             e->put();
 
             nread += ncopy;
@@ -188,7 +193,7 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
 
         if (bcentry* e = it.find(vn->vn_offset_).get_disk_entry()) {
             //log_printf("in first if\n");
-            assert(e->ref_ > 0);
+            //assert(e->ref_ > 0);
             unsigned b = it.block_relative_offset();
             size_t ncopy = min(chkfs::blocksize - b, sz - nwrite);
             log_printf("ncopy: %i\n", ncopy);
@@ -239,7 +244,7 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
                     //unsigned int bytes_needed = ino->size + ncopy - allocated_bytes;
                     unsigned int bytes_needed = sz - nwrite;
                     //log_printf("bytes needed: %i\n", bytes_needed);
-                    assert(bytes_needed > 0);
+                    //assert(bytes_needed > 0);
                     unsigned int blocks_needed = (round_up(bytes_needed, 4096)) / chkfs::blocksize;
                     //log_printf("blocks needed: %i\n", blocks_needed);
                     chkfsstate& state = chkfsstate::get();
@@ -291,7 +296,7 @@ int disk_vop_write(vnode* vn, uintptr_t addr, int sz) {
             e->get_write();
             //log_printf("got write\n");
             memcpy(e->buf_ + b, (void*) addr + nwrite, ncopy);
-            assert(e->ref_ != 0);
+            //assert(e->ref_ != 0);
             e->put_write();
             e->put();
 
@@ -522,12 +527,12 @@ int stdin_read(vnode* vn, uintptr_t addr, int sz) {
 }
 
 int pipe_read(vnode* vn, uintptr_t buf, int sz) {
-    log_printf("in pipe read\n");
+   // log_printf("in pipe read\n");
     //log_printf("vn: %p\n", vn);
     bbuffer* pipe_buffer = (bbuffer*) vn->vn_data_;
-    assert(vn->vn_data_);
-    assert(pipe_buffer);
-    log_printf("buf: %p\n", pipe_buffer);
+    //assert(vn->vn_data_);
+   // assert(pipe_buffer);
+   // log_printf("buf: %p\n", pipe_buffer);
     //log_printf("addr of buf: %p len: %i\n", pipe_buffer, pipe_buffer->blen_);
     //int ret = pipe_buffer->bbuf_read((char*) buf, sz);
     //while (ret == -1) {
@@ -555,9 +560,9 @@ int pipe_read(vnode* vn, uintptr_t buf, int sz) {
 
 int pipe_write(vnode* vn, uintptr_t buf, int sz) {
     log_printf("in pipe write\n");
-    assert(vn);
+    //assert(vn);
     bbuffer* pipe_buffer = (bbuffer*) vn->vn_data_;
-    assert(pipe_buffer);
+    //assert(pipe_buffer);
     //log_printf("addr of buf: %p len: %i\n", pipe_buffer, pipe_buffer->blen_);
     int writeret = pipe_buffer->bbuf_write((char*) buf, sz);
     //readpipe_wq.wake_all();
@@ -877,6 +882,9 @@ uintptr_t proc::syscall(regstate* regs) {
 
 
     switch (regs->reg_rax) {
+
+    case SYSCALL_FUTEX:
+        return syscall_futex(regs);
 
     case SYSCALL_CONSOLETYPE:
         if (consoletype != (int) regs->reg_rdi) {
@@ -1219,6 +1227,39 @@ int proc::syscall_lseek(regstate* regs) {
     }
 }
 
+int proc::syscall_futex(regstate* regs) {
+    uintptr_t addr = regs->reg_rdi;
+    int futex_op = regs->reg_rsi;
+    int val = regs->reg_rdx;
+    
+    // Validate the address, since its from a user and can't necessarily be trusted
+
+    if (futex_op == FUTEX_WAIT) {
+        // Atomically load value at addr and compare with val
+        if (val.compare_exchange_strong(&addr)) {
+            // Put it on futex_wq
+            waiter w;
+            w.p_ = this;
+            w.block_until(futex_wq, [&] () {
+                // They are no longer equal
+                val.compare_exchange_strong(&addr);
+            })
+        }
+        else {
+            return E_AGAIN;
+        }
+    }
+    else if (futex_op == FUTEX_WAKE) {
+        futex_wq.wake_all();
+    }
+    else {
+        return E_AGAIN;
+    }
+
+
+
+}
+
 int proc::syscall_execv(regstate* regs) {
     const char* filename = (const char*)regs->reg_rdi;
     const char* const* argv = (const char* const*)regs->reg_rsi;
@@ -1253,7 +1294,7 @@ int proc::syscall_execv(regstate* regs) {
 
     file_loader ld(ino, new_pagetable);
     log_printf("ld.pagetable_: %p\n", ld.pagetable_);
-    assert(ld.ino_ && ld.pagetable_);
+  //  assert(ld.ino_ && ld.pagetable_);
     int r = proc::load(ld);
     log_printf("buffer: %p\n", ld.buffer_);
     //assert(r >= 0);
@@ -1267,7 +1308,7 @@ int proc::syscall_execv(regstate* regs) {
     log_printf("finished loading\n");
 
     void* stkpg = kalloc(PAGESIZE);
-    assert(stkpg);
+   // assert(stkpg);
 
     
     //log_printf("id: %i, parent_id: %i\n", p->id_, p->parent_id_);
@@ -1454,7 +1495,7 @@ int proc::syscall_open(regstate* regs) {
             auto& bc = bufcache::get();
             auto superblock_entry = bc.get_disk_entry(0);
             //log_printf("after get disk entry\n");
-            assert(superblock_entry);
+           // assert(superblock_entry);
             auto& sb = *reinterpret_cast<chkfs::superblock*>
                 (&superblock_entry->buf_[chkfs::superblock_offset]);
             log_printf("ninodes: %i\n", sb.ninodes);
@@ -1615,9 +1656,9 @@ uintptr_t proc::syscall_pipe(regstate* regs) {
     real_ptable_lock.unlock(ptableirqs);
 
     auto irqs = real_process->vntable_lock_.lock();
-    assert(real_process->vntable_[0]);
-    assert(real_process->vntable_[1]);
-    assert(real_process->vntable_[2]);
+   // assert(real_process->vntable_[0]);
+   // assert(real_process->vntable_[1]);
+   // assert(real_process->vntable_[2]);
 
     bbuffer* new_buffer = knew<bbuffer>();
     vnode* readend_vnode = knew<vnode>();
@@ -1711,14 +1752,15 @@ int proc::syscall_dup2(regstate* regs) {
 //(void) regs;
 
 int proc::syscall_texit(regstate* regs) {
-    log_printf("in syscall_texit\n");
-    log_printf("texit regs: %p\n", regs_);
+    //log_printf("in syscall_texit\n");
+    //log_printf("texit regs: %p\n", regs_);
     // Check if there are other threads in the real_proc
     auto irqs = real_ptable_lock.lock();
     real_proc* associated_process = real_ptable[pid_];
+    //log_printf("associated_process: %p\n", associated_process);
     real_ptable_lock.unlock(irqs);
     auto threadirqs = associated_process->thread_list_lock_.lock();
-    log_printf("associated_process->thread_list_: %p\n", associated_process->thread_list_.back());
+    //log_printf("associated_process->thread_list_: %p\n", associated_process->thread_list_.back());
     proc* back_thread = associated_process->thread_list_.pop_back();
     bool other_threads = (associated_process->thread_list_.front());
     associated_process->thread_list_.push_back(back_thread);
@@ -1726,8 +1768,8 @@ int proc::syscall_texit(regstate* regs) {
 
     if (!other_threads) {
         // The current thread is the only thread in the process
-        log_printf("going into syscall exit\n");
-        log_printf("regs: %p\n", regs_);
+        //log_printf("going into syscall exit\n");
+        //log_printf("regs: %p\n", regs_);
         associated_process->thread_list_lock_.unlock(threadirqs);
         syscall_exit(regs);
     }
@@ -1746,16 +1788,16 @@ int proc::syscall_texit(regstate* regs) {
 }
 
 int proc::syscall_clone(regstate* regs) {
-    log_printf("in clone kernel code\n");
-    log_printf("clone regs: %p\n", this->regs_);
+    //log_printf("in clone kernel code\n");
+    //log_printf("clone regs: %p\n", this->regs_);
 
     // Create a new struct proc (thread)
     proc* thread = knew<proc>();
     if (!thread) {
-        log_printf("Failed to allocate new struct proc\n");
+        //log_printf("Failed to allocate new struct proc\n");
         return E_NOENT;
     }
-        log_printf("ptable_lock: %i\n", ptable_lock.is_locked());
+        //log_printf("ptable_lock: %i\n", ptable_lock.is_locked());
         auto ptableirqs = ptable_lock.lock();
         log_printf("able to grab lock\n");
         //Find the next available thread id (this is proc::id_)
@@ -1770,7 +1812,7 @@ int proc::syscall_clone(regstate* regs) {
             ptable_lock.unlock(ptableirqs);
             return E_NOENT;
         }
-        assert(thread);
+       // assert(thread);
         thread->id_ = thread_id;
 
         //log_printf("thread: %p, thread->regs: %p, regs: %p\n", thread, thread->regs_, regs);
@@ -1856,7 +1898,7 @@ int proc::syscall_fork(regstate* regs) {
             return E_NOENT;
         }
 
-        assert(th);
+   //     assert(th);
         th->init_user((pid_t) thread_number, child_pagetable);
     
         // Copying over pagetable mappings
@@ -1905,9 +1947,9 @@ int proc::syscall_fork(regstate* regs) {
         
         th->parent_pid_ = parent_pid;
 
-        assert(real_ptable[parent_pid_]);
+       // assert(real_ptable[parent_pid_]);
 
-        assert(ptable[thread_number]);
+       // assert(ptable[thread_number]);
         th->cpu_index_ = thread_number % ncpu;
     }
 
@@ -1932,7 +1974,7 @@ int proc::syscall_fork(regstate* regs) {
             log_printf("real_ptable is full\n");
             return E_NOENT;
         }
-        assert(p);
+    //    assert(p);
 
         //log_printf("p: %p\n", p);
         p->pid_ = process_number;
@@ -1986,19 +2028,19 @@ int proc::syscall_fork(regstate* regs) {
 
 int proc::syscall_exit(regstate* regs) {
         //{
-            log_printf("----- sys_exit on thread %i\n", id_);
+            //log_printf("----- sys_exit on thread %i\n", id_);
             num_children(2);
             auto ptableirqs = ptable_lock.lock();
             auto realptableirqs = real_ptable_lock.lock();
             //log_printf("ptlock\n");
-            assert(ptable[id_] != nullptr);
+          //  assert(ptable[id_] != nullptr);
             //process_info();
             //thread_info();
 
             // For every child process, reparent it to have parent process 1
             //log_printf("real_ptable[pid_]: %p\n", real_ptable[pid_]);
-            log_printf("pid: %i\n", pid_);
-            log_printf("has children: %i\n", real_ptable[pid_]->children_.front() != nullptr);
+            //log_printf("pid: %i\n", pid_);
+            //log_printf("has children: %i\n", real_ptable[pid_]->children_.front() != nullptr);
             if (real_ptable[pid_]->children_.front()) {
                 real_proc* real_child = real_ptable[pid_]->children_.pop_front();
                 while (real_child) {
@@ -2007,14 +2049,14 @@ int proc::syscall_exit(regstate* regs) {
                     real_child = real_ptable[pid_]->children_.pop_front();
                 }
             }
-            log_printf("has children: %i\n", real_ptable[pid_]->children_.front() != nullptr);
+            //log_printf("has children: %i\n", real_ptable[pid_]->children_.front() != nullptr);
 
             // TODO: exit every thread associated with this real_proc.
             //      Once every thread has exited, then continue with 
             //      Freeing pagetable, etc
             //auto threadirqs = real_ptable[pid_]->thread_list_lock_.lock();
-            assert(real_ptable[pid_]->thread_list_.back());
-            log_printf("before loop tlist: %p\n", real_ptable[pid_]->thread_list_.back());
+           // assert(real_ptable[pid_]->thread_list_.back());
+            //log_printf("before loop tlist: %p\n", real_ptable[pid_]->thread_list_.back());
             proc* first_thread = real_ptable[pid_]->thread_list_.pop_back();
             proc* current_thread = first_thread;
             bool after = false;
@@ -2031,7 +2073,7 @@ int proc::syscall_exit(regstate* regs) {
             //
             while (true) {
                 if (current_thread == first_thread && after) {
-                    log_printf("same as first thread\n");
+                    //log_printf("same as first thread\n");
                     real_ptable[pid_]->thread_list_.push_front(current_thread);
                     break;
                 }
@@ -2062,7 +2104,7 @@ int proc::syscall_exit(regstate* regs) {
             //this->exiting_ = true;
             //this->pstate_ = ps_exited;
             //real_ptable[pid_]->thread_list_lock_.unlock(threadirqs);
-            log_printf("before loop tlist: %p\n", real_ptable[pid_]->thread_list_.back());
+            //log_printf("before loop tlist: %p\n", real_ptable[pid_]->thread_list_.back());
             //log_printf("before block_until\n");
 
             // What until every thread has exited fully
@@ -2077,7 +2119,7 @@ int proc::syscall_exit(regstate* regs) {
             waiter w;
             w.p_ = this;
             w.block_until(threads_exit_wq, [&] () {
-                log_printf("in predicate\n");
+                //log_printf("in predicate\n");
                 //log_printf("this pid: %i, id: %i\n", pid_, id_);
                 // check to make sure every other thread has exited fully
                 bool all_exited = true;
@@ -2085,7 +2127,7 @@ int proc::syscall_exit(regstate* regs) {
                 int calling_count = 0;
                 while (current_thread && calling_count < 2) {
                     if (current_thread == this) {
-                        log_printf("calling count += 1");
+                        //log_printf("calling count += 1");
                         calling_count += 1;
                         real_ptable[pid_]->thread_list_.push_front(this);
                         current_thread = real_ptable[pid_]->thread_list_.pop_back();
@@ -2096,8 +2138,8 @@ int proc::syscall_exit(regstate* regs) {
                     // set ptable[current_thread->id_] to nullptr in the scheduler
                     
                     if (ptable[current_thread->id_]) {
-                        log_printf("ptable[current_thread->id_]: %i, %i\n", current_thread->id_, current_thread->exiting_);
-                        log_printf("ps: %i\n", (current_thread->pstate_ == ps_exited));
+                        //log_printf("ptable[current_thread->id_]: %i, %i\n", current_thread->id_, current_thread->exiting_);
+                        //log_printf("ps: %i\n", (current_thread->pstate_ == ps_exited));
                         all_exited = false;
                         real_ptable[pid_]->thread_list_.push_front(current_thread);
                         break;
@@ -2109,6 +2151,35 @@ int proc::syscall_exit(regstate* regs) {
                 }
                 return all_exited;
             }, ptable_lock, irqs4);
+
+             proc* curr_thread = real_ptable[pid_]->thread_list_.pop_back();
+                int count = 0;
+                while (curr_thread && count < 2) {
+                    if (curr_thread == this) {
+                        //log_printf("calling count += 1");
+                        count += 1;
+                        real_ptable[pid_]->thread_list_.push_front(this);
+                        curr_thread = real_ptable[pid_]->thread_list_.pop_back();
+                        continue;
+                    }
+
+                    //ptable[current_tread->id_] = nullptr;
+                    // set ptable[current_thread->id_] to nullptr in the scheduler
+                    
+                    // if (ptable[curr_thread->id_]) {
+                    //     log_printf("ptable[current_thread->id_]: %i, %i\n", curr_thread->id_, curr_thread->exiting_);
+                    //     log_printf("ps: %i\n", (curr_thread->pstate_ == ps_exited));
+                    
+                    //     real_ptable[pid_]->thread_list_.push_front(curr_thread);
+                    //     break;
+                    // }
+                    curr_thread->pstate_ = ps_exited;
+                    curr_thread = real_ptable[pid_]->thread_list_.pop_back();
+                }
+                if (curr_thread == this) {
+                    curr_thread->pstate_ = ps_exited;
+                    real_ptable[pid_]->thread_list_.push_front(this);
+                }
 
             ptable_lock.unlock(irqs4);
 
@@ -2127,7 +2198,7 @@ int proc::syscall_exit(regstate* regs) {
                 }
             }
 
-            assert(pagetable_ != early_pagetable);
+           // assert(pagetable_ != early_pagetable);
 
             // Continue freeing pagetable stuff
             for (ptiter it(pagetable_); it.low(); it.next()) {
@@ -2166,7 +2237,7 @@ int proc::syscall_exit(regstate* regs) {
 
 int* proc::check_exited(pid_t pid, bool condition) {
             //log_printf("in check exited\n");
-            assert(pid == 0);
+            //assert(pid == 0);
             bool zombies_exist = false;
             auto ptableirqs = real_ptable_lock.lock();
             real_proc* real_process = real_ptable[pid_];
@@ -2215,7 +2286,7 @@ int* proc::check_exited(pid_t pid, bool condition) {
 }
 
 int proc::syscall_waitpid(pid_t pid, int* status, int options) {
-    log_printf("in waitpid\n");
+    //log_printf("in waitpid\n");
     //num_children(pid_);
     //display_children(pid_);
     {
@@ -2226,7 +2297,7 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
             // Specifying a pid
             if (pid != 0) {
                 auto irqs = real_ptable_lock.lock();
-                log_printf("real_ptable[pid]: %p\n", real_ptable[pid]);
+                //log_printf("real_ptable[pid]: %p\n", real_ptable[pid]);
                 if (real_ptable[pid] && real_ptable[pid]->pstate_ == proc::ps_exited) {
                     //log_printf("ptable pid and ps_exited\n");
                     real_ptable[pid_]->children_.erase(real_ptable[pid]);
@@ -2243,7 +2314,7 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                             return E_AGAIN;
                         }
                         else {
-                            log_printf("ptable[pid] before goto: %p\n", ptable[pid]);
+                            //log_printf("ptable[pid] before goto: %p\n", ptable[pid]);
                             //real_ptable_lock.unlock(irqs);
                             // block until its ps_exited, then call proc::syscall_waitpid
                             goto block;
@@ -2282,7 +2353,7 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                     }
                 }*/
                 auto irqs2 = real_ptable_lock.lock();
-                log_printf("real_ptable[pid_]: %p\n", real_ptable[pid_]);
+                //log_printf("real_ptable[pid_]: %p\n", real_ptable[pid_]);
                 if (real_ptable[pid_]->children_.front()) {
                     real_ptable_lock.unlock(irqs2);
                     int* zombies_exist = check_exited(pid, true);
@@ -2309,7 +2380,7 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
                     return E_CHILD;
                 }
             }
-            log_printf("status: %p\n", status);
+            //log_printf("status: %p\n", status);
             if (status) {
                 //log_printf("exit status real_ptable[pid]: %p\n", real_ptable[pid]);
                 *status = real_ptable[pid]->exit_status_;
@@ -2325,12 +2396,12 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
             // BUT need to do it for the calling thread
             auto irqs3 = real_ptable_lock.lock();
             auto irqs4 = ptable_lock.lock();
-            log_printf("real_ptablepid: %p\n", real_ptable[pid]);
+            //log_printf("real_ptablepid: %p\n", real_ptable[pid]);
             proc* the_thread = real_ptable[pid]->thread_list_.pop_back();
-            assert(the_thread);
+           // assert(the_thread);
             //assert(real_ptable[pid]->thread_list_.back());
             //real_ptable[pid]->thread_list_.pop_back()->waited_ = true;
-            log_printf("thread list waitpid: %p\n", real_ptable[pid]->thread_list_.back());
+            //log_printf("thread list waitpid: %p\n", real_ptable[pid]->thread_list_.back());
             //ptable[real_ptable[pid]->thread_list_.pop_back()->id_] = nullptr;
             ptable[the_thread->id_]->waited_ = true;
             real_ptable[pid] = nullptr;
@@ -2345,7 +2416,7 @@ int proc::syscall_waitpid(pid_t pid, int* status, int options) {
         }
     
     //log_printf("end of waitpid no error\n");
-    log_printf("pid retvalue: %i\n", pid);
+    //log_printf("pid retvalue: %i\n", pid);
 
     return pid;
 
@@ -2505,7 +2576,7 @@ uintptr_t proc::syscall_readdiskfile(regstate* regs) {
                 sz - nread                         // bytes left in request
             );
             memcpy(buf + nread, e->buf_ + b, ncopy);
-            assert(e->ref_ != 0);
+            //assert(e->ref_ != 0);
             e->put();
 
             nread += ncopy;
