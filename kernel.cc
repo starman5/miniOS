@@ -1227,38 +1227,7 @@ int proc::syscall_lseek(regstate* regs) {
     }
 }
 
-int proc::syscall_futex(regstate* regs) {
-    uintptr_t addr = regs->reg_rdi;
-    int futex_op = regs->reg_rsi;
-    int val = regs->reg_rdx;
-    
-    // Validate the address, since its from a user and can't necessarily be trusted
 
-    if (futex_op == FUTEX_WAIT) {
-        // Atomically load value at addr and compare with val
-        if (val.compare_exchange_strong(&addr)) {
-            // Put it on futex_wq
-            waiter w;
-            w.p_ = this;
-            w.block_until(futex_wq, [&] () {
-                // They are no longer equal
-                val.compare_exchange_strong(&addr);
-            })
-        }
-        else {
-            return E_AGAIN;
-        }
-    }
-    else if (futex_op == FUTEX_WAKE) {
-        futex_wq.wake_all();
-    }
-    else {
-        return E_AGAIN;
-    }
-
-
-
-}
 
 int proc::syscall_execv(regstate* regs) {
     const char* filename = (const char*)regs->reg_rdi;
