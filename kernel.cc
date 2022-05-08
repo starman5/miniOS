@@ -1815,7 +1815,9 @@ int proc::syscall_clone(regstate* regs) {
         thread->pid_ = pid_;
         thread->parent_pid_ = parent_pid_;
         //thread->pagetable_ = pagetable_;
-        thread->recent_user_rip_ = recent_user_rip_;
+        log_printf("%p\n", recent_user_rip_);
+        //thread->recent_user_rip_ = recent_user_rip_;
+        thread->recent_user_rip_ = regs->reg_rip;
 
         // return 0 to the newly created thread
         thread->regs_->reg_rax = 0;

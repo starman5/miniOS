@@ -169,6 +169,7 @@ void cpustate::schedule(proc* yielding_from) {
     //     real_ptable[current_->pid_]->pagetable_lock_.unlock(pagetableirqs);
     // }
     // else {
+        //log_printf("%p\n", current_->pagetable_);
         set_pagetable(current_->pagetable_);
     //}
     //real_ptable_lock.unlock(irqs);
