@@ -1199,6 +1199,10 @@ uintptr_t proc::syscall(regstate* regs) {
     assert(0 == 1);
 }
 
+int proc::syscall_futex(regstate* regs) {
+    // Do nothing
+}
+
 int proc::syscall_lseek(regstate* regs) {
     int fd = regs->reg_rdi;
     int off = regs->reg_rsi;

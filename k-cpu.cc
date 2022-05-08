@@ -101,12 +101,12 @@ void cpustate::schedule(proc* yielding_from) {
             //auto irqs = ptable_lock.lock();
             ptable[yielding_from->id_] = nullptr;
             //ptable_lock.unlock(irqs);
-            kfree(yielding_from);
+            //kfree(yielding_from);
             threads_exit_wq.wake_all();
         }
         
         if (yielding_from) {
-            kfree(yielding_from);
+            //kfree(yielding_from);
         }
 
 
@@ -117,7 +117,7 @@ void cpustate::schedule(proc* yielding_from) {
     }
     if (yielding_from && yielding_from->exiting_ == true) {
         ptable[yielding_from->id_] = nullptr;
-        threads_exit_wq
+        threads_exit_wq.wake_all();
     }
 
     // initialize idle task
