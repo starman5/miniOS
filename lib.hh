@@ -290,6 +290,8 @@ struct bitset_view {
 #define SYSCALL_WAITPID         137
 #define SYSCALL_TESTKALLOC      138
 #define SYSCALL_FUTEX           139
+#define SYSCALL_TIME            140
+#define SYSCALL_BADFUTEX        141
 
 // Add new system calls here.
 // Your numbers should be >=128 to avoid conflicts.

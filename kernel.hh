@@ -119,6 +119,7 @@ struct __attribute__((aligned(4096))) proc {
         inline bool resumable() const;
 
         int syscall_futex(regstate* regs);
+        int syscall_badfutex(regstate* regs);
         int syscall_exit(regstate* regs);
         int syscall_texit(regstate* regs);
         int syscall_clone(regstate* regs);

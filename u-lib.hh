@@ -76,6 +76,14 @@ inline int sys_futex(int* addr, int futex_op, int val) {
     return make_syscall(SYSCALL_FUTEX, reinterpret_cast<uintptr_t>(addr), futex_op, val);
 }
 
+inline int sys_badfutex(int* addr, int futex_op, int val) {
+    return make_syscall(SYSCALL_BADFUTEX, reinterpret_cast<uintptr_t>(addr), futex_op, val);
+}
+
+inline int sys_time() {
+    return make_syscall(SYSCALL_TIME);
+}
+
 // sys_map_console
 //      map console at specified address
 inline int sys_map_console(volatile void* addr) {

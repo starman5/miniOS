@@ -882,9 +882,15 @@ uintptr_t proc::syscall(regstate* regs) {
 
 
     switch (regs->reg_rax) {
+    
+    case SYSCALL_TIME:
+        return (unsigned) ticks;
 
     case SYSCALL_FUTEX:
         return syscall_futex(regs);
+
+    case SYSCALL_BADFUTEX:
+        return syscall_badfutex(regs);
 
     case SYSCALL_CONSOLETYPE:
         if (consoletype != (int) regs->reg_rdi) {
@@ -1037,6 +1043,7 @@ uintptr_t proc::syscall(regstate* regs) {
         return syscall_exit(regs);
 
     case SYSCALL_MSLEEP: {
+        //log_printf("ticks: %ui\n", (unsigned)ticks);
         int ticksoriginal = ticks;
         
         log_printf("in sleep\n");
@@ -1054,7 +1061,7 @@ uintptr_t proc::syscall(regstate* regs) {
         });
         //log_printf("difference: %i, expected: %i\n", ticks - ticksoriginal, regs->reg_rdi);
         //log_printf("after sleep\n");
-
+        //log_printf("ticks: %ui\n", (unsigned)ticks);
         return 0;
     }
 
@@ -1199,22 +1206,39 @@ uintptr_t proc::syscall(regstate* regs) {
     assert(0 == 1);
 }
 
+int proc::syscall_badfutex(regstate* regs) {
+    uintptr_t addr = regs->reg_rdi;
+    int futex_op = regs->reg_rsi;
+    int val = regs->reg_rdx;    
+
+    if (futex_op == FUTEX_WAIT) {
+        std::atomic<uintptr_t> thing = addr;
+        bool compare = thing.compare_exchange_strong(addr, val);
+        while (compare) {
+            yield();
+        }
+    }
+
+}
+
 int proc::syscall_futex(regstate* regs) {
-     uintptr_t addr = regs->reg_rdi;
-   int futex_op = regs->reg_rsi;
-   int val = regs->reg_rdx;
+    uintptr_t addr = regs->reg_rdi;
+    int futex_op = regs->reg_rsi;
+    int val = regs->reg_rdx;
   
    // Validate the address, since its from a user and can't necessarily be trusted
  
    if (futex_op == FUTEX_WAIT) {
        // Atomically load value at addr and compare with val
-       if (compare_exchange_strong(&addr, val)) {
+       std::atomic<uintptr_t> thing = addr;
+       bool compare = thing.compare_exchange_strong(addr, val); 
+       if (compare) {
            // Put it on futex_wq
            waiter w;
            w.p_ = this;
            w.block_until(futex_wq, [&] () {
                // They are no longer equal
-               return (compare_exchange_strong(&addr, val));
+               return compare;
            });
        }
        else {
@@ -1764,6 +1788,7 @@ int proc::syscall_dup2(regstate* regs) {
 //(void) regs;
 
 int proc::syscall_texit(regstate* regs) {
+    //log_printf("ticks: %i\n", ticks);
     //log_printf("in syscall_texit\n");
     //log_printf("texit regs: %p\n", regs_);
     // Check if there are other threads in the real_proc
